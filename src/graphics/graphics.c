@@ -331,8 +331,9 @@ image_ImageData* graphics_getIcon() {
 }
 
 int graphics_setMode(int width, int height,
-                     bool fullscreen, bool vsync, int min_size_x, int min_size_y, int max_size_x, int max_size_y, bool border,
-                     int x, int y){
+                     bool fullscreen, bool vsync, int min_size_x, int min_size_y,
+                     int max_size_x, int max_size_y, bool border, int x, int y)
+{
 
     /*
      * If the main window was disabled in conf.lua

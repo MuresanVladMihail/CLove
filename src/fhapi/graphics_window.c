@@ -160,28 +160,20 @@ int fn_love_window_hasMouseFocus(struct fh_program *prog, struct fh_value *ret, 
 
 int fn_love_window_setMode(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
 
-    if (n_args < 8 || n_args > 11)
-        return fh_set_error(prog, "Invalid number of arguments");
-
-    for (int i = 0; i < 9; i++) {
-        if (i < 2 || (i >= 4 && i <= 7)) {
-            if (!fh_is_number(&args[0]))
-                return fh_set_error(prog, "Invalid argument, expected number");
-        } else if ((i >= 2 && i <= 3) || i == 8) {
-            if (!fh_is_bool(&args[2]))
-                return fh_set_error(prog, "Invalid argument, expected boolean");
-        }
+    for (int i = 0; i < 2; i++) {
+        if (!fh_is_number(&args[i]))
+            return fh_set_error(prog, "Invalid argument, expected number");
     }
 
     double w = fh_get_number(&args[0]);
     double h = fh_get_number(&args[1]);
-    bool fullscreen = fh_get_bool(&args[2]);
-    bool vsync = fh_get_bool(&args[3]);
-    double m_s_x = fh_get_number(&args[4]);
-    double m_s_y = fh_get_number(&args[5]);
-    double ma_s_x = fh_get_number(&args[6]);
-    double ma_s_y = fh_get_number(&args[7]);
-    bool border = fh_get_bool(&args[8]);
+    bool fullscreen = fh_optboolean(args, n_args, 2, false);
+    bool vsync = fh_optboolean(args, n_args, 3, true);
+    double m_s_x = fh_optnumber(args, n_args, 4, w / 2);
+    double m_s_y = fh_optnumber(args, n_args, 5, h / 2);
+    double ma_s_x = fh_optnumber(args, n_args, 6, w);
+    double ma_s_y = fh_optnumber(args, n_args, 7, h);
+    bool border = fh_optboolean(args, n_args, 8, true);
     double x = fh_optnumber(args, n_args, 9, -1);
     double y = fh_optnumber(args, n_args, 10, -1);
 
