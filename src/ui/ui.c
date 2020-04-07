@@ -16,6 +16,8 @@
 #include "../include/graphics.h"
 #include "../include/font.h"
 
+#include <string.h>
+
 static struct {
     mu_Context *ctx;
     graphics_Font *font;
@@ -57,7 +59,12 @@ static void draw_font(mu_TextCommand text, mu_Color color) {
 }
 
 static int text_width(mu_Font font, const char *text, int len) {
-    return graphics_Font_getWidth(moduleData.font, text);
+	if (len > 0) {
+		char t[len];
+		strncpy(t, text, len);
+		return graphics_Font_getWidth(moduleData.font, t);
+	}
+	return graphics_Font_getWidth(moduleData.font, text);
 }
 
 static int text_height(mu_Font font) {
@@ -69,7 +76,7 @@ void ui_init(void) {
     mu_init(moduleData.ctx);
 
     moduleData.font = malloc(sizeof (graphics_Font));
-    graphics_Font_new(moduleData.font, NULL, 12);
+    graphics_Font_new(moduleData.font, NULL, 14);
 
     // For font alignment and clipping to work correctly
     moduleData.ctx->text_width = text_width;
@@ -133,20 +140,12 @@ void ui_layout_width(int width) {
     mu_layout_width(moduleData.ctx, width);
 }
 
-mu_Container* ui_get_container() {
-    return mu_get_container(moduleData.ctx);
+mu_Container* ui_get_container(const char *name) {
+    return mu_get_container(moduleData.ctx, name);
 }
 
-void ui_init_window(mu_Container *cnt, int x, int y, int w, int h, int opt) {
-    cnt->inited = false;
-    if (!cnt->inited) {
-        mu_init_window(moduleData.ctx, cnt, opt);
-        cnt->rect = mu_rect(x, y, w, h);
-    }
-}
-
-int ui_begin_window(const char* title, mu_Container *window, int opt) {
-    return mu_begin_window_ex(moduleData.ctx, window, title, opt);
+int ui_begin_window(const char* title, mu_Rect rect, int opt) {
+    return mu_begin_window_ex(moduleData.ctx, title, rect, opt);
 }
 
 void ui_draw_control_text(const char *str, mu_Rect rect, int colorid, int opt) {
@@ -161,28 +160,28 @@ void ui_rect(mu_Rect rect, mu_Color color) {
     mu_draw_rect(moduleData.ctx, rect, color);
 }
 
-int ui_button(const char* label, int id, int opt) {
-    return mu_button_ex(moduleData.ctx, label, 0, id, opt);
+int ui_button(const char* label, int opt) {
+    return mu_button_ex(moduleData.ctx, label, 0, opt);
 }
 
-int ui_checkbox(const char *label, int state, int id) {
-    return mu_checkbox(moduleData.ctx, state, label, id);
+int ui_checkbox(const char *label, int state) {
+    return mu_checkbox(moduleData.ctx, label, &state);
 }
 
 void ui_text(const char *text) {
     mu_text(moduleData.ctx, text);
 }
 
-int ui_textbox(char* label, int ls, mu_Id id, char *typed_string, int opt) {
-    return mu_textbox(moduleData.ctx, label, ls, id, typed_string, opt);
+int ui_textbox(char* label, int len, int opt) {
+    return mu_textbox_ex(moduleData.ctx, label, len, opt);
 }
 
-int ui_header(int state, const char *label, int id, int opt) {
-    return mu_header(moduleData.ctx, state, label, id, opt);
+int ui_header(const char *label, int opt) {
+    return mu_header_ex(moduleData.ctx, label, opt);
 }
 
-int ui_begin_tree(int state, const char *label, int id) {
-    return mu_begin_treenode(moduleData.ctx, state, label, id);
+int ui_begin_tree(const char *label, int opt) {
+    return mu_begin_treenode_ex(moduleData.ctx, label, opt);
 }
 
 void ui_end_tree(void) {
@@ -190,7 +189,7 @@ void ui_end_tree(void) {
 }
 
 void ui_label(const char *label, int opt) {
-    mu_label(moduleData.ctx, label, opt);
+    mu_label(moduleData.ctx, label);
 }
 
 void ui_draw_rect(int x, int y, int w, int h,
@@ -199,24 +198,24 @@ void ui_draw_rect(int x, int y, int w, int h,
                  mu_color(r, g, b, a));
 }
 
-void ui_begin_panel(mu_Container *cnt, int opt) {
-    mu_begin_panel_ex(moduleData.ctx, cnt, opt);
+void ui_begin_panel(mu_Container *cnt, const char *name, int opt) {
+    mu_begin_panel_ex(moduleData.ctx, name, opt);
 }
 
 void ui_end_panel(void) {
     mu_end_panel(moduleData.ctx);
 }
 
-int ui_begin_popup(mu_Container *cnt) {
-    return mu_begin_popup(moduleData.ctx, cnt);
+int ui_begin_popup(const char *name) {
+    return mu_begin_popup(moduleData.ctx, name);
 }
 
-void ui_end_popup() {
+void ui_end_popup(void) {
     mu_end_popup(moduleData.ctx);
 }
 
-mu_Real ui_slider(mu_Real value, int low, int high, int step, mu_Id id, int opt) {
-  return mu_slider_ex(moduleData.ctx, value, low, high, step, MU_SLIDER_FMT, id, opt);
+mu_Real ui_slider(mu_Real value, int low, int high, int step, int opt) {
+  return mu_slider_ex(moduleData.ctx, &value, low, high, step, "%.0f", opt);
 }
 
 void ui_end_window(void) {
@@ -232,20 +231,20 @@ void ui_end(void) {
 }
 
 void ui_draw(void) {
-    graphics_clearScissor();
-    mu_Command *cmd = NULL;
-    while (mu_next_command(moduleData.ctx, &cmd)) {
-      if (cmd->type == MU_COMMAND_TEXT) {
-          draw_font(cmd->text, cmd->text.color);
-      } if (cmd->type == MU_COMMAND_RECT) {
-          draw_rect(cmd->rect.rect, cmd->rect.color);
-      } else if (cmd->type == MU_COMMAND_ICON) {
-          draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color);
-      } else if (cmd->type == MU_COMMAND_CLIP) {
-          graphics_setScissor(cmd->clip.rect.x, graphics_getHeight() - (cmd->clip.rect.y + cmd->clip.rect.h),
-                                      cmd->clip.rect.w, cmd->clip.rect.h);
-      }
-    }
+	graphics_clearScissor();
+	mu_Command *cmd = NULL;
+	while (mu_next_command(moduleData.ctx, &cmd)) {
+		switch (cmd->type) {
+			case MU_COMMAND_TEXT: draw_font(cmd->text, cmd->text.color); break;
+			case MU_COMMAND_RECT: draw_rect(cmd->rect.rect, cmd->rect.color); break;;
+			case MU_COMMAND_ICON: draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color); break;
+			case MU_COMMAND_CLIP: graphics_setScissor(cmd->clip.rect.x,
+										  graphics_getHeight() - (cmd->clip.rect.y + cmd->clip.rect.h),
+										  cmd->clip.rect.w, cmd->clip.rect.h); break;
+
+		}
+
+	}
 }
 
 void ui_input_mouse_move(int x, int y) {

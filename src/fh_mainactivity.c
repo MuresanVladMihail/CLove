@@ -85,8 +85,6 @@ static const char ui_key_map[256] = {
     [ SDLK_RALT         & 0xff ] = MU_KEY_ALT,
     [ SDLK_RETURN       & 0xff ] = MU_KEY_RETURN,
     [ SDLK_BACKSPACE    & 0xff ] = MU_KEY_BACKSPACE,
-    [ SDLK_RIGHT        & 0xff ] = MU_KEY_RIGHT,
-    [ SDLK_LEFT         & 0xff ] = MU_KEY_LEFT,
 };
 
 static const char ui_button_map[256] = {

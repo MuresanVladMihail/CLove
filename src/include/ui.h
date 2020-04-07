@@ -22,29 +22,29 @@ void ui_layout_width(int width);
 void ui_layout_set_next(int x, int y,
                         int w, int h,
                         int relative);
-mu_Container* ui_get_container(void);
+mu_Container* ui_get_container(const char *name);
 
-void ui_init_window(mu_Container *ctn, int x, int y, int w, int h, int opt);
-int ui_begin_window(const char *title, mu_Container *window, int opt);
+void ui_init_window(mu_Container *ctn, int x, int y, int w, int h);
+int ui_begin_window(const char *title, mu_Rect rect, int opt);
 void ui_end_window(void);
 
 void ui_draw_control_text(const char *str, mu_Rect rect, int colorid, int opt);
 mu_Rect ui_layout_next(void);
 void ui_rect(mu_Rect rect, mu_Color color);
-int ui_checkbox(const char *label, int state, int id);
+int ui_checkbox(const char *label, int state);
 void ui_text(const char *text);
-int ui_button(const char* label, int id, int opt);
-int ui_textbox(char* label, int ls, mu_Id id, char *typed_string, int opt);
-int ui_header(int state, const char *label, int id, int opt);
+int ui_button(const char* label, int opt);
+int ui_textbox(char* label, int len, int opt);
+int ui_header(const char *label, int opt);
 void ui_label(const char *label, int opt);
-mu_Real ui_slider(mu_Real value, int low, int high, int step, mu_Id id, int opt);
-int ui_begin_tree(int state, const char *label, int id);
+mu_Real ui_slider(mu_Real value, int low, int high, int step, int opt);
+int ui_begin_tree(const char *label, int opt);
 void ui_end_tree(void);
 void ui_draw_rect(int x, int y, int w, int h,
                   int r, int g, int b, int a);
-void ui_begin_panel(mu_Container *cnt, int opt);
+void ui_begin_panel(mu_Container *cnt, const char *name, int opt);
 void ui_end_panel(void);
-int ui_begin_popup(mu_Container *cnt);
+int ui_begin_popup(const char *name);
 void ui_end_popup(void);
 
 void ui_begin(void);
