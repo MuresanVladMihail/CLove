@@ -44,6 +44,7 @@ void ui_draw_rect(int x, int y, int w, int h,
                   int r, int g, int b, int a);
 void ui_begin_panel(mu_Container *cnt, const char *name, int opt);
 void ui_end_panel(void);
+void ui_open_popup(const char *name);
 int ui_begin_popup(const char *name);
 void ui_end_popup(void);
 

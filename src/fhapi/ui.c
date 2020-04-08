@@ -249,6 +249,46 @@ static int fn_love_ui_setContainerInfo(struct fh_program *prog,
     return 0;
 }
 
+static int fn_love_ui_begin_popup(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+
+    if (!fh_is_string(&args[0])) {
+        return fh_set_error(prog, "expected title, string at index 0");
+    }
+
+    const char *name = fh_get_string(&args[0]);
+
+    *ret = fh_new_bool(ui_begin_popup(name));
+
+    return 0;
+}
+
+static int fn_love_ui_open_popup(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+
+    if (!fh_is_string(&args[0])) {
+        return fh_set_error(prog, "expected title, string at index 0");
+    }
+
+    const char *name = fh_get_string(&args[0]);
+
+    ui_open_popup(name);
+
+    *ret = fh_new_null();
+    return 0;
+}
+
+static int fn_love_ui_end_popup(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    UNUSED(prog);
+    UNUSED(args);
+    UNUSED(n_args);
+
+    ui_end_popup();
+    *ret = fh_new_null();
+    return 0;
+}
+
 static int fn_love_ui_begin_window(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
 
@@ -464,7 +504,7 @@ static int fn_love_ui_label(struct fh_program *prog,
     const char *label = fh_get_string(&args[0]);
     int opt = (int) fh_optnumber(args, n_args, 1, MU_OPT_ALIGNRIGHT);
     ui_label(label, opt);
-    *ret = fh_new_bool(true);
+    *ret = fh_new_null();
     return 0;
 }
 
@@ -802,6 +842,9 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_ui_setContainerScroll),
     DEF_FN(love_ui_getContainerContentSize),
     DEF_FN(love_ui_opt),
+    DEF_FN(love_ui_begin_popup),
+    DEF_FN(love_ui_end_popup),
+    DEF_FN(love_ui_open_popup),
     DEF_FN(love_ui_res_state)
 };
 

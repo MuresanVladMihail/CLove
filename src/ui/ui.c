@@ -202,6 +202,10 @@ void ui_begin_panel(mu_Container *cnt, const char *name, int opt) {
     mu_begin_panel_ex(moduleData.ctx, name, opt);
 }
 
+void ui_open_popup(const char *name) {
+    mu_open_popup(moduleData.ctx, name);
+}
+
 void ui_end_panel(void) {
     mu_end_panel(moduleData.ctx);
 }
@@ -215,7 +219,7 @@ void ui_end_popup(void) {
 }
 
 mu_Real ui_slider(mu_Real value, int low, int high, int step, int opt) {
-  return mu_slider_ex(moduleData.ctx, &value, low, high, step, "%.0f", opt);
+  return mu_slider_ex(moduleData.ctx, &value, low, high, step, MU_SLIDER_FMT, opt);
 }
 
 void ui_end_window(void) {
