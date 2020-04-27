@@ -21,7 +21,8 @@ static GLchar const defaultVertexSource[] =
 
 static GLchar const vertexHeader[] =
 #ifndef CLOVE_WEB
-"#version 120\n"
+"#version 100 \n"
+"precision mediump float;\n"
 #endif
 "uniform   mat4 projection;\n"
 "uniform   mat4 view;\n"
@@ -50,7 +51,8 @@ static GLchar const defaultFragmentSource[] =
 
 static GLchar const fragmentHeader[] =
 #ifndef CLOVE_WEB
-"#version 120\n"
+"#version 100\n"
+"precision mediump float;\n"
 #endif
 #ifdef CLOVE_WEB
 "precision mediump float;\n"

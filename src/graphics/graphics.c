@@ -88,7 +88,6 @@ static void graphics_init_window(int width, int height)
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_SCISSOR_TEST);
-    // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     graphics_clearScissor();
 }
 
@@ -102,9 +101,10 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
     }
 
     moduleData.isCreated = false;
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
@@ -181,7 +181,7 @@ void graphics_setColor(float red, float green, float blue, float alpha) {
 }
 
 void graphics_clear(void) {
-    glClear(GL_COLOR_BUFFER_BIT/* | GL_DEPTH_BUFFER_BIT*/);
+    glClear(GL_COLOR_BUFFER_BIT);
 }
 
 void graphics_swap(void) {
