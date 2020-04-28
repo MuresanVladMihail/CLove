@@ -1,6 +1,7 @@
 version 0.8.0 not yet released
 ========================
-* added: love#filesystem#getInfo (FH, only).
+* added: Render To Texture (canvas) system (FH only)
+* added: love#filesystem#getInfo (FH only).
 * added: New particle module.
 * added: New UI module.
 * added: love#window#setMaxSize.
