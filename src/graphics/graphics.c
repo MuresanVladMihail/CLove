@@ -585,5 +585,5 @@ double graphics_getDPIScale(){
 }
 
 void graphics_shear(float kx, float ky){
-  matrixstack_shear_2d( kx, ky );
+  matrixstack_shear_2d(kx, ky);
 }

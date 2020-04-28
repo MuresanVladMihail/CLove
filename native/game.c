@@ -30,11 +30,14 @@ static const graphics_Quad defaultQuad = {
 graphics_Canvas c;
 
 void game_load(void) {
-    graphics_Canvas_new(&c, 600, 600);
+    graphics_Canvas_new(&c, 400, 200);
 
     graphics_setCanvas(&c);
-    graphics_setColor(.3f, .2f, .4f, 1);
-    graphics_geometry_rectangle(true, 40, 40, 64, 64, 0, 1, 1, 0, 0);
+    graphics_setBackgroundColor(.2f, .6f, .5f, 1);
+    graphics_clear();
+    graphics_setBlendMode(graphics_BlendMode_alpha);
+    graphics_setColor(1, .2f, .4f, 1);
+    graphics_geometry_lineCircle(120, 120, 32, 12, 0, 1, 1, 0, 0);
     graphics_setCanvas(NULL);
 }
 
@@ -45,7 +48,8 @@ void game_update(float delta) {
 void game_draw(void) {
     graphics_setBackgroundColor(.8f, .6f, .5f, 1);
     graphics_geometry_rectangle(true, 400, 400, 32, 32, 0, 1, 1, 0, 0);
-    graphics_Canvas_draw(&c, &defaultQuad, 220, 220, 0, 1, 1, 0, 0, 0, 0);
+
+    graphics_Canvas_draw(&c, &defaultQuad, 0, 0, 0, 1, 1, 0, 0, 0, 0);
 }
 
 void game_quit(void) {
