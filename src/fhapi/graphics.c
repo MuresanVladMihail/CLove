@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2019 Muresan Vlad
+#   Copyright (C) 2019-2020 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -17,6 +17,7 @@
 #include "graphics_mesh.h"
 #include "graphics_particlesystem.h"
 #include "graphics_quad.h"
+#include "graphics_canvas.h"
 
 #include "../include/graphics.h"
 #include "../include/matrixstack.h"
@@ -24,6 +25,7 @@
 #include "../include/batch.h"
 #include "../include/mesh.h"
 #include "../include/particlesystem.h"
+#include "../include/canvas.h"
 
 static int fn_love_graphics_setBackgroundColor(struct fh_program *prog,
                                                struct fh_value *ret, struct fh_value *args, int n_args) {
@@ -386,7 +388,7 @@ static int fn_love_graphics_draw(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
 
     if (!fh_is_c_obj(&args[0]))
-        return fh_set_error(prog, "Expected image, batch, mesh or particle as first argument, got '%s'",
+        return fh_set_error(prog, "Expected image, batch, mesh, canvas or particle as first argument, got '%s'",
                             fh_type_to_str(prog, args[0].type));
 
     struct fh_c_obj *o = fh_get_c_obj(&args[0]);
@@ -420,8 +422,11 @@ static int fn_love_graphics_draw(struct fh_program *prog,
     } else if (o->type == FH_GRAPHICS_PARTICLE) {
         graphics_ParticleSystem *particle = fh_get_c_obj_value(&args[0]);
         graphics_ParticleSystem_draw(particle, x, y, r, sx, sy, ox, oy, kx, ky);
+    } else if (o->type == FH_GRAPHICS_CANVAS) {
+        graphics_Canvas *canvas = fh_get_c_obj_value(&args[0]);
+        graphics_Canvas_draw(canvas, quad, x, y, r, sx, sy, ox, oy, kx, ky);
     }  else
-        return fh_set_error(prog, "Expected image, batch, mesh or particle as first argument, got '%s'",
+        return fh_set_error(prog, "Expected image, batch, mesh, canvas or particle as first argument, got '%s'",
                             fh_type_to_str(prog, args[0].type));
 
     *ret = fh_new_null();

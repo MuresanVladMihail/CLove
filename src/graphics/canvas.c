@@ -71,7 +71,7 @@ void graphics_setCanvas(graphics_Canvas* canvas) {
 		int height = canvas->image.height;
 		glBindFramebuffer(GL_FRAMEBUFFER, canvas->fbo);
 		glViewport(0, 0, width, height);
-		graphics_set_camera_2d(0, width, height, 0, 0.1f, 100.0f);
+		graphics_set_camera_2d(0, width, 0, height, 0.1f, 100.0f);
 	} else {
 		int width = graphics_getWidth();
 		int height = graphics_getHeight();
