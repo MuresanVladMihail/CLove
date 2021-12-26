@@ -102,6 +102,8 @@ FILE(
     src/graphics/*.c
     src/image/*.h
     src/image/*.c
+    src/svg/*.h
+    src/svg/*.c
     src/tools/*.c
     src/tools/*.h
     src/math/*.h

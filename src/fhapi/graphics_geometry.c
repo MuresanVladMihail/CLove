@@ -72,29 +72,13 @@ static int fn_love_geometry_rectangle(struct fh_program *prog,
 
 static int fn_love_geometry_points(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (n_args < 2) {
-        return fh_set_error(prog, "Expeceted 2 arguments");
+    if (n_args != 1) {
+        return fh_set_error(prog, "Expected 1 argument for love_geometry_points");
     }
 
-    double x = fh_get_number(&args[0]);
-    double y = fh_get_number(&args[1]);
-
-    graphics_geometry_points(x, y);
-    *ret = fh_new_null();
-    return 0;
-}
-
-static int fn_love_geometry_vertex(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (!fh_is_string(&args[0]) || !fh_is_array(&args[1])) {
-        return fh_set_error(prog, "Expected 2 arguments, string and array");
-    }
-
-    const char *filled = fh_get_string(&args[0]);
-
-    struct fh_value *arr = &args[1];
+    struct fh_value *arr = &args[0];
     int len = fh_get_array_len(arr);
-    int *vertices = malloc(sizeof(int)*len);
+    float *vertices = malloc(sizeof(float)*len);
 
     struct fh_array *a = GET_VAL_ARRAY(arr);
     for (int i = 0; i < len; i++) {
@@ -102,13 +86,65 @@ static int fn_love_geometry_vertex(struct fh_program *prog,
             free (vertices);
             return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
         }
-        vertices[i] = (int)a->items[i].data.num;
+        vertices[i] = (float)a->items[i].data.num;
+    }
+
+    graphics_geometry_points(vertices, len * 0.5);
+    *ret = fh_new_null();
+    free(vertices);
+    return 0;
+}
+
+static int fn_love_geometry_line(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1) {
+        return fh_set_error(prog, "Expected 1 argument for love_geometry_line");
+    }
+
+    struct fh_value *arr = &args[0];
+    int len = fh_get_array_len(arr);
+    float *vertices = malloc(sizeof(float)*len);
+
+    struct fh_array *a = GET_VAL_ARRAY(arr);
+    for (int i = 0; i < len; i++) {
+        if (a->items[i].type != FH_VAL_FLOAT) {
+            free (vertices);
+            return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
+        }
+        vertices[i] = (float)a->items[i].data.num;
+    }
+
+    graphics_geometry_line(vertices, len * 0.5f);
+    *ret = fh_new_null();
+    free(vertices);
+    return 0;
+}
+
+static int fn_love_geometry_polygon(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (!fh_is_string(&args[0]) || !fh_is_array(&args[1])) {
+        return fh_set_error(prog, "Expected 2 arguments, string and array, for love_geometry_polygon");
+    }
+
+    const char *filled = fh_get_string(&args[0]);
+
+    struct fh_value *arr = &args[1];
+    int len = fh_get_array_len(arr);
+    float *vertices = malloc(sizeof(float)*len);
+
+    struct fh_array *a = GET_VAL_ARRAY(arr);
+    for (int i = 0; i < len; i++) {
+        if (a->items[i].type != FH_VAL_FLOAT) {
+            free (vertices);
+            return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
+        }
+        vertices[i] = (float)a->items[i].data.num;
     }
 
     if (strcmp(filled, "fill") == 0)
-        graphics_geometry_vertex(true, vertices, len / 2);
+        graphics_geometry_polygon(true, vertices, len * 0.5);
     else if (strcmp(filled, "line") == 0)
-        graphics_geometry_vertex(false, vertices, len / 2);
+        graphics_geometry_polygon(false, vertices, len * 0.5);
     else {
         free(vertices);
         return fh_set_error(prog, "Expected 'fill' or 'line' for the first argument");
@@ -138,7 +174,8 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_geometry_circle),
     DEF_FN(love_geometry_rectangle),
     DEF_FN(love_geometry_points),
-    DEF_FN(love_geometry_vertex),
+    DEF_FN(love_geometry_line),
+    DEF_FN(love_geometry_polygon),
     DEF_FN(love_geometry_setLineWidth),
     DEF_FN(love_geometry_getLineWidth),
 };

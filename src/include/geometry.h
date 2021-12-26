@@ -46,17 +46,17 @@ void graphics_geometry_fillCircle(float x, float y, float radius,
 void graphics_geometry_lineCircle(float x, float y, float radius,
         uint32_t segments, float r, float sx, float sy, float ox, float oy);
 
+
+void graphics_geometry_polygon(bool filled, float* vertices, uint32_t vertex_count);
+
 /*
- * Summary: Draw vertices filled or not filled with color
- * x, y: position
- * vertices: position of the vertices to be drawn
- * count: the number of vertices to be draw, put #vertices
+ * Summary: Draws line(s).
  */
-void graphics_geometry_vertex(bool filled, int vertices[], uint32_t count);
+void graphics_geometry_line(float vertices[], uint32_t vertex_count);
 /*
- * Summary: Draw a pixel at X, Y
+ * Summary: Draws one point.
  */
-void graphics_geometry_points(float x, float y);
+void graphics_geometry_points(float* points, uint32_t count);
 
 void graphics_geometry_free();
 

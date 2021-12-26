@@ -110,8 +110,8 @@ static graphics_Glyph const* graphics_Font_findGlyph(graphics_Font *font, unsign
 
     uint8_t *buf = malloc(2*b.rows*b.width);
     uint8_t *row = b.buffer;
-    for(int i = 0; i < b.rows; ++i) {
-        for(int c = 0; c < b.width; ++c) {
+    for(unsigned int i = 0; i < b.rows; ++i) {
+        for(unsigned int c = 0; c < b.width; ++c) {
             buf[2*(i*b.width + c)    ] = 255;
             buf[2*(i*b.width + c) + 1] = row[c];
         }
