@@ -14,6 +14,7 @@
 
 #include "../include/utils.h"
 #include "../include/audio.h"
+#include "../include/streamsource.h"
 
 static struct {
 	ALCdevice* device;

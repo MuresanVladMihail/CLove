@@ -134,16 +134,16 @@ void fh_main_loop(int argc, char **argv) {
             switch (event.window.event)
             {
                 case SDL_WINDOWEVENT_ENTER:
-                    graphics_setMouseFocus(1);
+                    graphics_setMouseFocus(true);
                     break;
                 case SDL_WINDOWEVENT_LEAVE:
-                    graphics_setMouseFocus(0);
+                    graphics_setMouseFocus(false);
                     break;
                 case SDL_WINDOWEVENT_FOCUS_LOST:
-                    graphics_setFocus(0);
+                    graphics_setFocus(false);
                     break;
                 case SDL_WINDOWEVENT_FOCUS_GAINED:
-                    graphics_setFocus(1);
+                    graphics_setFocus(true);
                     break;
                 default:
                     break;

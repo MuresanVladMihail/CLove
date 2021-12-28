@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2019 Muresan Vlad
+#   Copyright (C) 2019-2021 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -137,7 +137,7 @@ int fn_love_window_getTitle(struct fh_program *prog, struct fh_value *ret, struc
 
 int fn_love_window_setPosition(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 2 || !fh_is_number(&args[0]) || !fh_is_number(&args[1]))
-        return fh_set_error(prog, "Expected parameters, x and y");
+        return fh_set_error(prog, "Expected parameters, x and y to be numbers");
 
     int x = (int)fh_get_number(&args[0]);
     int y = (int)fh_get_number(&args[1]);

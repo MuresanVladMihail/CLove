@@ -75,9 +75,9 @@ if (APPLE)
     find_library(IOKIT_LIB IOKit)
     set(MTCL_BUILD_FLAGS "-mmacosx-version-min=10.6")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MTCL_BUILD_FLAGS} -Wall -Wvla -O3 -DOSX")
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -D__Debug__ -g3")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${MTCL_BUILD_FLAGS}  -D__Debug__ -g3")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MTCL_BUILD_FLAGS} -O3 -DOSX")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D__Debug__")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D__Debug__ ${MTCL_BUILD_FLAGS}")
     set(CMAKE_SHARED_LINKER_FLAGS "-Wl")
     set(OS_SPECIFIC_LIBRARIES ${COCOA_LIB} ${CORE_SERVICES_LIB} ${FOUNDATION_LIB} ${IOKIT_LIB})
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -162,12 +162,14 @@ if (USE_FH)
         src/3rdparty/FH/src/vec/*.h
         src/3rdparty/FH/src/regex/*.c
         src/3rdparty/FH/src/regex/*.h
+        src/3rdparty/FH/src/crypto/*.c
+        src/3rdparty/FH/src/crypto/*.h
         )
 endif()
 
 set(clove_package "clove")
 set(clove_creator "Muresan Vlad")
-set(clove_copyright "Copyright (c) 2015-2019, ${clove_creator}.")
+set(clove_copyright "Copyright (c) 2015-2021, ${clove_creator}.")
 message(${clove_copyright})
 
 if (STATIC_LIB)
