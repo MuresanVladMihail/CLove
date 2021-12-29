@@ -331,19 +331,17 @@ void fh_main_activity_load(int argc, char* argv[])
 
     int ret = -1;
     if (run_package) {
-        ret = fh_run_pack(loopData.prog, dump_bytecode, argv[1], "config.fh", NULL, argv, argc);
+        ret = fh_run_pack(loopData.prog, dump_bytecode, argv[1], "config.fh", NULL, argv, argc, false);
         if (ret == 0) {
             fh_config(loopData.prog);
         }
-
-        ret = fh_run_pack(loopData.prog, dump_bytecode, argv[1], "main.fh", "main", argv, argc);
+        ret = fh_run_pack(loopData.prog, dump_bytecode, argv[1], "main.fh", "main", argv, argc, true);
     } else {
-        ret = fh_run_script_file(loopData.prog, dump_bytecode, "config.fh", NULL, argv, argc);
+        ret = fh_run_script_file(loopData.prog, dump_bytecode, "config.fh", NULL, argv, argc, false);
         if (ret == 0) {
             fh_config(loopData.prog);
         }
-
-        ret = fh_run_script_file(loopData.prog, dump_bytecode, "main.fh", "main", argv, argc);
+        ret = fh_run_script_file(loopData.prog, dump_bytecode, "main.fh", "main", argv, argc, true);
     }
 
     if (ret < 0) {
