@@ -59,6 +59,12 @@ SDL_Window* graphics_getWindow(void);
 int graphics_getDisplayCount();
 void graphics_setIcon(image_ImageData* imgd);
 image_ImageData* graphics_getIcon();
+/**
+ * @brief graphics_loadAndSetIcon, loads and sets an icon for the window. In case it cannot load the image
+ * a warning message will appear in console.
+ * @param iconPath the path to the image icon you want your window to have
+ */
+void graphics_loadAndSetIcon(const char* iconPath);
 bool graphics_hasMouseFocus();
 void graphics_setMouseFocus(int value);
 bool graphics_hasFocus();
@@ -69,7 +75,7 @@ void graphics_setTitle(const char* title);
 int graphics_setMode(int width, int height,
         bool fullscreen, bool vsync, int min_size_x, int min_size_y, int max_size_x, int max_size_y, bool border,
         int x, int y);
-
+void graphics_setWindowSize(int width, int height);
 const char* graphics_getDisplayName(int indx);
 int* graphics_getDesktopDimension();
 void graphics_setVersion(const char* version);
@@ -77,12 +83,16 @@ const char* graphics_getVersion();
 void graphics_setMinSize(int w, int h);
 void graphics_setMaxSize(int w, int h);
 void graphics_setBordless(bool value);
+void graphics_setWindowResizable(bool value);
+void graphics_destroyWindow();
 void graphics_setVsync(bool value);
-int graphics_setFullscreen(int value, const char* mode);
+int graphics_setFullscreen(bool fullscreen, const char* mode);
 bool graphics_isCreated();
 void graphics_destroyWindow();
 const char* graphics_getTitle();
 void graphics_setPosition(int x, int y);
+int graphics_getWindowX();
+int graphics_getWindowY();
 void graphics_set_look_at(float px, float py, float pz,float tx,float ty,float tz, float ux, float uy, float uz);
 void graphics_set_camera_3d(float fov, float ratio, float zNear, float zFar);
 void graphics_set_camera_2d(float left, float right, float bottom, float top, float zNear, float zFar);

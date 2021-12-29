@@ -42,7 +42,7 @@ static struct {
     bool hasIdentitySet;
 } moduleData;
 
-void filesystem_init(char* argv0, int stats) {
+void filesystem_init(char* argv0, bool stats) {
 #ifdef CLOVE_MACOSX
     moduleData.os = "osx";
 #elif CLOVE_LINUX

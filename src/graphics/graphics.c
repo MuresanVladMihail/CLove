@@ -35,8 +35,6 @@ static struct {
     bool scissorSet;
 
     mat4x4 projectionMatrix;
-    int width;
-    int height;
     const char* title;
     int x;
     int y;
@@ -107,7 +105,7 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
         return;
     }
 
-//Apparently I cannot create a GL context with ES 2.1 on OSX (tested on M1)
+    //Apparently I cannot create a GL context with ES 2.1 on OSX (tested on M1)
 #if !defined(CLOVE_MACOSX)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
@@ -123,8 +121,6 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 
-    moduleData.width = width;
-    moduleData.height = height;
     moduleData.x = SDL_WINDOWPOS_CENTERED;
     moduleData.y = SDL_WINDOWPOS_CENTERED;
     moduleData.title = "CLove: Untitled window";
@@ -165,6 +161,7 @@ void graphics_destroyWindow() {
         SDL_GL_DeleteContext(moduleData.context);
         SDL_DestroyWindow(moduleData.window);
     }
+    moduleData.hasWindow = false;
     SDL_Quit();
 }
 
@@ -249,7 +246,7 @@ bool graphics_hasMouseFocus() {
 }
 
 void graphics_setMouseFocus(int value) {
-     moduleData.mouse_focus = value;
+    moduleData.mouse_focus = value;
 }
 
 bool graphics_hasFocus(){
@@ -257,7 +254,7 @@ bool graphics_hasFocus(){
 }
 
 void graphics_setFocus(int value) {
-     moduleData.focus = value;
+    moduleData.focus = value;
 }
 
 void graphics_setPosition(int x, int y) {
@@ -273,6 +270,24 @@ void graphics_setPosition(int x, int y) {
 #endif
 }
 
+int graphics_getWindowX() {
+    if (!moduleData.hasWindow) {
+        return 0;
+    }
+    int x, y;
+    SDL_GetWindowPosition(moduleData.window, &x, &y);
+    return x;
+}
+
+int graphics_getWindowY() {
+    if (!moduleData.hasWindow) {
+        return 0;
+    }
+    int x, y;
+    SDL_GetWindowPosition(moduleData.window, &x, &y);
+    return y;
+}
+
 void graphics_setVsync(bool value) {
     if (moduleData.hasWindow) SDL_GL_SetSwapInterval(value);
 }
@@ -280,6 +295,13 @@ void graphics_setVsync(bool value) {
 void graphics_setBordless(bool value) {
     if (moduleData.hasWindow)
         SDL_SetWindowBordered(moduleData.window, (SDL_bool)!value);
+}
+
+void graphics_setWindowResizable(bool value) {
+    if (!moduleData.hasWindow) {
+        return;
+    }
+    SDL_SetWindowResizable(moduleData.window, value);
 }
 
 void graphics_setMinSize(int w, int h) {
@@ -318,8 +340,25 @@ void graphics_setIcon(image_ImageData* imgd) {
     SDL_FreeSurface(sdlicon);
 }
 
+void graphics_loadAndSetIcon(const char* iconPath) {
+    FILE* icon = fopen(iconPath, "r");
+    if (!icon) {
+        clove_error("%s %s\n", "Warning: Could not load window icon: ", iconPath);
+        return;
+    }
+    fclose(icon);
+    image_ImageData* img = malloc(sizeof(image_ImageData));
+    image_ImageData_new_with_filename(img, iconPath);
+    graphics_setIcon(img);
+    free(img);
+}
+
 image_ImageData* graphics_getIcon() {
     return moduleData.icon;
+}
+
+void graphics_setWindowSize(int width, int height) {
+    SDL_SetWindowSize(moduleData.window, width, height);
 }
 
 int graphics_setMode(int width, int height,
@@ -353,8 +392,6 @@ int graphics_setMode(int width, int height,
         moduleData.hasWindow = true;
     }
 
-    moduleData.width = width;
-    moduleData.height = height;
     SDL_SetWindowSize(moduleData.window, width, height);
 
     m4x4_newOrtho(&moduleData.projectionMatrix, 0, width, height, 0, 0.1f, 100.0f);
@@ -399,42 +436,40 @@ int graphics_getHeight(void) {
     return 0;
 }
 
-const char* graphics_getTitle()
-{
+const char* graphics_getTitle() {
     return moduleData.title;
 }
 
-int graphics_setFullscreen(int value, const char* mode){
-
+int graphics_setFullscreen(bool fullscreen, const char* mode) {
 #ifndef CLOVE_WEB
-    if (moduleData.hasWindow)
-    {
-        if (value == 1) {
-            if (strcmp(mode, "desktop") == 0)
-                SDL_SetWindowFullscreen(moduleData.window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-            else if (strcmp(mode, "fullscreen") == 0) {
-                SDL_SetWindowFullscreen(moduleData.window, SDL_WINDOW_FULLSCREEN);
+    if (moduleData.hasWindow) {
+        if (!fullscreen) {
+            SDL_SetWindowFullscreen(moduleData.window, 0);
+            return 0;
+        }
+
+        if (strcmp(mode, "desktop") == 0) {
+            if (SDL_SetWindowFullscreen(moduleData.window, SDL_WINDOW_FULLSCREEN_DESKTOP) < 0) {
+                clove_error("Error on 'fullscreen' %s", SDL_GetError());
             }
-            else {
-                clove_error("Unknown fullscreen type: %s, use: 'desktop' or 'fullscreen'\n", mode);
-                return 0;
+        } else if (strcmp(mode, "fullscreen") == 0) {
+            if (SDL_SetWindowFullscreen(moduleData.window, SDL_WINDOW_FULLSCREEN) < 0) {
+                clove_error("Error on 'fullscreen' %s", SDL_GetError());
             }
         } else {
-            SDL_SetWindowFullscreen(moduleData.window, 0);
+            clove_error("Unknown fullscreen type: %s, use: 'desktop' or 'fullscreen'\n", mode);
+            return -1;
         }
-        return 1;
     }
 #endif
     return 0;
 }
 
-bool graphics_isCreated()
-{
+bool graphics_isCreated() {
     return moduleData.isCreated;
 }
 
-void graphics_set_camera_2d(float left, float right, float bottom, float top, float zNear, float zFar)
-{
+void graphics_set_camera_2d(float left, float right, float bottom, float top, float zNear, float zFar) {
     if (moduleData.hasWindow)
     {
         m4x4_newIdentity(&moduleData.projectionMatrix);
@@ -576,7 +611,7 @@ double graphics_getDPIScale() {
 
     int pixelWidth, pixelHeight;
     SDL_GL_GetDrawableSize(moduleData.window, &pixelWidth, &pixelHeight);
-    return (double) pixelHeight / (double) moduleData.height;
+    return (double) pixelHeight / (double) graphics_getHeight();
 }
 
 void graphics_shear(float kx, float ky){

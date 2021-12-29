@@ -1,9 +1,11 @@
 version 0.8.0 not yet released
 ========================
 * made the framework compile and run on Mac OSX M1 (not using OpenGL ES 2.0 but Metal!)
-* added love_math_isConvex (FH only)
-* added love_graphics_points, love_graphics_line and love_graphics_polygon (FH only)
 * cleaned the code
+* added: config.fh, a file separated from main.fh which is used for
+	configurations (FH only)
+* added: love_math_isConvex (FH only)
+* added: love_graphics_points, love_graphics_line and love_graphics_polygon (FH only)
 * added: Render To Texture (canvas) system (FH only)
 * added: love_filesystem_getInfo (FH only).
 * added: New particle module.

@@ -33,7 +33,7 @@ struct FileInfo {
 	enum FileType type;
 };
 
-void filesystem_init(char* argv0, int stats);
+void filesystem_init(char* argv0, bool stats);
 void filesystem_free(void);
 
 const char* filesystem_getOS(void);

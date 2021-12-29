@@ -36,6 +36,7 @@ static int fn_love_filesystem_write(struct fh_program *prog,
 
     const char *filename = fh_get_string(&args[0]);
     const char *data = fh_get_string(&args[1]);
+
     int wrote_data = filesystem_write(filename, data);
     if (wrote_data < 0) {
         //Note: error will be issued in filesystem_write, no need to respecify it here.
