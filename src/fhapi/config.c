@@ -10,7 +10,9 @@
 
 #include "../3rdparty/FH/src/value.h"
 
+#include "../include/love.h"
 #include "../include/graphics.h"
+#include "../include/filesystem.h"
 
 int fh_config(struct fh_program *prog) {
 
@@ -107,6 +109,14 @@ int fh_config(struct fh_program *prog) {
         graphics_setFullscreen(true, GET_VAL_STRING_DATA(&ret));
     }
 
-    //filesystem identity si version check mai trebuie
+    key = fh_new_string(prog, "version");
+    if (fh_get_map_object_value(map, &key, &ret) == 0) {
+        const char* target_version = GET_VAL_STRING_DATA(&ret);
+        const char* current_version = love_getVersion()->strVersion;
+        if (strcmp(target_version, current_version) != 0) {
+            clove_error("Warning: Target version from config file %s is different than current running clove version %s", target_version, current_version);
+        }
+    }
+
     return 0;
 }

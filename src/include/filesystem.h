@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2021 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -41,10 +41,10 @@ const char* filesystem_getSaveDirectory(const char* company, const char* projNam
 int filesystem_read(char const* filename, char** output);
 int filesystem_write(const char* name, const char* data);
 int filesystem_append(const char* name, const char* data);
-int filesystem_exists(const char* name);
-int filesystem_getInfo(const char* path, struct FileInfo *info);
-int filesystem_equals(const char* a,const char* b,int l);
-int filesystem_contain(const char* a, const char* b);
+bool filesystem_exists(const char* name);
+bool filesystem_getInfo(const char* path, struct FileInfo *info);
+bool filesystem_equals(const char* a,const char* b,int l);
+bool filesystem_contain(const char* a, const char* b);
 bool filesystem_remove(const char* name);
 bool filesystem_rename(const char *old_name, const char *new_name);
 bool filesystem_state(const char* file, int mode);
