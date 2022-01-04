@@ -1,10 +1,16 @@
 version 0.8.0 not yet released
 ========================
+* made the framework compile and run on Mac OSX M1 (not using OpenGL ES 2.0 but Metal!)
+* cleaned the code
+* added: config.fh, a file separated from main.fh which is used for
+	configurations (FH only)
+* added: love_math_isConvex (FH only)
+* added: love_graphics_points, love_graphics_line and love_graphics_polygon (FH only)
 * added: Render To Texture (canvas) system (FH only)
-* added: love#filesystem#getInfo (FH only).
+* added: love_filesystem_getInfo (FH only).
 * added: New particle module.
 * added: New UI module.
-* added: love#window#setMaxSize.
+* added: love_window_setMaxSize.
 * added: New scripting language, FH.
 * added: Misc math utilities.
 * added: Very powerful particle system.
@@ -14,8 +20,8 @@ version 0.8.0 not yet released
 * added: CLove can be compiled as shared or static library.
 * added: 'set' function to batch.c. Allows for changing the structure of an entity which is part of the batch.
 * added: love.system.setClipboardText(text).
-* added: love#system#getClipboardText().
-* added: love#system#getProcessorCount().
+* added: love_system_getClipboardText().
+* added: love_system_getProcessorCount().
 
 * fixed: graphics#setFullscreen.
 * fixed: newImageFont is not broken anymore.

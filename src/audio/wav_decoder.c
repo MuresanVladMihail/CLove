@@ -10,6 +10,7 @@
 #include "../include/utils.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <stdint.h> // for int16_t and int32_t
 
@@ -50,7 +51,7 @@ int audio_wav_load(unsigned int buffer, char const * filename) {
 		fclose(file);
 		return 0;
 	}
-	header.id[4] = '\0';
+    header.id[3] = '\0';
 
 	if (strcmp(header.id, "RIFF") != 0) {
 		clove_error("File: %s is not of type 'RIFF'!\n", filename);
@@ -59,7 +60,7 @@ int audio_wav_load(unsigned int buffer, char const * filename) {
 	}
 
 	fseek(file, 44, SEEK_SET);
-	fread(readBuffer,1,size - 44, file);
+    fread(readBuffer, 1, size - 44, file);
 	fseek(file,0,SEEK_SET);
 
 	int samplerate = 0;
@@ -67,7 +68,7 @@ int audio_wav_load(unsigned int buffer, char const * filename) {
 	fread(&samplerate, 1, 4, file);
 	fseek(file, 0, SEEK_SET);
 
-	int format;
+    int format = AL_FORMAT_STEREO16;
 	if (header.format == 8) {
 		switch(header.channels){
 			case 1:

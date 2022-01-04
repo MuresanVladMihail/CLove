@@ -42,7 +42,7 @@ static struct {
     bool hasIdentitySet;
 } moduleData;
 
-void filesystem_init(char* argv0, int stats) {
+void filesystem_init(char* argv0, bool stats) {
 #ifdef CLOVE_MACOSX
     moduleData.os = "osx";
 #elif CLOVE_LINUX
@@ -83,33 +83,26 @@ const char* filesystem_getSaveDirectory(const char* company, const char* projNam
     return SDL_GetPrefPath(company, projName);
 }
 
-int filesystem_contain(const char* a, const char* b) {
-    if(strstr(a,b))
-        return 1;
-    else
-        return 0;
+bool filesystem_contain(const char* a, const char* b) {
+    return strstr(a,b) != NULL;
 }
 /*
  * This functions checks to see if two strings are the same
  * If you pass a number to argument 'l' then clove will
  * dheck for equality untill the point of 'l' value
  */
-int filesystem_equals(const char* a, const char* b, int l) {
-    if (l > 0)
-    {
+bool filesystem_equals(const char* a, const char* b, int l) {
+    if (l > 0) {
         if(strncmp(a, b, l) == 0)
-            return 1;
-    }
-    else
-    {
+            return true;
+    } else {
         if (strcmp(a, b) == 0)
-            return 1;
+            return true;
     }
-
-    return 0;
+    return false;
 }
 
-int filesystem_exists(const char* name)
+bool filesystem_exists(const char* name)
 {
 #ifndef USE_PHYSFS
     FILE* file = fopen(name,"r");
@@ -126,18 +119,20 @@ int filesystem_exists(const char* name)
 
 }
 
-int filesystem_getInfo(const char* path, struct FileInfo *info)
+bool filesystem_getInfo(const char* path, struct FileInfo *info)
 {
 	#ifndef USE_PHYSFS
 	clove_error("filesystem:isFile is supported just with PHYSFS");
 	return 0;
 	#endif
-	if (!PHYSFS_isInit())
-		return false;
+    if (!PHYSFS_isInit()) {
+        clove_error("PHYSFS is not initialized");
+        return false;
+    }
 	PHYSFS_Stat stat = {};
 	if (!PHYSFS_stat(path, &stat)) {
 		clove_error("Couldn't fetch information about path %s\n", path);
-		return 0;
+        return false;
 	}
 	info->modtime = stat.modtime;
 	info->accesstime = stat.accesstime;
@@ -153,14 +148,13 @@ int filesystem_getInfo(const char* path, struct FileInfo *info)
 	} else {
 		info->type = FileType_OTHER;
 	}
-	return 1;
+    return true;
 }
 
 int filesystem_write(const char* name, const char* data)
 {
 
 #ifdef USE_PHYSFS
-
     PHYSFS_File* file;
     file = PHYSFS_openWrite(name);
     if(! file) {
@@ -318,9 +312,7 @@ int filesystem_read(char const* filename, char** output) {
 bool filesystem_mkDir(const char* path)
 {
 #ifdef USE_PHYSFS
-
     return PHYSFS_mkdir(path) != 0;
-
 #else
     /*
 #ifdef CLOVE_UNIX
@@ -388,30 +380,31 @@ bool filesystem_setIdentity(const char* name)
     const char* save_dir = filesystem_getUsrDir();
 
     if (! PHYSFS_setWriteDir(save_dir)) {
-        clove_error(PHYSFS_getLastError());
+        clove_error("Error in fileystem set identity %s", PHYSFS_getLastError());
         return false;
     }
 
     if (! filesystem_mkDir(name)) {
         PHYSFS_setWriteDir(NULL);
-        clove_error(PHYSFS_getLastError());
+        clove_error("Error in fileystem set identity, cannot mkdir, %s",PHYSFS_getLastError());
         return false;
     }
 
     if (! PHYSFS_setWriteDir(name)) {
-        clove_error(PHYSFS_getLastError());
+        clove_error("Error in fileystem set identity, cannot set write dir, %s",PHYSFS_getLastError());
         return false;
     }
 
     if (! PHYSFS_mount(name, NULL, 0)) {
         PHYSFS_setWriteDir(NULL);
-        clove_error(PHYSFS_getLastError());
+        clove_error("Error in fileystem set identity,cannot mount, %s", PHYSFS_getLastError());
         return false;
     }
     moduleData.hasIdentitySet = true;
     return true;
 #else
-    return true;
+    clove_error("identity feature is supported by enabling physfs.");
+    return false;
 #endif
 }
 
@@ -436,7 +429,6 @@ bool filesystem_unmount(const char* path)
     }
     return PHYSFS_removeFromSearchPath(path) != 0;
 #else
-
     clove_error("unmouting feature is supported by enabling physfs.");
     return false;
 #endif

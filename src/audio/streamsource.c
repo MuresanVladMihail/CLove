@@ -47,14 +47,12 @@ void audio_StreamInit() {
 }
 
 int audio_loadStream(audio_StreamSource *source, char const * filename) {
-    int err = 1;
-
     source->decoderData = malloc(sizeof(audio_vorbis_DecoderData));
 
     //NOTE: CLove only supports vorbis files when it comes to streaming!
-    err = audio_vorbis_loadStream(source->decoderData, filename);
-    if (err == 0)
-        err = 1;
+    if (audio_vorbis_loadStream(source->decoderData, filename) == VORBIS_file_open_failure) {
+        return VORBIS_file_open_failure;
+    }
 
     alGenSources(1, &source->source);
     alSourcef( source->source, AL_PITCH,    1.0f);
@@ -71,7 +69,7 @@ int audio_loadStream(audio_StreamSource *source, char const * filename) {
         audio_vorbis_uploadSreamSamples(source->decoderData, source->buffers[i]);
     }
     source->loop = false;
-    return err;
+    return 1;
 }
 
 

@@ -3,7 +3,7 @@
 CLove
 =====
 CLove is a simple, easy to learn and use 2D game framework tested on
-Mac/Linux/Windows/Web, made in C with OpenGL ES 2.0 which uses Lua and FH as scripting languages.
+Mac/Linux/Windows/Web, made in C with OpenGL which uses Lua and FH as scripting languages.
 
 How to build
 ============

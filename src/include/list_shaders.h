@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2017-2020 Muresan Vlad
+#   Copyright (C) 2017-2021 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -20,7 +20,7 @@ static GLchar const defaultVertexSource[] =
 "}\n";
 
 static GLchar const vertexHeader[] =
-#ifndef CLOVE_WEB
+#if !defined(CLOVE_WEB) && !defined(CLOVE_MACOSX)
 "#version 100 \n"
 "precision mediump float;\n"
 #endif
@@ -50,7 +50,7 @@ static GLchar const defaultFragmentSource[] =
 "}\n";
 
 static GLchar const fragmentHeader[] =
-#ifndef CLOVE_WEB
+#if !defined(CLOVE_WEB) && !defined(CLOVE_MACOSX)
 "#version 100\n"
 "precision mediump float;\n"
 #endif

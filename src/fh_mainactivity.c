@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2019-2020 Muresan Vlad
+#   Copyright (C) 2019-2021 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -33,6 +33,7 @@
 #include "fhapi/love.h"
 #include "fhapi/ui.h"
 #include "fhapi/graphics_canvas.h"
+#include "fhapi/config.h"
 
 #include "include/geometry.h"
 #include "include/ui.h"
@@ -111,10 +112,10 @@ void fh_main_loop(int argc, char **argv) {
     game_update((float)timer_getDelta());
 #endif
 
-	/*if (clove_reload) {
+    /*if (clove_reload) {
 
-		clove_reload = false;
-	}*/
+        clove_reload = false;
+    }*/
 
     graphics_clear();
     if (fh_call_function(loopData.prog, "love_draw", &loopData.opt, 1, NULL) == -2) {
@@ -133,117 +134,117 @@ void fh_main_loop(int argc, char **argv) {
         if (event.type == SDL_WINDOWEVENT) {
             switch (event.window.event)
             {
-                case SDL_WINDOWEVENT_ENTER:
-                    graphics_setMouseFocus(1);
-                    break;
-                case SDL_WINDOWEVENT_LEAVE:
-                    graphics_setMouseFocus(0);
-                    break;
-                case SDL_WINDOWEVENT_FOCUS_LOST:
-                    graphics_setFocus(0);
-                    break;
-                case SDL_WINDOWEVENT_FOCUS_GAINED:
-                    graphics_setFocus(1);
-                    break;
-                default:
-                    break;
+            case SDL_WINDOWEVENT_ENTER:
+                graphics_setMouseFocus(true);
+                break;
+            case SDL_WINDOWEVENT_LEAVE:
+                graphics_setMouseFocus(false);
+                break;
+            case SDL_WINDOWEVENT_FOCUS_LOST:
+                graphics_setFocus(false);
+                break;
+            case SDL_WINDOWEVENT_FOCUS_GAINED:
+                graphics_setFocus(true);
+                break;
+            default:
+                break;
             }
         }
         switch(event.wheel.type) {
-            case SDL_MOUSEWHEEL:
-                {
-                    ui_input_scroll(0, event.wheel.y * - 30);
-                    mouse_mousewheel(event.wheel.y);
-                    int _what = event.wheel.y == 1 ? SDL_MOUSEBUTTONUP : SDL_MOUSEBUTTONDOWN;
-                    mouse_mousepressed(event.button.x, event.button.y, _what);
-                    mouse_setButton(event.button.button);
-                    break;
-                }
-            default:
-                break;
+        case SDL_MOUSEWHEEL:
+        {
+            ui_input_scroll(0, event.wheel.y * - 30);
+            mouse_mousewheel(event.wheel.y);
+            int _what = event.wheel.y == 1 ? SDL_MOUSEBUTTONUP : SDL_MOUSEBUTTONDOWN;
+            mouse_mousepressed(event.button.x, event.button.y, _what);
+            mouse_setButton(event.button.button);
+            break;
+        }
+        default:
+            break;
         }
         switch(event.type) {
-            case SDL_KEYDOWN:
-                {
-                    int c = ui_key_map[event.key.keysym.sym & 0xff];
-                    if (c) {
-                        ui_input_keydown(c);
-                    }
-                    keyboard_keypressed(event.key.keysym.sym);
-                    break;
-                }
-            case SDL_KEYUP:
-                {
-                    int c = ui_key_map[event.key.keysym.sym & 0xff];
-                    if (c) {
-                        ui_input_keyup(c);
-                    }
-                    keyboard_keyreleased(event.key.keysym.sym);
-                    break;
-                }
-            case SDL_TEXTINPUT:
-                {
-                    const char *text = event.text.text;
-                    ui_input_text(text);
-                    keyboard_textInput(text);
-                    break;
-                }
-            case SDL_MOUSEMOTION:
-                {
-                    int x = event.motion.x;
-                    int y = event.motion.y;
-                    ui_input_mouse_move(x, y);
-                    mouse_mousemoved(x, y);
-                    break;
-                }
-            case SDL_MOUSEBUTTONDOWN:
-                {
-                    int x = event.button.x;
-                    int y = event.button.y;
-                    int btn = event.button.button;
-                    int ui_btn = ui_button_map[btn & 0xff];
-                    if (ui_btn) {
-                        ui_input_mouse_down(ui_btn, x, y);
-                    }
-                    mouse_mousepressed(x, y, btn);
-                    mouse_setButton(btn);
-                    break;
-                }
-            case SDL_MOUSEBUTTONUP:
-                {
-                    int x = event.button.x;
-                    int y = event.button.y;
-                    int btn = event.button.button;
-                    int ui_btn = ui_button_map[btn & 0xff];
-                    if (ui_btn) {
-                        ui_input_mouse_up(ui_btn, x, y);
-                    }
-                    mouse_mousereleased(x, y, btn);
-                    mouse_setButton(0);
-                    break;
-                }
-            case SDL_JOYDEVICEADDED:
-                        joystick_added(event.jdevice.which);
-                        break;
-            case SDL_JOYDEVICEREMOVED:
-                        joystick_remove(event.jdevice.which);
-                        break;
-            case SDL_JOYAXISMOTION:
-                        break;
-            case SDL_JOYBUTTONDOWN:
-                        joystick_buttonDown(event.jbutton.which, event.jbutton.button, event.jbutton.state);
-                        break;
-            case SDL_JOYBUTTONUP:
-                        joystick_buttonUp(event.jbutton.which, event.jbutton.button, event.jbutton.state);
-                        break;
+        case SDL_KEYDOWN:
+        {
+            int c = ui_key_map[event.key.keysym.sym & 0xff];
+            if (c) {
+                ui_input_keydown(c);
+            }
+            keyboard_keypressed(event.key.keysym.sym);
+            break;
+        }
+        case SDL_KEYUP:
+        {
+            int c = ui_key_map[event.key.keysym.sym & 0xff];
+            if (c) {
+                ui_input_keyup(c);
+            }
+            keyboard_keyreleased(event.key.keysym.sym);
+            break;
+        }
+        case SDL_TEXTINPUT:
+        {
+            const char *text = event.text.text;
+            ui_input_text(text);
+            keyboard_textInput(text);
+            break;
+        }
+        case SDL_MOUSEMOTION:
+        {
+            int x = event.motion.x;
+            int y = event.motion.y;
+            ui_input_mouse_move(x, y);
+            mouse_mousemoved(x, y);
+            break;
+        }
+        case SDL_MOUSEBUTTONDOWN:
+        {
+            int x = event.button.x;
+            int y = event.button.y;
+            int btn = event.button.button;
+            int ui_btn = ui_button_map[btn & 0xff];
+            if (ui_btn) {
+                ui_input_mouse_down(ui_btn, x, y);
+            }
+            mouse_mousepressed(x, y, btn);
+            mouse_setButton(btn);
+            break;
+        }
+        case SDL_MOUSEBUTTONUP:
+        {
+            int x = event.button.x;
+            int y = event.button.y;
+            int btn = event.button.button;
+            int ui_btn = ui_button_map[btn & 0xff];
+            if (ui_btn) {
+                ui_input_mouse_up(ui_btn, x, y);
+            }
+            mouse_mousereleased(x, y, btn);
+            mouse_setButton(0);
+            break;
+        }
+        case SDL_JOYDEVICEADDED:
+            joystick_added(event.jdevice.which);
+            break;
+        case SDL_JOYDEVICEREMOVED:
+            joystick_remove(event.jdevice.which);
+            break;
+        case SDL_JOYAXISMOTION:
+            break;
+        case SDL_JOYBUTTONDOWN:
+            joystick_buttonDown(event.jbutton.which, event.jbutton.button, event.jbutton.state);
+            break;
+        case SDL_JOYBUTTONUP:
+            joystick_buttonUp(event.jbutton.which, event.jbutton.button, event.jbutton.state);
+            break;
 #ifdef CLOVE_DESKTOP
-            case SDL_QUIT:
-                        {
-                            loopData.called_quit = true;
-                            quit_function();
-                            clove_running = false;
-                            break;
-                        }
+        case SDL_QUIT:
+        {
+            loopData.called_quit = true;
+            quit_function();
+            clove_running = false;
+            break;
+        }
 #endif
         }
     }
@@ -253,11 +254,11 @@ void fh_main_loop(int argc, char **argv) {
 void fh_main_activity_load(int argc, char* argv[])
 {
     fh_init();
-	clove_reload = false;
+    clove_reload = false;
     clove_running = true;
     loopData.called_quit = false;
     loopData.prog = fh_new_program();
-    if (! loopData.prog) {
+    if (!loopData.prog) {
         clove_error("ERROR: out of memory for initializing language FH\n");
         return;
     }
@@ -266,52 +267,30 @@ void fh_main_activity_load(int argc, char* argv[])
     joystick_init();
     timer_init();
 
-    //love_Config config;
-
-    filesystem_init(argv[0], 1/*config.window.stats*/);
+    filesystem_init(argv[0], true);
 
     graphics_particlesystem_init();
 
-    audio_init(1/*config.window.stats*/);
+    audio_init(true);
     //filesystem_setIdentity("./");
 
-    if (1/*config.window.stats*/)
-        printf("%s %s \n", "Debug: Platform:", filesystem_getOS());
+    printf("%s %s \n", "Platform:", filesystem_getOS());
 
-    graphics_init(800/*config.window.width*/, 600/*config.window.height*/, 0/*config.window.resizable*/, 1/*config.window.stats*/, 1/*config.window.window*/);
-    /*
-     * When we do not have a visible window we can't put
-     * these propieties
-     */
-    if (1/*config.window.window*/)
-    {
-        graphics_setTitle("CLove"/*config.window.title*/);
-        graphics_setBordless(0/*config.window.bordless*/);
-        graphics_setMinSize(800, 600/*config.window.minwidth, config.window.minheight*/);
-        graphics_setMaxSize(800, 600);
-        graphics_setVsync(1/*config.window.vsync*/);
-        graphics_setPosition(-1,-1/*config.window.x, config.window.y*/);
-        graphics_setFullscreen(0, 0);
-    }
+    graphics_init(800, 600, 0, 1, 1);
+
+    graphics_setBordless(0);
+    graphics_setVsync(true);
+    graphics_setFullscreen(false, 0);
+
     graphics_geometry_init();
     ui_init();
 
-    FILE* icon = fopen("icon.png", "r");
-    if (icon)
-    {
-        fclose(icon);
-        image_ImageData* img = malloc(sizeof(image_ImageData));
-        image_ImageData_new_with_filename(img, "icon.png");
-        graphics_setIcon(img);
-        free(img);
-    }
+    graphics_loadAndSetIcon("icon.png");
 
     love_Version const * version = love_getVersion();
-    if (1/*config.window.stats > 0*/) {
-        printf("%s %s %d.%d.%d \n", "CLove version - ",
-                version->codename,version->major,version->minor,version->revision);
-		printf("FH version - %s\n", FH_VERSION);
-	}
+    printf("%s %s %d.%d.%d \n", "CLove version - ",
+           version->codename, version->major,version->minor, version->revision);
+    printf("FH version - %s\n", FH_VERSION);
 
     fh_keyboard_register(loopData.prog);
     fh_mouse_register(loopData.prog);
@@ -336,27 +315,34 @@ void fh_main_activity_load(int argc, char* argv[])
     fh_graphics_canvas_register(loopData.prog);
     fh_love_register(loopData.prog);
 
-	bool dump_bytecode = false;
-	bool run_package = false;
+    bool dump_bytecode = false;
+    bool run_package = false;
 
-	if (argv[1]) {
-		if (strstr(argv[1], ".love"))
-			run_package = true;
-		else
-			clove_error("ERROR: couldn't find pack named \"%s\" to run\n", argv[1]);
-	}
+    if (argv[1]) {
+        if (strstr(argv[1], ".love"))
+            run_package = true;
+        else
+            clove_error("ERROR: couldn't find pack named \"%s\" to run\n", argv[1]);
+    }
 
-	if (argv[2] && strcmp(argv[2], "true") == 0) {
-		dump_bytecode = true;
-	}
+    if (argv[2] && strcmp(argv[2], "true") == 0) {
+        dump_bytecode = true;
+    }
 
     int ret = -1;
-
-	if (run_package) {
-		ret = fh_run_pack(loopData.prog, dump_bytecode, argv[1], "main.fh", argv, argc);
-	} else {
-		ret = fh_run_script_file(loopData.prog, dump_bytecode, "main.fh", argv, argc);
-	}
+    if (run_package) {
+        ret = fh_run_pack(loopData.prog, dump_bytecode, argv[1], "config.fh", NULL, argv, argc, false);
+        if (ret == 0) {
+            fh_config(loopData.prog);
+        }
+        ret = fh_run_pack(loopData.prog, dump_bytecode, argv[1], "main.fh", "main", argv, argc, true);
+    } else {
+        ret = fh_run_script_file(loopData.prog, dump_bytecode, "config.fh", NULL, argv, argc, false);
+        if (ret == 0) {
+            fh_config(loopData.prog);
+        }
+        ret = fh_run_script_file(loopData.prog, dump_bytecode, "main.fh", "main", argv, argc, true);
+    }
 
     if (ret < 0) {
         clove_error("ERROR: %s\n", fh_get_error(loopData.prog));
@@ -408,5 +394,4 @@ void fh_main_activity_load(int argc, char* argv[])
         quit_function();
     }
     main_clean();
-
 }

@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2021 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -14,6 +14,7 @@
 
 #include "../include/utils.h"
 #include "../include/audio.h"
+#include "../include/streamsource.h"
 
 static struct {
 	ALCdevice* device;
@@ -30,7 +31,7 @@ static int check_openal_alc_error(ALCdevice *device, const char *where)
     return 0;
 }
 
-void audio_init(int stats) {
+void audio_init(bool stats) {
 	moduleData.device = alcOpenDevice(NULL);
     check_openal_alc_error(moduleData.device, "alcOpenDevice");
     if (!moduleData.device) {
@@ -49,8 +50,9 @@ void audio_init(int stats) {
     check_openal_alc_error(moduleData.device, "alcMakeContextCurrent");
 
 	audio_StreamInit();
-	if (stats > 0)
+    if (stats > 0) {
 		clove_error("OpenAL version: %s\n", alGetString(AL_VERSION));
+    }
 }
 
 void audio_setVolume(float value) {

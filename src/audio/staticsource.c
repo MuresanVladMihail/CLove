@@ -45,8 +45,7 @@ int audio_loadStatic(audio_StaticSource *source, char const * filename) {
 	alGenBuffers(1, &source->buffer);
 	err = alGetError();
 
-	if (err != AL_NO_ERROR)
-	{
+    if (err != AL_NO_ERROR) {
 		clove_error("Error: Could not generate openAL buffer \n");
 		return 0;
 	}

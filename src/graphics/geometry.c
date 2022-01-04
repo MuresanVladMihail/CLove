@@ -65,7 +65,7 @@ void graphics_geometry_free () {
 }
 
 static void growBuffers(int vertices, int indices) {
-    int datasize = vertices * 8 * sizeof(GLfloat);
+    uint32_t datasize = vertices * 8 * sizeof(GLfloat);
     if(moduleData.currentDataSize < datasize) {
         free(moduleData.data);
         moduleData.data = (float*)malloc(datasize);
@@ -88,11 +88,11 @@ static void drawBufferSpecial(uint32_t indices,
                               float sx, float sy,
                               float ox, float oy, GLenum type) {
     glBindBuffer(GL_ARRAY_BUFFER, moduleData.dataVBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices*sizeof(float)*8, moduleData.data, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices*8*sizeof(GLfloat), moduleData.data, GL_STREAM_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.dataIBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices*sizeof(uint32_t),
-	moduleData.index, GL_STREAM_DRAW);
+                 moduleData.index, GL_STREAM_DRAW);
 
     glLineWidth(moduleData.lineWidth);
 
@@ -111,11 +111,11 @@ static void drawBufferSpecial(uint32_t indices,
 
 static void drawBuffer(uint32_t indices, int vertices, GLenum type) {
     glBindBuffer(GL_ARRAY_BUFFER, moduleData.dataVBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices*8*sizeof(float), moduleData.data, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices*8*sizeof(GLfloat), moduleData.data,  GL_STREAM_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.dataIBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices*sizeof(uint32_t),
-	moduleData.index, GL_STREAM_DRAW);
+                 moduleData.index, GL_STREAM_DRAW);
 
     glLineWidth(moduleData.lineWidth);
 
@@ -132,7 +132,7 @@ static void drawBuffer(uint32_t indices, int vertices, GLenum type) {
 }
 
 void graphics_geometry_lineCircle(float x, float y, float radius,
-	uint32_t segments, float r, float sx, float sy, float ox, float oy) {
+                                  uint32_t segments, float r, float sx, float sy, float ox, float oy) {
     growBuffers(segments+1, segments+2);
 
     float step = LOVE_PI2 / segments;
@@ -282,7 +282,7 @@ void graphics_geometry_rectangle(bool filled,
         else
             drawBuffer(6, 32, GL_TRIANGLES);
 
-    }else {
+    } else {
         moduleData.index[0] = 0;
         moduleData.index[1] = 1;
         moduleData.index[2] = 2;
@@ -297,24 +297,30 @@ void graphics_geometry_rectangle(bool filled,
     }
 }
 
+void graphics_geometry_points(float *points, uint32_t count) {
+    growBuffers(count, count);
 
-void graphics_geometry_points(float x, float y) {
-    growBuffers(8, 1);
+    for (uint32_t i = 0; i < count; i++) {
+        moduleData.data[8*i+0] = points[2*i];
+        moduleData.data[8*i+1] = points[2*i+1];
+        moduleData.data[8*i+2] = 0.0f;
+        moduleData.data[8*i+3] = 0.0f;
+        moduleData.data[8*i+4] = 1.0f;
+        moduleData.data[8*i+5] = 1.0f;
+        moduleData.data[8*i+6] = 1.0f;
+        moduleData.data[8*i+7] = 1.0f;
 
-    moduleData.data[0] = x;
-    moduleData.data[1] = y;
-    moduleData.data[2] = 0.0f;
-    moduleData.data[3] = 0.0f;
-    moduleData.data[4] = 1.0f;
-    moduleData.data[5] = 1.0f;
-    moduleData.data[6] = 1.0f;
-    moduleData.data[7] = 1.0f;
+        moduleData.index[i] = i;
+    }
 
-    moduleData.index[0] = 0;
-    drawBuffer(1, 8, GL_POINTS);
+    drawBuffer(count, count, GL_POINTS);
 }
 
-void graphics_geometry_vertex(bool filled, int vertices[], uint32_t count) {
+void graphics_geometry_line(float *points, uint32_t count) {
+    graphics_geometry_polygon(false, points, count);
+}
+
+void graphics_geometry_polygon(bool filled, float* vertices, uint32_t count) {
     growBuffers(count, count);
 
     for(uint32_t i = 0; i < count; i++) {
@@ -329,7 +335,7 @@ void graphics_geometry_vertex(bool filled, int vertices[], uint32_t count) {
         moduleData.index[i] = i;
     }
 
-    drawBuffer(count, count, filled ? GL_TRIANGLE_FAN : GL_LINE_STRIP);
+    drawBuffer(count, count, filled ? GL_TRIANGLE_STRIP : GL_LINE_STRIP);
 }
 
 
