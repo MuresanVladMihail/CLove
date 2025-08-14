@@ -117,18 +117,21 @@ static int fn_love_graphics_newShader(struct fh_program *prog,
     {
         free(loadedFile1);
         free(loadedFile2);
+        free(shader);
         return fh_set_error(prog, "Failed to link shader!");
     }
     case graphics_ShaderCompileStatus_vertexError:
     {
         free(loadedFile1);
         free(loadedFile2);
+        free(shader);
         return fh_set_error(prog, "Failed to compile vertex shader!");
     }
     case graphics_ShaderCompileStatus_fragmentError:
     {
         free(loadedFile1);
         free(loadedFile2);
+        free(shader);
         return fh_set_error(prog, "Failed to compile fragment shader!");
     }
     }
@@ -139,7 +142,8 @@ static int fn_love_graphics_newShader(struct fh_program *prog,
     int const textureUnits = shader->shader.textureUnitCount;
     shader->referencedTextures = 0;
 
-    *ret = fh_new_c_obj(prog, shader, shader_gc, FH_GRAPHICS_SHADER);
+    fh_c_obj_gc_callback *callback = shader_gc;
+    *ret = fh_new_c_obj(prog, shader, callback, FH_GRAPHICS_SHADER);
 
     return 0;
 }

@@ -112,7 +112,10 @@ static int fn_love_graphics_newMesh(struct fh_program *prog,
     }
     graphics_Mesh *mesh = malloc(sizeof(graphics_Mesh));
     graphics_Mesh_new(mesh, vertexCount, (graphics_Vertex*)moduleData.vertices, arrIndices->len, moduleData.indices, mode);
-    *ret = fh_new_c_obj(prog, mesh, on_gc, FH_GRAPHICS_MESH);
+
+    fh_c_obj_gc_callback *callback = on_gc;
+
+    *ret = fh_new_c_obj(prog, mesh, callback, FH_GRAPHICS_MESH);
     return 0;
 }
 

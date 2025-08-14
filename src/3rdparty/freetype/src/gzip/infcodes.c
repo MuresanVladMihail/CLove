@@ -26,6 +26,8 @@ typedef enum {        /* waiting for "i:"=input, "o:"=output, "x:"=nothing */
       BADCODE}  /* x: got error */
 inflate_codes_mode;
 
+typedef unsigned char Byte;
+
 /* inflate codes private state */
 struct inflate_codes_state {
 

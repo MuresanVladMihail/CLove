@@ -26,7 +26,6 @@ local const char inflate_copyright[] =
 #define exop word.what.Exop
 #define bits word.what.Bits
 
-
 local int huft_build OF((
     uIntf *,            /* code lengths in bits */
     uInt,               /* number of codes */

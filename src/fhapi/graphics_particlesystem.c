@@ -34,7 +34,8 @@ static int fn_love_graphics_newParticleSystem(struct fh_program *prog,
     graphics_ParticleSystem *p = malloc(sizeof(graphics_ParticleSystem));
     graphics_ParticleSystem_new(p, image->img, (size_t)buffer);
 
-    *ret = fh_new_c_obj(prog, p, particle_gc, FH_GRAPHICS_PARTICLE);
+    fh_c_obj_gc_callback *callback = particle_gc;
+    *ret = fh_new_c_obj(prog, p, callback, FH_GRAPHICS_PARTICLE);
 
     return 0;
 }

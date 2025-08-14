@@ -35,7 +35,7 @@ fn love_load()  {
     let big = love_graphics_newFont(36);
     self.bigFont = big;
 
-    self.small = love_graphics_newFont("vera.ttf", 16);
+    self.small = love_graphics_newFont("./vera.ttf", 16);
     love_font_setFilter(self.small, "nearest", "nearest", love_graphics_getMaxAnisotropy());
 
     println(love_font_getHeight(self.bigFont), " ",
@@ -48,7 +48,7 @@ fn love_load()  {
     println("Total wrapped lines: ", self.text[1]);
 
     let text = " abcd\n";
-    self.bitmapFont = love_graphics_newBitmapFont("f1.png", text, 9);
+    self.bitmapFont = love_graphics_newBitmapFont("./f1.png", text, 9);
     love_font_setFilter(self.bitmapFont, "nearest", "nearest", 1.0);
     println("BitmapFont filter: \n", love_font_getFilter(self.bitmapFont));
 

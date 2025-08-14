@@ -40,22 +40,22 @@ static int fn_love_audio_newSource(struct fh_program *prog,
     audio_StaticSource *staticSource = NULL;
     audio_StreamSource *streamSource = NULL;
     if (strcmp(type, "static") == 0) {
-        //fh_c_obj_gc_callback *callback = gcStaticSource;
+        fh_c_obj_gc_callback *callback = gcStaticSource;
 
         staticSource = malloc(sizeof(audio_StaticSource));
         err = audio_loadStatic(staticSource, filename);
         if (err == 1) {
-            *ret = fh_new_c_obj(prog, staticSource, gcStaticSource, FH_AUDIO_STATIC_SOURCE_TYPE);
+            *ret = fh_new_c_obj(prog, staticSource, callback, FH_AUDIO_STATIC_SOURCE_TYPE);
         } else {
             free(staticSource);
         }
     } else if (strcmp(type, "stream") == 0) {
-        //fh_c_obj_gc_callback *callback = gcStreamSource;
+        fh_c_obj_gc_callback *callback = gcStreamSource;
 
         streamSource = malloc(sizeof(audio_StreamSource));
         err = audio_loadStream(streamSource, filename);
         if (err == 1) {
-            *ret = fh_new_c_obj(prog, streamSource, gcStreamSource, FH_AUDIO_STREAM_SOURCE_TYPE);
+            *ret = fh_new_c_obj(prog, streamSource, callback, FH_AUDIO_STREAM_SOURCE_TYPE);
         } else {
             free(streamSource);
         }

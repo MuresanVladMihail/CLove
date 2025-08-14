@@ -7,7 +7,7 @@
 #   under the terms of the MIT license. See LICENSE.md for details.
 #
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 
 project(clove)
 

@@ -45,8 +45,6 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
     fh_image_t *img = malloc(sizeof(fh_image_t));
     img->img = malloc(sizeof(graphics_Image));
 
-    fh_c_obj_gc_callback onFree = onFreeCallback;
-
     if (fh_is_string(&args[0])) {
         const char *path = fh_get_string(&args[0]);
 
@@ -59,9 +57,12 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
         graphics_Image_new_with_ImageData(img->img, data);
     } else {
         free(img->img);
+        free(img->data);
+        free(img);
         return fh_set_error(prog, "Expected image data or path to image");
     }
 
+    fh_c_obj_gc_callback *onFree = onFreeCallback;
     *ret = fh_new_c_obj(prog, img, onFree, FH_IMAGE_TYPE);
     return 0;
 }

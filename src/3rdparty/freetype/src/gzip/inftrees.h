@@ -15,7 +15,7 @@
 #define _INFTREES_H
 
 typedef struct inflate_huft_s FAR inflate_huft;
-
+typedef unsigned char Byte;
 struct inflate_huft_s {
   union {
     struct {

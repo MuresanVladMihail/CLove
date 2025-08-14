@@ -33,7 +33,7 @@ static int fn_love_graphics_newBitmapFont(struct fh_program *prog,
     int gh = (int)fh_optnumber(args, n_args, 3, 0.0);
     int max_size = (int)fh_optnumber(args, n_args, 4, 128.0);
 
-    fh_c_obj_gc_callback freeCallback = gcFont;
+    fh_c_obj_gc_callback *freeCallback = gcFont;
 
     graphics_BitmapFont *font = malloc(sizeof (graphics_BitmapFont));
 

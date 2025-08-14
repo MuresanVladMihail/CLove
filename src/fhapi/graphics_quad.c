@@ -41,7 +41,9 @@ static int fn_love_graphics_newQuad(struct fh_program *prog,
     graphics_Quad *quad = malloc(sizeof(graphics_Quad));
     graphics_Quad_newWithRef(quad, x, y, w, h, rw, rh);
 
-    *ret = fh_new_c_obj(prog, quad, quad_gc, FH_GRAPHICS_QUAD);
+    fh_c_obj_gc_callback *callback = quad_gc;
+
+    *ret = fh_new_c_obj(prog, quad, callback, FH_GRAPHICS_QUAD);
     return 0;
 }
 

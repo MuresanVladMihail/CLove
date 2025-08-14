@@ -58,7 +58,8 @@ static int fn_love_graphics_newFont(struct fh_program *prog,
     if (err != 0)
         return fh_set_error(prog, "Error loading font");
 
-    *ret = fh_new_c_obj(prog, font, gcFont, FH_FONT_TYPE);
+    fh_c_obj_gc_callback *callback = gcFont;
+    *ret = fh_new_c_obj(prog, font, callback, FH_FONT_TYPE);
     return 0;
 }
 

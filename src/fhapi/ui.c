@@ -564,14 +564,10 @@ static int fn_love_ui_align(struct fh_program *prog,
     }
     const char *align = fh_get_string(&args[0]);
     int num = 0;
-    if (strcmp(align, "top") == 0) {
-        num = MU_OPT_ALIGNTOP;
-    } else if (strcmp(align, "center") == 0) {
+    if (strcmp(align, "center") == 0) {
         num = MU_OPT_ALIGNCENTER;
     } else if (strcmp(align, "right") == 0) {
         num = MU_OPT_ALIGNRIGHT;
-    } else if (strcmp(align, "bottom") == 0) {
-        num = MU_OPT_ALIGNBOTTOM;
     } else {
         return fh_set_error(prog, "invalid alignment %s\n", align);
     }

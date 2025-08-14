@@ -37,7 +37,9 @@ static int fn_love_graphics_newCanvas(struct fh_program *prog, struct fh_value *
 
     graphics_Canvas_new(c, width, height);
 
-    *ret = fh_new_c_obj(prog, c, gcCanvas, FH_GRAPHICS_CANVAS);
+    fh_c_obj_gc_callback *callback = gcCanvas;
+
+    *ret = fh_new_c_obj(prog, c, callback, FH_GRAPHICS_CANVAS);
     return 0;
 }
 
