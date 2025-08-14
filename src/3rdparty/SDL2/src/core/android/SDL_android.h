@@ -19,7 +19,6 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 #include "../../SDL_internal.h"
-#include "SDL_system.h"
 
 /* Set up for C function definitions, even when using C++ */
 #ifdef __cplusplus
@@ -31,7 +30,6 @@ extern "C" {
 #include <EGL/eglplatform.h>
 #include <android/native_window_jni.h>
 
-#include "SDL_audio.h"
 #include "SDL_rect.h"
 
 /* Interface from the SDL library into the Android Java activity */
@@ -48,16 +46,12 @@ extern ANativeWindow* Android_JNI_GetNativeWindow(void);
 extern int Android_JNI_GetDisplayDPI(float *ddpi, float *xdpi, float *ydpi);
 
 /* Audio support */
-extern int Android_JNI_OpenAudioDevice(int iscapture, SDL_AudioSpec *spec);
+extern int Android_JNI_OpenAudioDevice(int iscapture, int sampleRate, int is16Bit, int channelCount, int desiredBufferFrames);
 extern void* Android_JNI_GetAudioBuffer(void);
 extern void Android_JNI_WriteAudioBuffer(void);
 extern int Android_JNI_CaptureAudioBuffer(void *buffer, int buflen);
 extern void Android_JNI_FlushCapturedAudio(void);
 extern void Android_JNI_CloseAudioDevice(const int iscapture);
-
-/* Detecting device type */
-extern SDL_bool Android_IsDeXMode();
-extern SDL_bool Android_IsChromebook();
 
 #include "SDL_rwops.h"
 
@@ -84,16 +78,15 @@ void Android_JNI_PollInputDevices(void);
 
 /* Haptic support */
 void Android_JNI_PollHapticDevices(void);
-void Android_JNI_HapticRun(int device_id, float intensity, int length);
+void Android_JNI_HapticRun(int device_id, int length);
 void Android_JNI_HapticStop(int device_id);
 
 /* Video */
 void Android_JNI_SuspendScreenSaver(SDL_bool suspend);
 
 /* Touch support */
-int Android_JNI_InitTouch(void);
-void Android_JNI_SetSeparateMouseAndTouch(SDL_bool new_value);
 int Android_JNI_GetTouchDeviceIds(int **ids);
+void Android_JNI_SetSeparateMouseAndTouch(SDL_bool new_value);
 
 /* Threads */
 #include <jni.h>
@@ -116,14 +109,8 @@ SDL_bool Android_JNI_SetCustomCursor(int cursorID);
 SDL_bool Android_JNI_SetSystemCursor(int cursorID);
 
 /* Relative mouse support */
-SDL_bool Android_JNI_SupportsRelativeMouse(void);
+SDL_bool Android_JNI_SupportsRelativeMouse();
 SDL_bool Android_JNI_SetRelativeMouseEnabled(SDL_bool enabled);
-
-
-SDL_bool SDL_IsAndroidTablet(void);
-SDL_bool SDL_IsAndroidTV(void);
-SDL_bool SDL_IsChromebook(void);
-SDL_bool SDL_IsDeXMode(void);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

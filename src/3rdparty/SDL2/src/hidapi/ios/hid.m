@@ -3,9 +3,6 @@
 // Purpose: HID device abstraction temporary stub
 //
 //=============================================================================
-#include "../../SDL_internal.h"
-
-#ifdef SDL_JOYSTICK_HIDAPI
 
 #include <CoreBluetooth/CoreBluetooth.h>
 #include <QuartzCore/QuartzCore.h>
@@ -910,5 +907,3 @@ int HID_API_EXPORT hid_read_timeout(hid_device *dev, unsigned char *data, size_t
 #endif
 	return result;
 }
-
-#endif /* SDL_JOYSTICK_HIDAPI */

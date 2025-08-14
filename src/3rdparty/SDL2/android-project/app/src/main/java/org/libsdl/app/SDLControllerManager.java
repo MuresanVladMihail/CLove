@@ -11,7 +11,7 @@ import android.view.*;
 import android.util.Log;
 
 
-public class SDLControllerManager
+public class SDLControllerManager 
 {
 
     public static native int nativeSetupJNI();
@@ -36,25 +36,23 @@ public class SDLControllerManager
     private static final String TAG = "SDLControllerManager";
 
     public static void initialize() {
-        if (mJoystickHandler == null) {
-            if (Build.VERSION.SDK_INT >= 19) {
-                mJoystickHandler = new SDLJoystickHandler_API19();
-            } else if (Build.VERSION.SDK_INT >= 16) {
-                mJoystickHandler = new SDLJoystickHandler_API16();
-            } else if (Build.VERSION.SDK_INT >= 12) {
-                mJoystickHandler = new SDLJoystickHandler_API12();
-            } else {
-                mJoystickHandler = new SDLJoystickHandler();
-            }
-        }
+        mJoystickHandler = null;
+        mHapticHandler = null;
 
-        if (mHapticHandler == null) {
-            if (Build.VERSION.SDK_INT >= 26) {
-                mHapticHandler = new SDLHapticHandler_API26();
-            } else {
-                mHapticHandler = new SDLHapticHandler();
-            }
+        SDLControllerManager.setup();
+    }
+
+    public static void setup() {
+        if (Build.VERSION.SDK_INT >= 19) {
+            mJoystickHandler = new SDLJoystickHandler_API19();
+        } else if (Build.VERSION.SDK_INT >= 16) {
+            mJoystickHandler = new SDLJoystickHandler_API16();
+        } else if (Build.VERSION.SDK_INT >= 12) {
+            mJoystickHandler = new SDLJoystickHandler_API12();
+        } else {
+            mJoystickHandler = new SDLJoystickHandler();
         }
+        mHapticHandler = new SDLHapticHandler();
     }
 
     // Joystick glue code, just a series of stubs that redirect to the SDLJoystickHandler instance
@@ -79,8 +77,8 @@ public class SDLControllerManager
     /**
      * This method is called by SDL using JNI.
      */
-    public static void hapticRun(int device_id, float intensity, int length) {
-        mHapticHandler.run(device_id, intensity, length);
+    public static void hapticRun(int device_id, int length) {
+        mHapticHandler.run(device_id, length);
     }
 
     /**
@@ -411,38 +409,6 @@ class SDLJoystickHandler_API19 extends SDLJoystickHandler_API16 {
     }
 }
 
-class SDLHapticHandler_API26 extends SDLHapticHandler {
-    @Override
-    public void run(int device_id, float intensity, int length) {
-        SDLHaptic haptic = getHaptic(device_id);
-        if (haptic != null) {
-            Log.d("SDL", "Rtest: Vibe with intensity " + intensity + " for " + length);
-            if (intensity == 0.0f) {
-                stop(device_id);
-                return;
-            }
-
-            int vibeValue = Math.round(intensity * 255);
-
-            if (vibeValue > 255) {
-                vibeValue = 255;
-            }
-            if (vibeValue < 1) {
-                stop(device_id);
-                return;
-            }
-            try {
-                haptic.vib.vibrate(VibrationEffect.createOneShot(length, vibeValue));
-            }
-            catch (Exception e) {
-                // Fall back to the generic method, which uses DEFAULT_AMPLITUDE, but works even if
-                // something went horribly wrong with the Android 8.0 APIs.
-                haptic.vib.vibrate(length);
-            }
-        }
-    }
-}
-
 class SDLHapticHandler {
 
     class SDLHaptic {
@@ -452,15 +418,15 @@ class SDLHapticHandler {
     }
 
     private ArrayList<SDLHaptic> mHaptics;
-
+    
     public SDLHapticHandler() {
         mHaptics = new ArrayList<SDLHaptic>();
     }
 
-    public void run(int device_id, float intensity, int length) {
+    public void run(int device_id, int length) {
         SDLHaptic haptic = getHaptic(device_id);
         if (haptic != null) {
-            haptic.vib.vibrate(length);
+            haptic.vib.vibrate (length);
         }
     }
 
@@ -472,7 +438,7 @@ class SDLHapticHandler {
     }
 
     public void pollHapticDevices() {
-
+        
         final int deviceId_VIBRATOR_SERVICE = 999999;
         boolean hasVibratorService = false;
 
@@ -516,7 +482,7 @@ class SDLHapticHandler {
                     haptic = new SDLHaptic();
                     haptic.device_id = deviceId_VIBRATOR_SERVICE;
                     haptic.name = "VIBRATOR_SERVICE";
-                    haptic.vib = vib;
+                    haptic.vib = vib; 
                     mHaptics.add(haptic);
                     SDLControllerManager.nativeAddHaptic(haptic.device_id, haptic.name);
                 }
@@ -558,7 +524,7 @@ class SDLHapticHandler {
             }
         }
         return null;
-    }
+    }   
 }
 
 class SDLGenericMotionListener_API12 implements View.OnGenericMotionListener {
@@ -648,7 +614,7 @@ class SDLGenericMotionListener_API24 extends SDLGenericMotionListener_API12 {
             case InputDevice.SOURCE_GAMEPAD:
             case InputDevice.SOURCE_DPAD:
                 return SDLControllerManager.handleJoystickMotionEvent(event);
-
+                
             case InputDevice.SOURCE_MOUSE:
                 if (!SDLActivity.mSeparateMouseAndTouch) {
                     break;
@@ -739,7 +705,7 @@ class SDLGenericMotionListener_API26 extends SDLGenericMotionListener_API24 {
             case InputDevice.SOURCE_GAMEPAD:
             case InputDevice.SOURCE_DPAD:
                 return SDLControllerManager.handleJoystickMotionEvent(event);
-
+                
             case InputDevice.SOURCE_MOUSE:
             case 12290: // DeX desktop mouse cursor is a separate non-standard input type.
                 if (!SDLActivity.mSeparateMouseAndTouch) {
@@ -798,7 +764,7 @@ class SDLGenericMotionListener_API26 extends SDLGenericMotionListener_API24 {
 
     @Override
     public boolean supportsRelativeMouse() {
-        return (!SDLActivity.isDeXMode() || (Build.VERSION.SDK_INT >= 27));
+        return !SDLActivity.isDeXMode();
     }
 
     @Override
@@ -808,17 +774,17 @@ class SDLGenericMotionListener_API26 extends SDLGenericMotionListener_API24 {
 
     @Override
     public boolean setRelativeMouseEnabled(boolean enabled) {
-        if (!SDLActivity.isDeXMode() || (Build.VERSION.SDK_INT >= 27)) {
+        if (!SDLActivity.isDeXMode()) {
             if (enabled) {
                 SDLActivity.getContentView().requestPointerCapture();
             }
             else {
-                SDLActivity.getContentView().releasePointerCapture();
+                SDLActivity.getContentView().releasePointerCapture();            
             }
             mRelativeModeEnabled = enabled;
             return true;
         }
-        else
+        else 
         {
             return false;
         }

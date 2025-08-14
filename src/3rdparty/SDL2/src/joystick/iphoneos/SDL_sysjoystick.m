@@ -358,12 +358,6 @@ IOS_JoystickGetDeviceName(int device_index)
     return device ? device->name : "Unknown";
 }
 
-static int
-IOS_JoystickGetDevicePlayerIndex(int device_index)
-{
-    return -1;
-}
-
 static SDL_JoystickGUID
 IOS_JoystickGetDeviceGUID( int device_index )
 {
@@ -721,7 +715,6 @@ SDL_JoystickDriver SDL_IOS_JoystickDriver =
     IOS_JoystickGetCount,
     IOS_JoystickDetect,
     IOS_JoystickGetDeviceName,
-    IOS_JoystickGetDevicePlayerIndex,
     IOS_JoystickGetDeviceGUID,
     IOS_JoystickGetDeviceInstanceID,
     IOS_JoystickOpen,

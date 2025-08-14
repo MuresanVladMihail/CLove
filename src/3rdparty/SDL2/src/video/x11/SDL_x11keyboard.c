@@ -266,7 +266,7 @@ X11_InitKeyboard(_THIS)
     int best_distance;
     int best_index;
     int distance;
-    Bool xkb_repeat = 0;
+    BOOL xkb_repeat = 0;
     
     X11_XAutoRepeatOn(data->display);
 

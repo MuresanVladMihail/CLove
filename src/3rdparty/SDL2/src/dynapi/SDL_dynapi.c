@@ -27,7 +27,6 @@
 #if defined(__OS2__)
 #define INCL_DOS
 #define INCL_DOSERRORS
-#include <os2.h>
 #include <dos.h>
 #endif
 

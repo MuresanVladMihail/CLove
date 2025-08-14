@@ -378,57 +378,21 @@ static int
 add_audio_device(const char *name, void *handle, SDL_AudioDeviceItem **devices, int *devCount)
 {
     int retval = -1;
-    SDL_AudioDeviceItem *item;
-    const SDL_AudioDeviceItem *i;
-    int dupenum = 0;
+    const size_t size = sizeof (SDL_AudioDeviceItem) + SDL_strlen(name) + 1;
+    SDL_AudioDeviceItem *item = (SDL_AudioDeviceItem *) SDL_malloc(size);
+    if (item == NULL) {
+        return -1;
+    }
 
     SDL_assert(handle != NULL);  /* we reserve NULL, audio backends can't use it. */
-    SDL_assert(name != NULL);
 
-    item = (SDL_AudioDeviceItem *) SDL_malloc(sizeof (SDL_AudioDeviceItem));
-    if (!item) {
-        return SDL_OutOfMemory();
-    }
-
-    item->original_name = SDL_strdup(name);
-    if (!item->original_name) {
-        SDL_free(item);
-        return SDL_OutOfMemory();
-    }
-
-    item->dupenum = 0;
-    item->name = item->original_name;
     item->handle = handle;
+    SDL_strlcpy(item->name, name, size - sizeof (SDL_AudioDeviceItem));
 
     SDL_LockMutex(current_audio.detectionLock);
-
-    for (i = *devices; i != NULL; i = i->next) {
-        if (SDL_strcmp(name, i->original_name) == 0) {
-            dupenum = i->dupenum + 1;
-            break;  /* stop at the highest-numbered dupe. */
-        }
-    }
-
-    if (dupenum) {
-        const size_t len = SDL_strlen(name) + 16;
-        char *replacement = (char *) SDL_malloc(len);
-        if (!replacement) {
-            SDL_UnlockMutex(current_audio.detectionLock);
-            SDL_free(item->original_name);
-            SDL_free(item);
-            SDL_OutOfMemory();
-            return -1;
-        }
-
-        SDL_snprintf(replacement, len, "%s (%d)", name, dupenum + 1);
-        item->dupenum = dupenum;
-        item->name = replacement;
-    }
-
     item->next = *devices;
     *devices = item;
-    retval = (*devCount)++;   /* !!! FIXME: this should be an atomic increment */
-
+    retval = (*devCount)++;
     SDL_UnlockMutex(current_audio.detectionLock);
 
     return retval;
@@ -456,11 +420,6 @@ free_device_list(SDL_AudioDeviceItem **devices, int *devCount)
         if (item->handle != NULL) {
             current_audio.impl.FreeDeviceHandle(item->handle);
         }
-        /* these two pointers are the same if not a duplicate devname */
-        if (item->name != item->original_name) {
-            SDL_free(item->name);
-        }
-        SDL_free(item->original_name);
         SDL_free(item);
     }
     *devices = NULL;
@@ -1018,11 +977,6 @@ clean_out_device_list(SDL_AudioDeviceItem **devices, int *devCount, SDL_bool *re
             } else {
                 *devices = next;
             }
-            /* these two pointers are the same if not a duplicate devname */
-            if (item->name != item->original_name) {
-                SDL_free(item->name);
-            }
-            SDL_free(item->original_name);
             SDL_free(item);
         }
         item = next;
@@ -1049,6 +1003,7 @@ SDL_GetNumAudioDevices(int iscapture)
 
     if (!iscapture && current_audio.outputDevicesRemoved) {
         clean_out_device_list(&current_audio.outputDevices, &current_audio.outputDeviceCount, &current_audio.outputDevicesRemoved);
+        current_audio.outputDevicesRemoved = SDL_FALSE;
     }
 
     retval = iscapture ? current_audio.inputDeviceCount : current_audio.outputDeviceCount;
@@ -1175,9 +1130,8 @@ prepare_audiospec(const SDL_AudioSpec * orig, SDL_AudioSpec * prepared)
         }
     case 1:                    /* Mono */
     case 2:                    /* Stereo */
-    case 4:                    /* Quadrophonic */
-    case 6:                    /* 5.1 surround */
-    case 8:                    /* 7.1 surround */
+    case 4:                    /* surround */
+    case 6:                    /* surround with center and lfe */
         break;
     default:
         SDL_SetError("Unsupported number of audio channels.");
@@ -1370,12 +1324,15 @@ open_audio_device(const char *devname, int iscapture,
             build_stream = SDL_TRUE;
         }
     }
+
+    /* !!! FIXME in 2.1: add SDL_AUDIO_ALLOW_SAMPLES_CHANGE flag?
+       As of 2.0.6, we will build a stream to buffer the difference between
+       what the app wants to feed and the device wants to eat, so everyone
+       gets their way. In prior releases, SDL would force the callback to
+       feed at the rate the device requested, adjusted for resampling.
+     */
     if (device->spec.samples != obtained->samples) {
-        if (allowed_changes & SDL_AUDIO_ALLOW_SAMPLES_CHANGE) {
-            obtained->samples = device->spec.samples;
-        } else {
-            build_stream = SDL_TRUE;
-        }
+        build_stream = SDL_TRUE;
     }
 
     SDL_CalculateAudioSpec(obtained);  /* recalc after possible changes. */

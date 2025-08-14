@@ -2223,6 +2223,8 @@ static int
 D3D11_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
                  const SDL_Rect * srcrect, const SDL_FRect * dstrect)
 {
+    D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
+    D3D11_TextureData *textureData = (D3D11_TextureData *) texture->driverdata;
     float minu, maxu, minv, maxv;
     Float4 color;
     VertexPositionColor vertices[4];
@@ -2294,6 +2296,8 @@ D3D11_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
                    const SDL_Rect * srcrect, const SDL_FRect * dstrect,
                    const double angle, const SDL_FPoint * center, const SDL_RendererFlip flip)
 {
+    D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
+    D3D11_TextureData *textureData = (D3D11_TextureData *) texture->driverdata;
     float minu, maxu, minv, maxv;
     Float4 color;
     Float4X4 modelMatrix;

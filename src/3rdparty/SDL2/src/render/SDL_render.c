@@ -521,8 +521,7 @@ GetClosestSupportedFormat(SDL_Renderer * renderer, Uint32 format)
     return renderer->info.texture_formats[0];
 }
 
-
-static SDL_ScaleMode SDL_GetScaleMode(void)
+SDL_ScaleMode SDL_GetScaleMode(void)
 {
     const char *hint = SDL_GetHint(SDL_HINT_RENDER_SCALE_QUALITY);
 
@@ -650,7 +649,7 @@ SDL_CreateTextureFromSurface(SDL_Renderer * renderer, SDL_Surface * surface)
 
     /* See what the best texture format is */
     fmt = surface->format;
-    if (fmt->Amask || SDL_HasColorKey(surface)) {
+    if (fmt->Amask || SDL_GetColorKey(surface, NULL) == 0) {
         needAlpha = SDL_TRUE;
     } else {
         needAlpha = SDL_FALSE;
@@ -709,7 +708,7 @@ SDL_CreateTextureFromSurface(SDL_Renderer * renderer, SDL_Surface * surface)
         SDL_GetSurfaceAlphaMod(surface, &a);
         SDL_SetTextureAlphaMod(texture, a);
 
-        if (SDL_HasColorKey(surface)) {
+        if (SDL_GetColorKey(surface, NULL) == 0) {
             /* We converted to a texture with alpha format */
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
         } else {

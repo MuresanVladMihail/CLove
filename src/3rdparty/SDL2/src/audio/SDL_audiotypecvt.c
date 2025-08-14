@@ -25,8 +25,7 @@
 #include "SDL_cpuinfo.h"
 #include "SDL_assert.h"
 
-/* !!! FIXME: disabled until we fix https://bugzilla.libsdl.org/show_bug.cgi?id=4186 */
-#if 0 /*def __ARM_NEON__*/
+#ifdef __ARM_NEON__
 #define HAVE_NEON_INTRINSICS 1
 #endif
 

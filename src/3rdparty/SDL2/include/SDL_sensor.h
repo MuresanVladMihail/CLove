@@ -41,7 +41,7 @@ extern "C" {
 #endif
 
 /**
- *  \brief SDL_sensor.h
+ *  \file SDL_sensor.h
  *
  *  In order to use these functions, SDL_Init() must have been called
  *  with the ::SDL_INIT_SENSOR flag.  This causes SDL to scan the system
@@ -61,7 +61,7 @@ typedef Sint32 SDL_SensorID;
 
 /* The different sensors defined by SDL
  *
- * Additional sensors may be available, using platform dependent semantics.
+ * Additional sensors may be available, using platform dependent semanticsx
  *
  * Hare are the additional Android sensors:
  * https://developer.android.com/reference/android/hardware/SensorEvent.html#values
@@ -71,7 +71,7 @@ typedef enum
     SDL_SENSOR_INVALID = -1,    /**< Returned for an invalid sensor */
     SDL_SENSOR_UNKNOWN,         /**< Unknown sensor type */
     SDL_SENSOR_ACCEL,           /**< Accelerometer */
-    SDL_SENSOR_GYRO             /**< Gyroscope */
+    SDL_SENSOR_GYRO,            /**< Gyroscope */
 } SDL_SensorType;
 
 /**

@@ -19,9 +19,6 @@
  code repository located at:
  http://github.com/signal11/hidapi .
  ********************************************************/
-#include "../../SDL_internal.h"
-
-#ifdef SDL_JOYSTICK_HIDAPI
 
 /* See Apple Technical Note TN2187 for details on IOHidManager. */
 
@@ -1187,5 +1184,3 @@ int main(void)
 	return 0;
 }
 #endif
-
-#endif /* SDL_JOYSTICK_HIDAPI */

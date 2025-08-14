@@ -20,9 +20,6 @@
  code repository located at:
         http://github.com/signal11/hidapi .
 ********************************************************/
-#include "../../SDL_internal.h"
-
-#ifdef SDL_JOYSTICK_HIDAPI
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* needed for wcsdup() before glibc 2.10 */
@@ -894,5 +891,3 @@ HID_API_EXPORT const wchar_t * HID_API_CALL  hid_error(hid_device *dev)
 #ifdef NAMESPACE
 }
 #endif
-
-#endif /* SDL_JOYSTICK_HIDAPI */

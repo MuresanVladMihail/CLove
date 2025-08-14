@@ -131,7 +131,7 @@ typedef struct {
 
 
 static SDL_bool
-HIDAPI_DriverXboxOne_IsSupportedDevice(Uint16 vendor_id, Uint16 product_id, Uint16 version, int interface_number)
+HIDAPI_DriverXboxOne_IsSupportedDevice(Uint16 vendor_id, Uint16 product_id, Uint16 version, int interface_number, Uint16 usage_page, Uint16 usage)
 {
     return SDL_IsJoystickXboxOne(vendor_id, product_id);
 }
@@ -232,14 +232,8 @@ HIDAPI_DriverXboxOne_HandleStatePacket(SDL_Joystick *joystick, hid_device *dev, 
     }
 
     axis = ((int)*(Sint16*)(&data[6]) * 64) - 32768;
-    if (axis == 32704) {
-        axis = 32767;
-    }
     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_TRIGGERLEFT, axis);
     axis = ((int)*(Sint16*)(&data[8]) * 64) - 32768;
-    if (axis == 32704) {
-        axis = 32767;
-    }
     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_TRIGGERRIGHT, axis);
     axis = *(Sint16*)(&data[10]);
     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_LEFTX, axis);
@@ -296,7 +290,7 @@ HIDAPI_DriverXboxOne_Update(SDL_Joystick *joystick, hid_device *dev, void *conte
         }
     }
 
-    return (size >= 0);
+	return (size >= 0);
 }
 
 static void

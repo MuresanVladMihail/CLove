@@ -209,11 +209,6 @@
 #cmakedefine HAVE_DINPUT_H @HAVE_DINPUT_H@
 #cmakedefine HAVE_XINPUT_H @HAVE_XINPUT_H@
 #cmakedefine HAVE_DXGI_H @HAVE_DXGI_H@
-
-#cmakedefine HAVE_ENDPOINTVOLUME_H @HAVE_ENDPOINTVOLUME_H@
-#cmakedefine HAVE_MMDEVICEAPI_H @HAVE_MMDEVICEAPI_H@
-#cmakedefine HAVE_AUDIOCLIENT_H @HAVE_AUDIOCLIENT_H@
-
 #cmakedefine HAVE_XINPUT_GAMEPAD_EX @HAVE_XINPUT_GAMEPAD_EX@
 #cmakedefine HAVE_XINPUT_STATE_EX @HAVE_XINPUT_STATE_EX@
 
@@ -416,11 +411,7 @@
 /* Platform specific definitions */
 #if !defined(__WIN32__)
 #  if !defined(_STDINT_H_) && !defined(_STDINT_H) && !defined(HAVE_STDINT_H) && !defined(_HAVE_STDINT_H)
-#if defined(__APPLE__) 
-typedef unsigned long size_t;
-#else
 typedef unsigned int size_t;
-#endif 
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
 typedef signed short int16_t;
@@ -470,11 +461,7 @@ typedef signed long long int64_t;
 typedef unsigned long long uint64_t;
 #      ifndef _SIZE_T_DEFINED_
 #define _SIZE_T_DEFINED_
-#if defined(__APPLE__) 
-typedef unsigned long size_t;
-#else
 typedef unsigned int size_t;
-#endif 
 #      endif
 typedef unsigned int uintptr_t;
 #    endif /* __GNUC__ || _MSC_VER */
