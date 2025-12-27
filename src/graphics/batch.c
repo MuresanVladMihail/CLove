@@ -49,8 +49,6 @@ static void graphics_batch_makeIndexBuffer(int quadCount) {
 		moduleData.sharedIndexBufferData[6 * i + 5] = 4 * i + 3;
 	}
 
-	// Bind a VAO while touching ELEMENT_ARRAY_BUFFER in core profile.
-	// Use the engine default VAO (already exists in graphics.c).
 	graphics_bindDefaultVao();
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.sharedIndexBuffer);
@@ -118,7 +116,6 @@ void graphics_Batch_new(graphics_Batch *batch, graphics_Image const *texture, in
 	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(graphics_Vertex),
 	                      (void *) offsetof(graphics_Vertex, color));
 
-	// IMPORTANT: element array buffer binding e parte din VAO state în core profile
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.sharedIndexBuffer);
 	glBindVertexArray(0);
 
@@ -135,7 +132,7 @@ static const vec2 batchQuadPts[4] = {
 int graphics_Batch_add(graphics_Batch *batch, graphics_Quad const *q, float x, float y, float r, float sx, float sy,
                        float ox, float oy, float kx, float ky) {
 	if (batch->insertPos == batch->maxCount) {
-		printf("[BATCH ADD] FAILED insertPos=%d max=%d\n", batch->insertPos, batch->maxCount);
+		clove_error("[BATCH ADD] FAILED insertPos=%d max=%d\n", batch->insertPos, batch->maxCount);
 		return -1;
 	}
 
@@ -216,13 +213,11 @@ void graphics_Batch_draw(graphics_Batch *batch,
 	graphics_batch_makeIndexBuffer(batch->insertPos);
 
 	glBindVertexArray(batch->vao);
-	// EBO e parte din VAO, dar dacă vrei să fii extra-safe:
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.sharedIndexBuffer);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, batch->texture->texID);
 
-	// Upload doar dacă s-a schimbat + orphaning
 	graphics_Batch_uploadIfDirty(batch);
 
 	m4x4_newTransform2d(&moduleData.tr2d, x, y, r, sx, sy, ox, oy, kx, ky);
