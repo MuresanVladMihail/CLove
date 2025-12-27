@@ -10,8 +10,7 @@
 
 #include <stdint.h>
 
-typedef struct
-{
+typedef struct {
     unsigned char r, g, b, a;
 } pixel;
 
@@ -20,36 +19,41 @@ typedef struct {
     int h;
     int x;
     int y;
-    int c;
-    const char* path;
+    unsigned int c;
+    const char *path;
     unsigned char *surface;
     pixel *pixels;
 } image_ImageData;
 
-char const* image_error(void);
+char const *image_error(void);
 
 void image_ImageData_new_with_size(image_ImageData *dst, int width, int height,
-        int num_channels);
+                                   int num_channels);
 
-void image_ImageData_new_with_surface(image_ImageData *dst, unsigned char* surface,
+void image_ImageData_new_with_surface(image_ImageData *dst, unsigned char *surface,
                                       unsigned int width, unsigned int height, unsigned int num_channels);
 
-void image_ImageData_new_with_filename(image_ImageData *dst, char const* filename);
+void image_ImageData_new_with_filename(image_ImageData *dst, char const *filename);
 
 int image_ImageData_getWidth(image_ImageData *dst);
+
 int image_ImageData_getHeight(image_ImageData *dst);
 
 int image_ImageData_getChannels(image_ImageData *dst);
+
 pixel image_ImageData_getPixel(image_ImageData *dst, int x, int y);
+
 int image_ImageData_setPixel(image_ImageData *dst, int x, int y, pixel p);
 
 //named encode in Love
-int image_ImageData_save(image_ImageData *dst, const char* format, const char* filename);
+int image_ImageData_save(image_ImageData *dst, const char *format, const char *filename);
 
-const char* image_ImageData_getPath(image_ImageData* dst);
+const char *image_ImageData_getPath(image_ImageData *dst);
 
-unsigned char* image_ImageData_getSurface(image_ImageData *dst);
-void image_ImageData_setSurface(image_ImageData* dst, unsigned char* data);
+unsigned char *image_ImageData_getSurface(image_ImageData *dst);
+
+void image_ImageData_setSurface(image_ImageData *dst, unsigned char *data);
 
 void image_ImageData_free(image_ImageData *data);
+
 void image_init(void);

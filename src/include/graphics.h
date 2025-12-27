@@ -12,7 +12,6 @@
 
 #include "image.h"
 #include "quad.h"
-#include "vector.h"
 
 #include "../3rdparty/SDL2/include/SDL.h"
 #include "../include/gl.h"
@@ -20,17 +19,17 @@
 /*
  * The width of the window in pixels
  * The height of the window in pixels
- * Wether or not the window can be resizabled
- * Wether or not debug messages should be logged
- * Wether or not the window should appear on the screen
+ * Weather or not the window can be resizable
+ * Weather or not debug messages should be logged
+ * Weather or not the window should appear on the screen
  */
 void graphics_init(int width, int height, bool resizable, bool stats, bool show);
 
 typedef struct {
-  float red;
-  float green;
-  float blue;
-  float alpha;
+    float red;
+    float green;
+    float blue;
+    float alpha;
 } graphics_Color;
 
 typedef enum {
@@ -45,64 +44,130 @@ typedef enum {
 
 
 void graphics_setBackgroundColor(float red, float green, float blue, float alpha);
+
 void graphics_setColor(float red, float green, float blue, float alpha);
-float* graphics_getColor(void);
-float* graphics_getBackgroundColor(void);
+
+float *graphics_getColor(void);
+
+float *graphics_getBackgroundColor(void);
+
 void graphics_clear(void);
+
 void graphics_swap(void);
-void graphics_drawArray(graphics_Quad const* quad, mat4x4 const* tr2d, GLuint ibo, GLuint count, GLenum type, GLenum indexType, float const * useColor, float ws, float hs);
-void graphics_drawArray3d(graphics_Quad const* quad, mat4x4 const* tr3d, GLuint ibo, GLuint count, GLenum type, GLenum indexType, float const * useColor, float ws, float hs, float ds);
+
+void graphics_drawArray(graphics_Quad const *quad, mat4x4 const *tr2d, GLuint ibo, GLuint count, GLenum type,
+                        GLenum indexType, float const *useColor, float ws, float hs);
+
+void graphics_drawBatch(
+    graphics_Quad const *quad,
+    mat4x4 const *tr2d,
+    GLuint count,
+    GLenum type,
+    GLenum indexType,
+    float const *useColor,
+    float ws,
+    float hs
+);
+
+void graphics_bindDefaultVao();
+
+void graphics_drawArray3d(graphics_Quad const *quad, mat4x4 const *tr3d, GLuint ibo, GLuint count, GLenum type,
+                          GLenum indexType, float const *useColor, float ws, float hs, float ds);
 
 
 //Window
-SDL_Window* graphics_getWindow(void);
+SDL_Window *graphics_getWindow(void);
+
 int graphics_getDisplayCount();
-void graphics_setIcon(image_ImageData* imgd);
-image_ImageData* graphics_getIcon();
+
+void graphics_setIcon(image_ImageData *imgd);
+
+image_ImageData *graphics_getIcon();
+
 /**
  * @brief graphics_loadAndSetIcon, loads and sets an icon for the window. In case it cannot load the image
  * a warning message will appear in console.
  * @param iconPath the path to the image icon you want your window to have
  */
-void graphics_loadAndSetIcon(const char* iconPath);
+void graphics_loadAndSetIcon(const char *iconPath);
+
 bool graphics_hasMouseFocus();
+
 void graphics_setMouseFocus(int value);
+
 bool graphics_hasFocus();
+
 void graphics_setFocus(int value);
+
 int graphics_getWidth(void);
+
 int graphics_getHeight(void);
-void graphics_setTitle(const char* title);
+
+void graphics_setTitle(const char *title);
+
 int graphics_setMode(int width, int height,
-        bool fullscreen, bool vsync, int min_size_x, int min_size_y, int max_size_x, int max_size_y, bool border,
-        int x, int y);
+                     bool fullscreen, bool vsync, int min_size_x, int min_size_y, int max_size_x, int max_size_y,
+                     bool border,
+                     int x, int y);
+
 void graphics_setWindowSize(int width, int height);
-const char* graphics_getDisplayName(int indx);
-int* graphics_getDesktopDimension();
-void graphics_setVersion(const char* version);
-const char* graphics_getVersion();
+
+const char *graphics_getDisplayName(int indx);
+
+int *graphics_getDesktopDimension();
+
+void graphics_setVersion(const char *version);
+
+const char *graphics_getVersion();
+
 void graphics_setMinSize(int w, int h);
+
 void graphics_setMaxSize(int w, int h);
+
 void graphics_setBordless(bool value);
+
 void graphics_setWindowResizable(bool value);
-void graphics_destroyWindow();
+
+void graphics_shutdown();
+
 void graphics_setVsync(bool value);
-int graphics_setFullscreen(bool fullscreen, const char* mode);
+
+int graphics_setFullscreen(bool fullscreen, const char *mode);
+
 bool graphics_isCreated();
-void graphics_destroyWindow();
-const char* graphics_getTitle();
+
+void graphics_shutdown();
+
+const char *graphics_getTitle();
+
 void graphics_setPosition(int x, int y);
+
 int graphics_getWindowX();
+
 int graphics_getWindowY();
-void graphics_set_look_at(float px, float py, float pz,float tx,float ty,float tz, float ux, float uy, float uz);
+
+void graphics_set_look_at(float px, float py, float pz, float tx, float ty, float tz, float ux, float uy, float uz);
+
 void graphics_set_camera_3d(float fov, float ratio, float zNear, float zFar);
+
 void graphics_set_camera_2d(float left, float right, float bottom, float top, float zNear, float zFar);
+
 void graphics_setColorMask(bool r, bool g, bool b, bool a);
+
 void graphics_getColorMask(bool *r, bool *g, bool *b, bool *a);
+
 graphics_BlendMode graphics_getBlendMode();
+
 void graphics_setBlendMode(graphics_BlendMode mode);
+
 void graphics_clearScissor(void);
+
 void graphics_setScissor(int x, int y, int w, int h);
+
 bool graphics_getScissor(int *x, int *y, int *w, int *h);
+
 void graphics_reset(void);
+
 double graphics_getDPIScale(void);
+
 void graphics_shear(float kx, float ky);

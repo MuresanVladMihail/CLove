@@ -1,5 +1,5 @@
 GL_ARB_sample_locations
-http://www.opengl.org/registry/specs/ARB/sample_locations.txt
+https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_sample_locations.txt
 GL_ARB_sample_locations
 
 	GL_SAMPLE_LOCATION_ARB 0x8E50
@@ -10,5 +10,6 @@ GL_ARB_sample_locations
 	GL_PROGRAMMABLE_SAMPLE_LOCATION_ARB 0x9341
 	GL_FRAMEBUFFER_PROGRAMMABLE_SAMPLE_LOCATIONS_ARB 0x9342
 	GL_FRAMEBUFFER_SAMPLE_LOCATION_PIXEL_GRID_ARB 0x9343
+	void glEvaluateDepthValuesARB (void)
 	void glFramebufferSampleLocationsfvARB (GLenum target, GLuint start, GLsizei count, const GLfloat* v)
 	void glNamedFramebufferSampleLocationsfvARB (GLuint framebuffer, GLuint start, GLsizei count, const GLfloat* v)

@@ -1,5 +1,5 @@
 GL_EXT_direct_state_access
-http://www.opengl.org/registry/specs/EXT/direct_state_access.txt
+https://www.khronos.org/registry/OpenGL/extensions/EXT/EXT_direct_state_access.txt
 GL_EXT_direct_state_access
 
 	GL_PROGRAM_MATRIX_EXT 0x8E2D
@@ -219,3 +219,4 @@ GL_EXT_direct_state_access
 	void glVertexArrayVertexAttribOffsetEXT (GLuint vaobj, GLuint buffer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, GLintptr offset)
 	void glVertexArrayVertexOffsetEXT (GLuint vaobj, GLuint buffer, GLint size, GLenum type, GLsizei stride, GLintptr offset)
     void glVertexArrayVertexAttribDivisorEXT (GLuint vaobj, GLuint index, GLuint divisor)
+    void glTexturePageCommitmentEXT (GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLboolean commit)

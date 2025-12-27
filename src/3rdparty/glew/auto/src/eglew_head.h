@@ -27,7 +27,11 @@
 #include <KHR/khrplatform.h>
 #include <EGL/eglplatform.h>
 
-#include <GL/glew.h>
+#ifndef GLEW_INCLUDE
+#  include <GL/glew.h>
+#else
+#  include GLEW_INCLUDE
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,17 +76,11 @@ typedef khronos_utime_nanoseconds_t EGLuint64NV;
 typedef khronos_stime_nanoseconds_t EGLnsecsANDROID;
 
 struct EGLClientPixmapHI;
+struct AHardwareBuffer;
 
-#define EGL_DONT_CARE                     ((EGLint)-1)
-
-#define EGL_NO_CONTEXT                    ((EGLContext)0)
-#define EGL_NO_DISPLAY                    ((EGLDisplay)0)
-#define EGL_NO_IMAGE                      ((EGLImage)0)
-#define EGL_NO_SURFACE                    ((EGLSurface)0)
-#define EGL_NO_SYNC                       ((EGLSync)0)
-
-#define EGL_UNKNOWN                       ((EGLint)-1)
-
-#define EGL_DEFAULT_DISPLAY               ((EGLNativeDisplayType)0)
+/* Wayland types for WL_bind_wayland_display purposes */
+struct wl_buffer;
+struct wl_display;
+struct wl_resource;
 
 EGLAPI __eglMustCastToProperFunctionPointerType EGLAPIENTRY eglGetProcAddress (const char *procname);

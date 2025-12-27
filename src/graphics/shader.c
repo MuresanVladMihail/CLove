@@ -22,89 +22,73 @@ static struct {
     int maxTextureUnits;
 } moduleData;
 
-bool graphics_Shader_compileAndAttachShaderRaw(graphics_Shader *program, GLenum shaderType, char const* code) {
+bool graphics_Shader_compileAndAttachShaderRaw(graphics_Shader *program, GLenum shaderType, char const *code) {
     GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, (GLchar const **)&code, 0);
+    glShaderSource(shader, 1, (GLchar const **) &code, NULL);
     glCompileShader(shader);
 
+    GLint compileStatus = GL_FALSE;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compileStatus);
+
+    // Capture compile log (even on success, for warnings).
+    GLint infoLen = 0;
+    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
+    char *log = (char *) malloc((size_t) (infoLen > 0 ? infoLen : 1));
+    if (infoLen > 0) {
+        glGetShaderInfoLog(shader, infoLen, NULL, log);
+    }
+    log[(infoLen > 0 ? infoLen - 1 : 0)] = 0;
+
+    switch (shaderType) {
+        case GL_VERTEX_SHADER:
+            free(program->warnings.vertex);
+            program->warnings.vertex = log;
+            break;
+        case GL_FRAGMENT_SHADER:
+            free(program->warnings.fragment);
+            program->warnings.fragment = log;
+            break;
+        default:
+            free(log);
+            log = NULL;
+            break;
+    }
+
+    if (compileStatus != GL_TRUE) {
+        clove_error("%s %s\n",
+                    shaderType == GL_VERTEX_SHADER ? "vertex shader compile error" : "fragment shader compile error",
+                    log ? log : "(no log)");
+        glDeleteShader(shader);
+        return false;
+    }
+
     glAttachShader(program->program, shader);
-
-    GLint compileStatus;
-
-    glGetShaderiv(shader,GL_COMPILE_STATUS,&compileStatus);
-    if(compileStatus != GL_TRUE)
-    {
-        GLint info;
-        glGetShaderiv(shader,GL_INFO_LOG_LENGTH,&info);
-        GLchar buffer[1024];
-
-        int bufferSize;
-        glGetShaderInfoLog(shader, info, &bufferSize, buffer);
-
-        clove_error("%s %s \n","vertex shader compile error " , buffer);
-        return false;
-    }
-
-    glGetShaderiv(shader,GL_COMPILE_STATUS,&compileStatus);
-    if(compileStatus != GL_TRUE)
-    {
-        GLint info;
-        glGetShaderiv(shader,GL_INFO_LOG_LENGTH,&info);
-        GLchar buffer[1024];
-
-        int bufferSize;
-        glGetShaderInfoLog(shader, info, &bufferSize, buffer);
-
-        clove_error("%s %s \n","fragment shader compile error " , buffer);
-        return false;
-    }
-
-    int state;
-    int infolen;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &state);
-    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infolen);
-
-    char *info = malloc(infolen | 1);
-    glGetShaderInfoLog(shader, infolen, 0, info);
-    info[infolen] = 0;
-    switch(shaderType) {
-    case GL_VERTEX_SHADER:
-        free(program->warnings.vertex);
-        program->warnings.vertex = info;
-        break;
-
-    case GL_FRAGMENT_SHADER:
-        free(program->warnings.fragment);
-        program->warnings.fragment = info;
-        break;
-    }
-    free(info);
     glDeleteShader(shader);
-    return state;
+    return true;
 }
 
-bool graphics_Shader_compileAndAttachShader(graphics_Shader *shader, GLenum shaderType, char const* code) {
-    GLchar const* header;
-    GLchar const* footer;
+bool graphics_Shader_compileAndAttachShader(graphics_Shader *shader, GLenum shaderType, char const *code) {
+    GLchar const *header;
+    GLchar const *footer;
     int headerlen = 0;
     int footerlen = 0;
-    switch(shaderType) {
-    case GL_VERTEX_SHADER:
-        header = vertexHeader;
-        headerlen = sizeof(vertexHeader) - 1;
-        footer = vertexFooter;
-        footerlen = sizeof(vertexFooter) - 1;
-        break;
-    case GL_FRAGMENT_SHADER:
-        header = fragmentHeader;
-        headerlen = sizeof(fragmentHeader) - 1;
-        footer = fragmentFooter;
-        footerlen = sizeof(fragmentFooter) - 1;
-        break;
-    default:
-        return false;
+    switch (shaderType) {
+        case GL_VERTEX_SHADER:
+            header = vertexHeader;
+            headerlen = sizeof(vertexHeader) - 1;
+            footer = vertexFooter;
+            footerlen = sizeof(vertexFooter) - 1;
+            break;
+        case GL_FRAGMENT_SHADER:
+            header = fragmentHeader;
+            headerlen = sizeof(fragmentHeader) - 1;
+            footer = fragmentFooter;
+            footerlen = sizeof(fragmentFooter) - 1;
+            break;
+        default:
+            return false;
     }
-    int codelen = strlen(code);
+    size_t codelen = strlen(code);
     GLchar *combinedCode = malloc(headerlen + footerlen + codelen + 1);
     memcpy(combinedCode, header, headerlen);
     memcpy(combinedCode + headerlen, (GLchar const*)code, codelen);
@@ -117,158 +101,159 @@ bool graphics_Shader_compileAndAttachShader(graphics_Shader *shader, GLenum shad
     return state;
 }
 
-static int compareUniformInfo(graphics_ShaderUniformInfo const* a, graphics_ShaderUniformInfo const* b) {
+static int compareUniformInfo(graphics_ShaderUniformInfo const *a, graphics_ShaderUniformInfo const *b) {
     return strcmp(a->name, b->name);
 }
 
 int graphics_shader_toLoveComponents(GLenum type) {
-    switch(type) {
-    case GL_BOOL:
-    case GL_INT:
-    case GL_FLOAT:
-        return 1;
+    switch (type) {
+        case GL_BOOL:
+        case GL_INT:
+        case GL_FLOAT:
+            return 1;
 
-    case GL_BOOL_VEC2:
-    case GL_INT_VEC2:
-    case GL_FLOAT_VEC2:
-    case GL_FLOAT_MAT2:
-        return 2;
+        case GL_BOOL_VEC2:
+        case GL_INT_VEC2:
+        case GL_FLOAT_VEC2:
+        case GL_FLOAT_MAT2:
+            return 2;
 
-    case GL_BOOL_VEC3:
-    case GL_INT_VEC3:
-    case GL_FLOAT_VEC3:
-    case GL_FLOAT_MAT3:
-        return 3;
+        case GL_BOOL_VEC3:
+        case GL_INT_VEC3:
+        case GL_FLOAT_VEC3:
+        case GL_FLOAT_MAT3:
+            return 3;
 
 
-    case GL_BOOL_VEC4:
-    case GL_INT_VEC4:
-    case GL_FLOAT_VEC4:
-    case GL_FLOAT_MAT4:
-        return 4;
+        case GL_BOOL_VEC4:
+        case GL_INT_VEC4:
+        case GL_FLOAT_VEC4:
+        case GL_FLOAT_MAT4:
+            return 4;
 
-    default:
-        return 0;
+        default:
+            return 0;
     };
 }
 
 graphics_ShaderUniformType graphics_shader_toLoveType(GLenum type) {
-    switch(type) {
-    case GL_BOOL:
-    case GL_BOOL_VEC2:
-    case GL_BOOL_VEC3:
-    case GL_BOOL_VEC4:
-        return graphics_ShaderUniformType_bool;
+    switch (type) {
+        case GL_BOOL:
+        case GL_BOOL_VEC2:
+        case GL_BOOL_VEC3:
+        case GL_BOOL_VEC4:
+            return graphics_ShaderUniformType_bool;
 
-    case GL_INT:
-    case GL_INT_VEC2:
-    case GL_INT_VEC3:
-    case GL_INT_VEC4:
-        return graphics_ShaderUniformType_int;
+        case GL_INT:
+        case GL_INT_VEC2:
+        case GL_INT_VEC3:
+        case GL_INT_VEC4:
+            return graphics_ShaderUniformType_int;
 
-    case GL_FLOAT:
-    case GL_FLOAT_VEC2:
-    case GL_FLOAT_VEC3:
-    case GL_FLOAT_VEC4:
-    case GL_FLOAT_MAT2:
-    case GL_FLOAT_MAT3:
-    case GL_FLOAT_MAT4:
-        return graphics_ShaderUniformType_float;
+        case GL_FLOAT:
+        case GL_FLOAT_VEC2:
+        case GL_FLOAT_VEC3:
+        case GL_FLOAT_VEC4:
+        case GL_FLOAT_MAT2:
+        case GL_FLOAT_MAT3:
+        case GL_FLOAT_MAT4:
+            return graphics_ShaderUniformType_float;
 
-    case GL_SAMPLER_2D:
-        return graphics_ShaderUniformType_sampler;
+        case GL_SAMPLER_2D:
+            return graphics_ShaderUniformType_sampler;
 
-    default:
-        return graphics_ShaderUniformType_none;
+        default:
+            return graphics_ShaderUniformType_none;
     };
 }
 
 static void readShaderUniforms(graphics_Shader *shader) {
-    shader->uniformLocations.projection  = glGetUniformLocation(shader->program, "projection");
-    shader->uniformLocations.view        = glGetUniformLocation(shader->program, "view");
-    shader->uniformLocations.model       = glGetUniformLocation(shader->program, "model");
+    shader->uniformLocations.projection = glGetUniformLocation(shader->program, "projection");
+    shader->uniformLocations.view = glGetUniformLocation(shader->program, "view");
+    shader->uniformLocations.model = glGetUniformLocation(shader->program, "model");
     shader->uniformLocations.textureRect = glGetUniformLocation(shader->program, "textureRect");
-    shader->uniformLocations.tex         = glGetUniformLocation(shader->program, DEFAULT_SAMPLER);
-    shader->uniformLocations.color       = glGetUniformLocation(shader->program, "color");
-    shader->uniformLocations.size        = glGetUniformLocation(shader->program, "size");
+    shader->uniformLocations.tex = glGetUniformLocation(shader->program, DEFAULT_SAMPLER);
+    shader->uniformLocations.color = glGetUniformLocation(shader->program, "color");
+    shader->uniformLocations.size = glGetUniformLocation(shader->program, "size");
 
     int maxLength;
     glGetProgramiv(shader->program, GL_ACTIVE_UNIFORMS, &shader->uniformCount);
     glGetProgramiv(shader->program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxLength);
 
     // This wastes some memory, but it's also relatively fast
-    shader->uniforms = (graphics_ShaderUniformInfo*)malloc(sizeof(graphics_ShaderUniformInfo) * shader->uniformCount);
-    for(int i = 0; i < shader->uniformCount; ++i) {
-        graphics_ShaderUniformInfo* info = shader->uniforms+i;
-        info->name = (char*)malloc(maxLength);
+    shader->uniforms = (graphics_ShaderUniformInfo *) malloc(sizeof(graphics_ShaderUniformInfo) * shader->uniformCount);
+    for (int i = 0; i < shader->uniformCount; ++i) {
+        graphics_ShaderUniformInfo *info = shader->uniforms + i;
+        info->name = (char *) malloc(maxLength);
         glGetActiveUniform(shader->program, i, maxLength, NULL, &info->elements, &info->type, info->name);
 
         info->location = glGetUniformLocation(shader->program, info->name);
         info->extra = 0;
 
         char *suffix = strstr(info->name, "[0]");
-        if(suffix) {
+        if (suffix) {
             *suffix = 0;
         }
     }
 
-    qsort(shader->uniforms, shader->uniformCount, sizeof(graphics_ShaderUniformInfo), (int(*)(void const*,void const*))compareUniformInfo);
-
+    qsort(shader->uniforms, shader->uniformCount, sizeof(graphics_ShaderUniformInfo),
+          (int(*)(void const *, void const *)) compareUniformInfo);
 }
 
 
 static void allocateTextureUnits(graphics_Shader *shader) {
-
     shader->textureUnitCount = 0;
-    for(int i = 0; i < shader->uniformCount; ++i) {
-        if(shader->uniforms[i].type == GL_SAMPLER_2D) {
-            if(strcmp(shader->uniforms[i].name, DEFAULT_SAMPLER)) {
-                ++shader->textureUnitCount;
-            }
+
+    for (int i = 0; i < shader->uniformCount; ++i) {
+        if (shader->uniforms[i].type == GL_SAMPLER_2D &&
+            strcmp(shader->uniforms[i].name, DEFAULT_SAMPLER) != 0) {
+            ++shader->textureUnitCount;
         }
     }
 
-    shader->textureUnits = malloc(sizeof(graphics_ShaderTextureUnitInfo) * shader->textureUnitCount);
+    shader->textureUnits =
+            malloc(sizeof(graphics_ShaderTextureUnitInfo) * shader->textureUnitCount);
 
     int currentUnit = 0;
     glUseProgram(shader->program);
-    for(int i = 0; i < shader->uniformCount; ++i) {
-        if(shader->uniforms[i].type == GL_SAMPLER_2D) {
-            if(strcmp(shader->uniforms[i].name, DEFAULT_SAMPLER)) {
-                glUniform1i(shader->uniforms[i].location, currentUnit+1);
-                shader->uniforms[i].extra = shader->textureUnits + currentUnit;
-                shader->textureUnits[currentUnit].unit = currentUnit + 1;
-                shader->textureUnits[currentUnit].boundTexture = 0;
-                ++currentUnit;
-            }
+
+    for (int i = 0; i < shader->uniformCount; ++i) {
+        if (shader->uniforms[i].type == GL_SAMPLER_2D &&
+            strcmp(shader->uniforms[i].name, DEFAULT_SAMPLER) != 0) {
+            glUniform1i(shader->uniforms[i].location, currentUnit + 1);
+
+            shader->uniforms[i].extra = shader->textureUnits + currentUnit;
+            shader->textureUnits[currentUnit].unit = currentUnit + 1;
+            shader->textureUnits[currentUnit].boundTexture = 0;
+
+            ++currentUnit;
         }
     }
-
 }
 
-graphics_ShaderCompileStatus graphics_Shader_new(graphics_Shader *shader, char const* vertexCode, char const* fragmentCode) {
-
+graphics_ShaderCompileStatus graphics_Shader_new(graphics_Shader *shader, char const *vertexCode,
+                                                 char const *fragmentCode) {
     memset(shader, 0, sizeof(*shader));
     shader->warnings.vertex = malloc(1);
     shader->warnings.fragment = malloc(1);
     shader->warnings.program = malloc(1);
     *shader->warnings.vertex = *shader->warnings.fragment = *shader->warnings.program = 0;
 
-    if(!vertexCode) {
+    if (!vertexCode) {
         vertexCode = defaultVertexSource;
     }
 
-    if(!fragmentCode) {
+    if (!fragmentCode) {
         fragmentCode = defaultFragmentSource;
     }
 
     shader->program = glCreateProgram();
 
-    if(!graphics_Shader_compileAndAttachShader(shader, GL_VERTEX_SHADER, vertexCode)) {
+    if (!graphics_Shader_compileAndAttachShader(shader, GL_VERTEX_SHADER, vertexCode)) {
         return graphics_ShaderCompileStatus_vertexError;
     }
 
-    if(!graphics_Shader_compileAndAttachShader(shader, GL_FRAGMENT_SHADER, fragmentCode)) {
+    if (!graphics_Shader_compileAndAttachShader(shader, GL_FRAGMENT_SHADER, fragmentCode)) {
         return graphics_ShaderCompileStatus_fragmentError;
     }
 
@@ -282,7 +267,7 @@ graphics_ShaderCompileStatus graphics_Shader_new(graphics_Shader *shader, char c
     if (linkState != GL_TRUE) {
         clove_error("ERROR OpenGL : unable to compile shader\n");
         char shader_link_error[4096];
-        glGetShaderInfoLog(shader->program, sizeof(shader_link_error), NULL, shader_link_error);
+        glGetProgramInfoLog(shader->program, sizeof(shader_link_error), NULL, shader_link_error);
         clove_error("%s", shader_link_error);
         return graphics_ShaderCompileStatus_linkError;
     }
@@ -296,33 +281,57 @@ graphics_ShaderCompileStatus graphics_Shader_new(graphics_Shader *shader, char c
     return graphics_ShaderCompileStatus_okay;
 }
 
-void graphics_Shader_free(graphics_Shader* shader) {
-    for(int i = 0; i < shader->uniformCount; ++i) {
+void graphics_Shader_free(graphics_Shader *shader) {
+    for (int i = 0; i < shader->uniformCount; ++i) {
         free(shader->uniforms[i].name);
     }
     free(shader->textureUnits);
     free(shader->uniforms);
     glDeleteProgram(shader->program);
 }
-void graphics_Shader_activate(mat4x4 const* projection, mat4x4 const* view, mat4x4 const* model, graphics_Quad const* textureRect, float const* useColor, float ws, float hs) {
 
+void graphics_Shader_activate(mat4x4 const *projection, mat4x4 const *view, mat4x4 const *model,
+                              graphics_Quad const *textureRect, float const *useColor, float ws, float hs) {
     glUseProgram(moduleData.activeShader->program);
-
-    float s[3] = { ws, hs};
-
-    glUniform1i(moduleData.activeShader->uniformLocations.tex,               0);
-    glUniformMatrix4fv(moduleData.activeShader->uniformLocations.projection,  1, 0, (GLfloat const*)projection);
-    glUniformMatrix4fv(moduleData.activeShader->uniformLocations.view,  1, 0, (GLfloat const*)view);
-    glUniformMatrix4fv(moduleData.activeShader->uniformLocations.model,  1, 0, (GLfloat const*)model);
-    glUniformMatrix2fv(moduleData.activeShader->uniformLocations.textureRect, 1, 0, (GLfloat const*)textureRect);
-    glUniform4fv(moduleData.activeShader->uniformLocations.color,1,useColor);
-    glUniform2fv(moduleData.activeShader->uniformLocations.size,1,s);
-
-    for(int i = 0; i < moduleData.activeShader->textureUnitCount; ++i) {
-        glActiveTexture(GL_TEXTURE0 + moduleData.activeShader->textureUnits[i].unit);
-        glBindTexture(GL_TEXTURE_2D, moduleData.activeShader->textureUnits[i].boundTexture);
-        //printf("Count:%d Texture id:%d Unit:%d\n", moduleData.activeShader->textureUnitCount, moduleData.activeShader->textureUnits[i].boundTexture, moduleData.activeShader->textureUnits[i].unit);
+    float s[2] = {ws, hs};
+    GLint currentProg = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &currentProg);
+    if (currentProg == 0) {
+        printf("NO CURRENT PROGRAM in graphics_Shader_activate!\n");
     }
+
+    glUniform1i(moduleData.activeShader->uniformLocations.tex, 0);
+    glUniformMatrix4fv(moduleData.activeShader->uniformLocations.projection, 1, 0, (GLfloat const *) projection);
+    glUniformMatrix4fv(moduleData.activeShader->uniformLocations.view, 1, 0, (GLfloat const *) view);
+    glUniformMatrix4fv(moduleData.activeShader->uniformLocations.model, 1, 0, (GLfloat const *) model);
+    // Pack mat2 as column-major: [col0.xy, col1.xy]
+    GLfloat rectMat[4] = {
+        (GLfloat) textureRect->x, (GLfloat) textureRect->y, // column 0 = offset
+        (GLfloat) textureRect->w, (GLfloat) textureRect->h // column 1 = scale
+    };
+
+    glUniformMatrix2fv(
+        moduleData.activeShader->uniformLocations.textureRect,
+        1,
+        GL_FALSE,
+        rectMat
+    );
+    glUniform4fv(moduleData.activeShader->uniformLocations.color, 1, useColor);
+    glUniform2fv(moduleData.activeShader->uniformLocations.size, 1, s);
+
+    for (int i = 0; i < moduleData.activeShader->textureUnitCount; ++i) {
+        int unit = moduleData.activeShader->textureUnits[i].unit;
+        GLuint tex = moduleData.activeShader->textureUnits[i].boundTexture;
+
+        // Unit 0 is owned by the draw call (Batch/Image). Don't override it here.
+        if (unit == 0) continue;
+        if (tex == 0) continue;
+
+        glActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(GL_TEXTURE_2D, tex);
+    }
+
+    glActiveTexture(GL_TEXTURE0);
 }
 
 bool graphics_Shader_hasCustomShader(graphics_Shader *shader) {
@@ -334,12 +343,12 @@ void graphics_setDefaultShader(void) {
     moduleData.activeShader->customShader = false;
 }
 
-void graphics_setShader(graphics_Shader* shader) {
+void graphics_setShader(graphics_Shader *shader) {
     moduleData.activeShader = shader;
     moduleData.activeShader->customShader = true;
 }
 
-graphics_Shader* graphics_getShader(void) {
+graphics_Shader *graphics_getShader(void) {
     return moduleData.activeShader;
 }
 
@@ -359,9 +368,9 @@ int graphics_getMaxTextureUnits() {
     glfunc(info->location, count, numbers); \
     }
 
-mkScalarSendFunc(sendIntegers, GLint,   glUniform1iv)
-mkScalarSendFunc(sendBooleans, GLint,   glUniform1iv)
-mkScalarSendFunc(sendFloats,   GLfloat, glUniform1fv)
+mkScalarSendFunc(sendIntegers, GLint, glUniform1iv)
+mkScalarSendFunc(sendBooleans, GLint, glUniform1iv)
+mkScalarSendFunc(sendFloats, GLfloat, glUniform1fv)
 
 #undef mkScalarSendFunc
 
@@ -381,38 +390,40 @@ mkScalarSendFunc(sendFloats,   GLfloat, glUniform1fv)
     }                                                             \
     }
 
-mkVectorSendFunc(sendIntegerVectors, GLint,   i)
-mkVectorSendFunc(sendBooleanVectors, GLint,   i)
-mkVectorSendFunc(sendFloatVectors,   GLfloat, f)
+mkVectorSendFunc(sendIntegerVectors, GLint, i)
+mkVectorSendFunc(sendBooleanVectors, GLint, i)
+mkVectorSendFunc(sendFloatVectors, GLfloat, f)
 
 #undef mkVectorSendFunc
 
-void graphics_Shader_sendFloatMatrices(graphics_Shader *shader, graphics_ShaderUniformInfo const* info, int count, float const* numbers) {
+void graphics_Shader_sendFloatMatrices(graphics_Shader *shader, graphics_ShaderUniformInfo const *info, int count,
+                                       float const *numbers) {
     glUseProgram(shader->program);
 
-    switch(graphics_shader_toLoveComponents(info->type)) {
-    case 2:
-        glUniformMatrix2fv(info->location, count, false, numbers);
-        break;
+    switch (graphics_shader_toLoveComponents(info->type)) {
+        case 2:
+            glUniformMatrix2fv(info->location, count, false, numbers);
+            break;
 
-    case 3:
-        glUniformMatrix3fv(info->location, count, false, numbers);
-        break;
+        case 3:
+            glUniformMatrix3fv(info->location, count, false, numbers);
+            break;
 
-    case 4:
-        glUniformMatrix4fv(info->location, count, false, numbers);
-        break;
+        case 4:
+            glUniformMatrix4fv(info->location, count, false, numbers);
+            break;
     }
 }
 
 
-void graphics_Shader_sendTexture(graphics_Shader *shader, graphics_ShaderUniformInfo const* info, GLuint texture) {
-    graphics_ShaderTextureUnitInfo *unit = (graphics_ShaderTextureUnitInfo*)info->extra;
+void graphics_Shader_sendTexture(graphics_Shader *shader, graphics_ShaderUniformInfo const *info, GLuint texture) {
+    graphics_ShaderTextureUnitInfo *unit = (graphics_ShaderTextureUnitInfo *) info->extra;
     unit->boundTexture = texture;
 }
 
 
-graphics_ShaderUniformInfo const* graphics_Shader_getUniform(graphics_Shader const* shader, char const* name) {
+graphics_ShaderUniformInfo const *graphics_Shader_getUniform(graphics_Shader const *shader, char const *name) {
     // Dirty trick to avoid duplicate code: Name will be treated as graphics_ShaderUniformInfo.
-    return bsearch(&name, shader->uniforms, shader->uniformCount, sizeof(graphics_ShaderUniformInfo), (int(*)(void const*, void const*))compareUniformInfo);
+    return bsearch(&name, shader->uniforms, shader->uniformCount, sizeof(graphics_ShaderUniformInfo),
+                   (int(*)(void const *, void const *)) compareUniformInfo);
 }

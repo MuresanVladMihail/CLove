@@ -8,6 +8,7 @@ const GLubyte * GLEWAPIENTRY glewGetErrorString (GLenum error)
     (const GLubyte*)"Missing GL version",
     (const GLubyte*)"GL 1.1 and up are not supported",
     (const GLubyte*)"GLX 1.2 and up are not supported",
+    (const GLubyte*)"No GLX display",
     (const GLubyte*)"Unknown error"
   };
   const size_t max_error = sizeof(_glewErrorString)/sizeof(*_glewErrorString) - 1;
@@ -58,6 +59,17 @@ GLenum GLEWAPIENTRY glewInit (void)
 /* GCC requires a DLL entry point even without any standard library included. */
 /* Types extracted from windows.h to avoid polluting the rest of the file. */
 int __stdcall DllMainCRTStartup(void* instance, unsigned reason, void* reserved)
+{
+  (void) instance;
+  (void) reason;
+  (void) reserved;
+  return 1;
+}
+#endif
+
+#if defined(_WIN32) && defined(GLEW_BUILD) && defined(__clang__)
+/* Windows mingw clang requires a DLL entry point */
+int __stdcall _DllMainCRTStartup(void* instance, unsigned reason, void* reserved)
 {
   (void) instance;
   (void) reason;

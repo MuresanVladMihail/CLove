@@ -5,7 +5,12 @@
 #if defined(GLEW_EGL)
 #include <GL/eglew.h>
 #elif defined(GLEW_OSMESA)
+#ifndef GLAPI
 #define GLAPI extern
+#endif
+#ifndef APIENTRY
+#define APIENTRY
+#endif
 #include <GL/osmesa.h>
 #elif defined(_WIN32)
 #include <GL/wglew.h>
@@ -40,17 +45,20 @@ struct createParams
   /* https://www.opengl.org/registry/specs/ARB/glx_create_context.txt */
   int         profile;       /* core = 1, compatibility = 2 */
   int         flags;         /* debug = 1, forward compatible = 2 */
+
+  /* GLEW experimental mode */
+  int         experimental;
 };
 
 GLboolean glewCreateContext (struct createParams *params);
 
 GLboolean glewParseArgs (int argc, char** argv, struct createParams *);
 
-void glewDestroyContext ();
+void glewDestroyContext (void);
 
 /* ------------------------------------------------------------------------- */
 
-static void glewPrintExt (const char* name, GLboolean def1, GLboolean def2, GLboolean def3)
+static GLboolean glewPrintExt (const char* name, GLboolean def1, GLboolean def2, GLboolean def3)
 {
   unsigned int i;
   fprintf(f, "\n%s:", name);
@@ -65,15 +73,19 @@ static void glewPrintExt (const char* name, GLboolean def1, GLboolean def2, GLbo
   for (i=0; i<strlen(name)+1; i++) fprintf(f, "-");
   fprintf(f, "\n");
   fflush(f);
+  return def1 || def2 || def3 || glewExperimental; /* Enable per-function info too? */
 }
 
-static void glewInfoFunc (const char* name, GLint undefined)
+static void glewInfoFunc (GLboolean fi, const char* name, GLint undefined)
 {
   unsigned int i;
-  fprintf(f, "  %s:", name);
-  for (i=0; i<60-strlen(name); i++) fprintf(f, " ");
-  fprintf(f, "%s\n", undefined ? "MISSING" : "OK");
-  fflush(f);
+  if (fi)
+  {
+    fprintf(f, "  %s:", name);
+    for (i=0; i<60-strlen(name); i++) fprintf(f, " ");
+    fprintf(f, "%s\n", undefined ? "MISSING" : "OK");
+    fflush(f);
+  }
 }
 
 /* ----------------------------- GL_VERSION_1_1 ---------------------------- */

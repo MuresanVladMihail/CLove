@@ -1,11 +1,13 @@
 /*
 #   clove
 #
-#   Copyright (C) 2019-2021 Muresan Vlad
+#   Copyright (C) 2019-2025 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
 */
+
+#ifdef USE_FH
 
 #include "include/fh_mainactivity.h"
 
@@ -72,35 +74,36 @@ static void main_clean(void) {
     joystick_close();
     ui_deinit();
     graphics_geometry_free();
-    graphics_destroyWindow();
+    graphics_shutdown();
     filesystem_free();
     audio_close();
     fh_deinit(loopData.prog);
 }
 
 static const char ui_key_map[256] = {
-    [ SDLK_LSHIFT       & 0xff ] = MU_KEY_SHIFT,
-    [ SDLK_RSHIFT       & 0xff ] = MU_KEY_SHIFT,
-    [ SDLK_LCTRL        & 0xff ] = MU_KEY_CTRL,
-    [ SDLK_RCTRL        & 0xff ] = MU_KEY_CTRL,
-    [ SDLK_LALT         & 0xff ] = MU_KEY_ALT,
-    [ SDLK_RALT         & 0xff ] = MU_KEY_ALT,
-    [ SDLK_RETURN       & 0xff ] = MU_KEY_RETURN,
-    [ SDLK_BACKSPACE    & 0xff ] = MU_KEY_BACKSPACE,
+    [ SDLK_LSHIFT & 0xff ] = MU_KEY_SHIFT,
+    [ SDLK_RSHIFT & 0xff ] = MU_KEY_SHIFT,
+    [ SDLK_LCTRL & 0xff ] = MU_KEY_CTRL,
+    [ SDLK_RCTRL & 0xff ] = MU_KEY_CTRL,
+    [ SDLK_LALT & 0xff ] = MU_KEY_ALT,
+    [ SDLK_RALT & 0xff ] = MU_KEY_ALT,
+    [ SDLK_RETURN & 0xff ] = MU_KEY_RETURN,
+    [ SDLK_BACKSPACE & 0xff ] = MU_KEY_BACKSPACE,
 };
 
 static const char ui_button_map[256] = {
-    [ SDL_BUTTON_LEFT   & 0xff ] =  MU_MOUSE_LEFT,
-    [ SDL_BUTTON_RIGHT  & 0xff ] =  MU_MOUSE_RIGHT,
-    [ SDL_BUTTON_MIDDLE & 0xff ] =  MU_MOUSE_MIDDLE,
+    [ SDL_BUTTON_LEFT & 0xff ] = MU_MOUSE_LEFT,
+    [ SDL_BUTTON_RIGHT & 0xff ] = MU_MOUSE_RIGHT,
+    [ SDL_BUTTON_MIDDLE & 0xff ] = MU_MOUSE_MIDDLE,
 };
 
 static struct fh_value update_args[2];
+
 void fh_main_loop(int argc, char **argv) {
     timer_step();
     focus_function();
     matrixstack_origin();
-    loopData.delta.data.num = (double)timer_getDelta();
+    loopData.delta.data.num = (double) timer_getDelta();
 
     update_args[0] = loopData.delta;
     update_args[1] = loopData.opt;
@@ -109,7 +112,7 @@ void fh_main_loop(int argc, char **argv) {
     }
 
 #ifdef USE_NATIVE
-    game_update((float)timer_getDelta());
+    game_update((float) timer_getDelta());
 #endif
 
     /*if (clove_reload) {
@@ -130,129 +133,119 @@ void fh_main_loop(int argc, char **argv) {
     graphics_swap();
 
     SDL_Event event;
-    while(SDL_PollEvent(&event)) {
+    while (SDL_PollEvent(&event)) {
         if (event.type == SDL_WINDOWEVENT) {
-            switch (event.window.event)
-            {
-            case SDL_WINDOWEVENT_ENTER:
-                graphics_setMouseFocus(true);
+            switch (event.window.event) {
+                case SDL_WINDOWEVENT_ENTER:
+                    graphics_setMouseFocus(true);
+                    break;
+                case SDL_WINDOWEVENT_LEAVE:
+                    graphics_setMouseFocus(false);
+                    break;
+                case SDL_WINDOWEVENT_FOCUS_LOST:
+                    graphics_setFocus(false);
+                    break;
+                case SDL_WINDOWEVENT_FOCUS_GAINED:
+                    graphics_setFocus(true);
+                    break;
+                default:
+                    break;
+            }
+        }
+        switch (event.wheel.type) {
+            case SDL_MOUSEWHEEL: {
+                ui_input_scroll(0, event.wheel.y * -30);
+                mouse_mousewheel(event.wheel.y);
+                int _what = event.wheel.y == 1 ? SDL_MOUSEBUTTONUP : SDL_MOUSEBUTTONDOWN;
+                mouse_mousepressed(event.button.x, event.button.y, _what);
+                mouse_setButton(event.button.button);
                 break;
-            case SDL_WINDOWEVENT_LEAVE:
-                graphics_setMouseFocus(false);
-                break;
-            case SDL_WINDOWEVENT_FOCUS_LOST:
-                graphics_setFocus(false);
-                break;
-            case SDL_WINDOWEVENT_FOCUS_GAINED:
-                graphics_setFocus(true);
-                break;
+            }
             default:
                 break;
+        }
+        switch (event.type) {
+            case SDL_KEYDOWN: {
+                int c = ui_key_map[event.key.keysym.sym & 0xff];
+                if (c) {
+                    ui_input_keydown(c);
+                }
+                keyboard_keypressed(event.key.keysym.sym);
+                break;
             }
-        }
-        switch(event.wheel.type) {
-        case SDL_MOUSEWHEEL:
-        {
-            ui_input_scroll(0, event.wheel.y * - 30);
-            mouse_mousewheel(event.wheel.y);
-            int _what = event.wheel.y == 1 ? SDL_MOUSEBUTTONUP : SDL_MOUSEBUTTONDOWN;
-            mouse_mousepressed(event.button.x, event.button.y, _what);
-            mouse_setButton(event.button.button);
-            break;
-        }
-        default:
-            break;
-        }
-        switch(event.type) {
-        case SDL_KEYDOWN:
-        {
-            int c = ui_key_map[event.key.keysym.sym & 0xff];
-            if (c) {
-                ui_input_keydown(c);
+            case SDL_KEYUP: {
+                int c = ui_key_map[event.key.keysym.sym & 0xff];
+                if (c) {
+                    ui_input_keyup(c);
+                }
+                keyboard_keyreleased(event.key.keysym.sym);
+                break;
             }
-            keyboard_keypressed(event.key.keysym.sym);
-            break;
-        }
-        case SDL_KEYUP:
-        {
-            int c = ui_key_map[event.key.keysym.sym & 0xff];
-            if (c) {
-                ui_input_keyup(c);
+            case SDL_TEXTINPUT: {
+                const char *text = event.text.text;
+                ui_input_text(text);
+                keyboard_textInput(text);
+                break;
             }
-            keyboard_keyreleased(event.key.keysym.sym);
-            break;
-        }
-        case SDL_TEXTINPUT:
-        {
-            const char *text = event.text.text;
-            ui_input_text(text);
-            keyboard_textInput(text);
-            break;
-        }
-        case SDL_MOUSEMOTION:
-        {
-            int x = event.motion.x;
-            int y = event.motion.y;
-            ui_input_mouse_move(x, y);
-            mouse_mousemoved(x, y);
-            break;
-        }
-        case SDL_MOUSEBUTTONDOWN:
-        {
-            int x = event.button.x;
-            int y = event.button.y;
-            int btn = event.button.button;
-            int ui_btn = ui_button_map[btn & 0xff];
-            if (ui_btn) {
-                ui_input_mouse_down(ui_btn, x, y);
+            case SDL_MOUSEMOTION: {
+                int x = event.motion.x;
+                int y = event.motion.y;
+                ui_input_mouse_move(x, y);
+                mouse_mousemoved(x, y);
+                break;
             }
-            mouse_mousepressed(x, y, btn);
-            mouse_setButton(btn);
-            break;
-        }
-        case SDL_MOUSEBUTTONUP:
-        {
-            int x = event.button.x;
-            int y = event.button.y;
-            int btn = event.button.button;
-            int ui_btn = ui_button_map[btn & 0xff];
-            if (ui_btn) {
-                ui_input_mouse_up(ui_btn, x, y);
+            case SDL_MOUSEBUTTONDOWN: {
+                int x = event.button.x;
+                int y = event.button.y;
+                int btn = event.button.button;
+                int ui_btn = ui_button_map[btn & 0xff];
+                if (ui_btn) {
+                    ui_input_mouse_down(ui_btn, x, y);
+                }
+                mouse_mousepressed(x, y, btn);
+                mouse_setButton(btn);
+                break;
             }
-            mouse_mousereleased(x, y, btn);
-            mouse_setButton(0);
-            break;
-        }
-        case SDL_JOYDEVICEADDED:
-            joystick_added(event.jdevice.which);
-            break;
-        case SDL_JOYDEVICEREMOVED:
-            joystick_remove(event.jdevice.which);
-            break;
-        case SDL_JOYAXISMOTION:
-            break;
-        case SDL_JOYBUTTONDOWN:
-            joystick_buttonDown(event.jbutton.which, event.jbutton.button, event.jbutton.state);
-            break;
-        case SDL_JOYBUTTONUP:
-            joystick_buttonUp(event.jbutton.which, event.jbutton.button, event.jbutton.state);
-            break;
+            case SDL_MOUSEBUTTONUP: {
+                int x = event.button.x;
+                int y = event.button.y;
+                int btn = event.button.button;
+                int ui_btn = ui_button_map[btn & 0xff];
+                if (ui_btn) {
+                    ui_input_mouse_up(ui_btn, x, y);
+                }
+                mouse_mousereleased(x, y, btn);
+                mouse_setButton(0);
+                break;
+            }
+            case SDL_JOYDEVICEADDED:
+                joystick_added(event.jdevice.which);
+                break;
+            case SDL_JOYDEVICEREMOVED:
+                joystick_remove(event.jdevice.which);
+                break;
+            case SDL_JOYAXISMOTION:
+                break;
+            case SDL_JOYBUTTONDOWN:
+                joystick_buttonDown(event.jbutton.which, event.jbutton.button, event.jbutton.state);
+                break;
+            case SDL_JOYBUTTONUP:
+                joystick_buttonUp(event.jbutton.which, event.jbutton.button, event.jbutton.state);
+                break;
 #ifdef CLOVE_DESKTOP
-        case SDL_QUIT:
-        {
-            loopData.called_quit = true;
-            quit_function();
-            clove_running = false;
-            break;
-        }
+            case SDL_QUIT: {
+                loopData.called_quit = true;
+                quit_function();
+                clove_running = false;
+                break;
+            }
 #endif
         }
     }
     audio_updateStreams();
 }
 
-void fh_main_activity_load(int argc, char* argv[])
-{
+void fh_main_activity_load(int argc, char *argv[]) {
     fh_init();
     clove_reload = false;
     clove_running = true;
@@ -287,9 +280,9 @@ void fh_main_activity_load(int argc, char* argv[])
 
     graphics_loadAndSetIcon("icon.png");
 
-    love_Version const * version = love_getVersion();
+    love_Version const *version = love_getVersion();
     printf("%s %s %d.%d.%d \n", "CLove version - ",
-           version->codename, version->major,version->minor, version->revision);
+           version->codename, version->major, version->minor, version->revision);
     printf("FH version - %s\n", FH_VERSION);
 
     fh_keyboard_register(loopData.prog);
@@ -395,3 +388,5 @@ void fh_main_activity_load(int argc, char* argv[])
     }
     main_clean();
 }
+
+#endif

@@ -19,11 +19,11 @@
 
 static struct {
   int currentDataSize;
-  int* vertices;
-}moduleData;
+  int *vertices;
+} moduleData;
 
-static int l_geometry_circle(lua_State* state) {
-  const char* type = l_tools_toStringOrError(state, 1);
+static int l_geometry_circle(lua_State *state) {
+  const char *type = l_tools_toStringOrError(state, 1);
   float x = l_tools_toNumberOrError(state, 2);
   float y = l_tools_toNumberOrError(state, 3);
   float radius = l_tools_toNumberOrError(state, 4);
@@ -36,14 +36,14 @@ static int l_geometry_circle(lua_State* state) {
 
   if (strcmp(type, "line") == 0)
     graphics_geometry_lineCircle(x, y, radius, segments, rotation, sx, sy, ox, oy);
-  else if(strcmp(type, "fill") == 0)
+  else if (strcmp(type, "fill") == 0)
     graphics_geometry_fillCircle(x, y, radius, segments, rotation, sx, sy, ox, oy);
 
   return 1;
 }
 
-static int l_geometry_rectangle(lua_State* state) {
-  const char* type = l_tools_toStringOrError(state, 1);
+static int l_geometry_rectangle(lua_State *state) {
+  const char *type = l_tools_toStringOrError(state, 1);
   float x = l_tools_toNumberOrError(state, 2);
   float y = l_tools_toNumberOrError(state, 3);
   float w = l_tools_toNumberOrError(state, 4);
@@ -60,27 +60,26 @@ static int l_geometry_rectangle(lua_State* state) {
   if (lua_tonumber(state, 10)) oy = luaL_checknumber(state, 10);
 
   if (strcmp(type, "line") == 0)
-	  graphics_geometry_rectangle(false, x, y, w, h, r, sx, sy, ox, oy);
-  else if(strcmp(type, "fill") == 0)
-	  graphics_geometry_rectangle(true, x, y, w, h, r, sx, sy, ox, oy);
-  else
-  {
-	  luaL_argerror(state,1,"expected string");
-	  lua_error(state);
+    graphics_geometry_rectangle(false, x, y, w, h, r, sx, sy, ox, oy);
+  else if (strcmp(type, "fill") == 0)
+    graphics_geometry_rectangle(true, x, y, w, h, r, sx, sy, ox, oy);
+  else {
+    luaL_argerror(state, 1, "expected string");
+    lua_error(state);
   }
   return 1;
 }
 
-static int l_geometry_points(lua_State* state) {
+static int l_geometry_points(lua_State *state) {
   float x = l_tools_toNumberOrError(state, 1);
   float y = l_tools_toNumberOrError(state, 2);
 
-  graphics_geometry_points(x, y);
+  //TODO: look at fhapi/graphics_geometry.c graphics_geometry_points(x, y);
   return 1;
 }
 
-static int l_geometry_vertex(lua_State* state) {
-  const char* type = l_tools_toStringOrError(state, 1);
+static int l_geometry_vertex(lua_State *state) {
+  const char *type = l_tools_toStringOrError(state, 1);
   float x = l_tools_toNumberOrError(state, 2);
   float y = l_tools_toNumberOrError(state, 3);
   int _i = 0;
@@ -91,87 +90,86 @@ static int l_geometry_vertex(lua_State* state) {
 
   int dataSize = sizeof(int) * count;
 
-  if(moduleData.currentDataSize < dataSize)
-  {
-	  free(moduleData.vertices);
-	  moduleData.vertices = (int*)malloc(dataSize);
-	  moduleData.currentDataSize = dataSize;
+  if (moduleData.currentDataSize < dataSize) {
+    free(moduleData.vertices);
+    moduleData.vertices = (int *) malloc(dataSize);
+    moduleData.currentDataSize = dataSize;
   }
 
-  if(moduleData.vertices == 0)
+  if (moduleData.vertices == 0)
     printf("Error: Could not allocate memory for l_geometry_vertex \n");
   //Check if we need to draw points of lines
-  if (lua_istable(state, 4)) { //in this case draw lines
-      // Push another reference to the table on top of the stack (so we know
-      // where it is, and this function can work for negative, positive and
-      // pseudo indices
-      lua_pushvalue(state, 4);
-      // stack now contains: -1 => table
-      lua_pushnil(state);
-      // stack now contains: -1 => nil; -2 => table
-      while (lua_next(state, -2))
-        {
-          // stack now contains: -1 => value; -2 => key; -3 => table
-          // copy the key so that lua_tostring does not modify the original
-          lua_pushvalue(state, -2);
-          // stack now contains: -1 => key; -2 => value; -3 => key; -4 => table
-          //const char *key = lua_tostring(state, -1);
-          const char * value = lua_tostring(state, -2);
-          int v = atoi(value);
-          //int i = atoi(key);
+  if (lua_istable(state, 4)) {
+    //in this case draw lines
+    // Push another reference to the table on top of the stack (so we know
+    // where it is, and this function can work for negative, positive and
+    // pseudo indices
+    lua_pushvalue(state, 4);
+    // stack now contains: -1 => table
+    lua_pushnil(state);
+    // stack now contains: -1 => nil; -2 => table
+    while (lua_next(state, -2)) {
+      // stack now contains: -1 => value; -2 => key; -3 => table
+      // copy the key so that lua_tostring does not modify the original
+      lua_pushvalue(state, -2);
+      // stack now contains: -1 => key; -2 => value; -3 => key; -4 => table
+      //const char *key = lua_tostring(state, -1);
+      const char *value = lua_tostring(state, -2);
+      int v = atoi(value);
+      //int i = atoi(key);
 
-          //Put the key and the value of the table into an array
-          moduleData.vertices[_i] = v; // second insert the value of the key
-          _i ++;
+      //Put the key and the value of the table into an array
+      moduleData.vertices[_i] = v; // second insert the value of the key
+      _i++;
 
-          // pop value + copy of key, leaving original key
-          lua_pop(state, 2);
-          // stack now contains: -1 => key; -2 => table
-        }
-      // stack now contains: -1 => table (when lua_next returns 0 it pops the key
-      // but does not push anything.)
-      // Pop table
-      lua_pop(state, 1);
-      // Stack is now the same as it was on entry to this function
+      // pop value + copy of key, leaving original key
+      lua_pop(state, 2);
+      // stack now contains: -1 => key; -2 => table
     }
-  if (strncmp(type,"line",4) == 0)
-    graphics_geometry_vertex(false, x, y,moduleData.vertices,count);
-  else if (strncmp(type, "fill",4) == 0)
-    graphics_geometry_vertex(true, x, y, moduleData.vertices,count);
+    // stack now contains: -1 => table (when lua_next returns 0 it pops the key
+    // but does not push anything.)
+    // Pop table
+    lua_pop(state, 1);
+    // Stack is now the same as it was on entry to this function
+  }
+  if (strncmp(type, "line", 4) == 0)
+    graphics_geometry_polygon(false, moduleData.vertices, count);
+  else if (strncmp(type, "fill", 4) == 0)
+    graphics_geometry_polygon(true, moduleData.vertices, count);
 
-  //free(vertices);
+  // free(moduleData.vertices);
   return 1;
 }
 
-static int l_geometry_setLineWidth(lua_State* state) {
+static int l_geometry_setLineWidth(lua_State *state) {
   float width = l_tools_toNumberOrError(state, 1);
   graphics_geometry_setLineWidth(width);
   return 1;
 }
 
-static int l_geometry_getLineWidth(lua_State* state) {
+static int l_geometry_getLineWidth(lua_State *state) {
   lua_pushnumber(state, graphics_geometry_getLineWidth());
   return 1;
 }
 
-static int l_geometry_gcGeometry(lua_State* state) {
+static int l_geometry_gcGeometry(lua_State *state) {
   //graphics_geometry_free();
   return 0;
 }
 
 static luaL_Reg const geometryFuncs[] = {
   //{"__gc",         l_geometry_gcGeometry},
-  {"points",       l_geometry_points},
-  {"point",        l_geometry_points},
-  {"vertex",       l_geometry_vertex},
-  {"rectangle",    l_geometry_rectangle},
-  {"circle",       l_geometry_circle},
+  {"points", l_geometry_points},
+  {"point", l_geometry_points},
+  {"vertex", l_geometry_vertex},
+  {"rectangle", l_geometry_rectangle},
+  {"circle", l_geometry_circle},
   {"setLineWidth", l_geometry_setLineWidth},
   {"getLineWidth", l_geometry_getLineWidth},
-  {NULL,NULL}
+  {NULL, NULL}
 };
 
-void l_graphics_geometry_register(lua_State* state) {
+void l_graphics_geometry_register(lua_State *state) {
   l_tools_registerFuncsInModule(state, "graphics", geometryFuncs);
 }
 

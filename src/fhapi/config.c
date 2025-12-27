@@ -89,7 +89,7 @@ int fh_config(struct fh_program *prog) {
     key = fh_new_string(prog, "window_destroy");
     if (fh_get_map_object_value(map, &key, &ret) == 0) {
         if (fh_get_bool(&ret)) {
-            graphics_destroyWindow();
+            graphics_shutdown();
         }
     }
 
