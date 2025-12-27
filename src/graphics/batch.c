@@ -21,6 +21,7 @@ static struct {
 	mat3x3 transform;
 } moduleData;
 
+static void graphics_Batch_uploadIfDirty(graphics_Batch *batch);
 
 static void graphics_batch_makeIndexBuffer(int quadCount) {
 	if (quadCount <= moduleData.indexBufferSize) {
@@ -159,15 +160,7 @@ int graphics_Batch_add(graphics_Batch *batch, graphics_Quad const *q, float x, f
 	v[3].uv.x = q->x + q->w;
 	v[3].uv.y = q->y + q->h;
 
-	if (batch->bound) {
-		batch->dirty = true;
-	} else {
-		glBindBuffer(GL_ARRAY_BUFFER, batch->vbo);
-		glBufferSubData(GL_ARRAY_BUFFER,
-		                (GLintptr) (batch->insertPos * 4 * sizeof(graphics_Vertex)),
-		                (GLsizeiptr) (4 * sizeof(graphics_Vertex)),
-		                v);
-	}
+	batch->dirty = true;
 
 	return batch->insertPos++;
 }
@@ -215,9 +208,7 @@ static const graphics_Quad fullQuad = {
 	0.0f, 0.0f, 1.0f, 1.0f
 };
 
-static float const defaultColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
-
-void graphics_Batch_draw(graphics_Batch const *batch,
+void graphics_Batch_draw(graphics_Batch *batch,
                          float x, float y, float r, float sx, float sy,
                          float ox, float oy, float kx, float ky) {
 	if (batch->insertPos == 0) return;
@@ -225,32 +216,46 @@ void graphics_Batch_draw(graphics_Batch const *batch,
 	graphics_batch_makeIndexBuffer(batch->insertPos);
 
 	glBindVertexArray(batch->vao);
+	// EBO e parte din VAO, dar dacă vrei să fii extra-safe:
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.sharedIndexBuffer);
-
-	GLint vao = 0, ebo = 0;
-	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &ebo);
-	if (vao == 0 || ebo == 0) {
-		printf("[BATCH DRAW] INVALID STATE: vao=%d ebo=%d\n", (int) vao, (int) ebo);
-	}
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, batch->texture->texID);
 
-	glBindBuffer(GL_ARRAY_BUFFER, batch->vbo);
-	glBufferSubData(GL_ARRAY_BUFFER, 0,
-	                (GLsizeiptr) (4 * batch->insertPos * sizeof(graphics_Vertex)),
-	                batch->vertexData
-	);
+	// Upload doar dacă s-a schimbat + orphaning
+	graphics_Batch_uploadIfDirty(batch);
 
 	m4x4_newTransform2d(&moduleData.tr2d, x, y, r, sx, sy, ox, oy, kx, ky);
-	float const *color = batch->colorUsed ? defaultColor : graphics_getColor();
 
-	graphics_drawBatch(&fullQuad, &moduleData.tr2d, batch->insertPos * 6,
-	                   GL_TRIANGLES, GL_UNSIGNED_SHORT, color, 1.0f, 1.0f);
+	graphics_drawBatch(&fullQuad, &moduleData.tr2d,
+	                   batch->insertPos * 6,
+	                   GL_TRIANGLES, GL_UNSIGNED_SHORT,
+	                   (float *) &batch->color, 1.0f, 1.0f);
 
 	glBindVertexArray(0);
 }
+
+static void graphics_Batch_uploadIfDirty(graphics_Batch *batch) {
+	if (!batch->dirty) return;
+
+	const GLsizeiptr totalCapacityBytes =
+			(GLsizeiptr) (4 * batch->maxCount * sizeof(graphics_Vertex));
+
+	const GLsizeiptr usedBytes =
+			(GLsizeiptr) (4 * batch->insertPos * sizeof(graphics_Vertex));
+
+	glBindBuffer(GL_ARRAY_BUFFER, batch->vbo);
+
+	// ORPHANING: evită stall dacă GPU încă folosește bufferul vechi
+	glBufferData(GL_ARRAY_BUFFER, totalCapacityBytes, NULL, (GLenum) batch->usage);
+
+	if (usedBytes > 0) {
+		glBufferSubData(GL_ARRAY_BUFFER, 0, usedBytes, batch->vertexData);
+	}
+
+	batch->dirty = false;
+}
+
 
 void graphics_Batch_bind(graphics_Batch *batch) {
 	batch->bound = true;
@@ -259,20 +264,16 @@ void graphics_Batch_bind(graphics_Batch *batch) {
 void graphics_Batch_clear(graphics_Batch *batch) {
 	batch->insertPos = 0;
 	batch->colorUsed = false;
+	batch->dirty = false;
 }
 
 void graphics_Batch_flush(graphics_Batch *batch) {
-	glBindBuffer(GL_ARRAY_BUFFER, batch->vbo);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, 4 * batch->insertPos * sizeof(graphics_Vertex), batch->vertexData);
+	graphics_Batch_uploadIfDirty(batch);
 }
 
 void graphics_Batch_unbind(graphics_Batch *batch) {
-	if (!batch->bound) {
-		return;
-	}
-
+	if (!batch->bound) return;
 	graphics_Batch_flush(batch);
-
 	batch->bound = false;
 }
 
@@ -313,4 +314,3 @@ void graphics_Batch_shutdown() {
 	SAFE_FREE(moduleData.sharedIndexBufferData);
 	moduleData.indexBufferSize = 0;
 }
-

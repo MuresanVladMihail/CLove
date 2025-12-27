@@ -70,7 +70,6 @@ void graphics_bindDefaultVao(void) {
 static void graphics_init_window(int width, int height) {
     glewExperimental = true;
     GLenum res = glewInit();
-    glGetError();
 
     if (res != GLEW_OK) {
         clove_error("Error: Could not init glew!\n");
@@ -111,6 +110,8 @@ static void graphics_init_window(int width, int height) {
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_SCISSOR_TEST);
+    glDepthMask(GL_FALSE);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     graphics_clearScissor();
 }
 
@@ -122,25 +123,10 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
         return;
     }
 
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         clove_error("Error: Could not init SDL video \n");
         return;
     }
-
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-                        SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 
     moduleData.x = SDL_WINDOWPOS_CENTERED;
     moduleData.y = SDL_WINDOWPOS_CENTERED;
@@ -159,13 +145,34 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
         return;
     }
 
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+
+
     moduleData.context = SDL_GL_CreateContext(moduleData.window);
     if (!moduleData.context) {
         clove_error("Error: Could not create window context!\n");
+        return;
     }
 
     //moduleData.surface = SDL_GetWindowSurface(moduleData.window);
-    SDL_GL_SetSwapInterval(1); //limit FPS to 60, this may not work on all drivers
+    /* This makes our buffer swap synchronized with the monitor's vertical refresh */
+    SDL_GL_SetSwapInterval(1);
 
     if (stats > 0) {
         printf("Sdl version: %d.%d.%d\n", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
@@ -207,50 +214,18 @@ void graphics_setColor(float red, float green, float blue, float alpha) {
 }
 
 void graphics_clear(void) {
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void graphics_swap(void) {
-    if (moduleData.hasWindow)
+    if (moduleData.hasWindow) {
         SDL_GL_SwapWindow(moduleData.window);
-}
-
-static void graphics_debug_gl(const char *where) {
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR) {
-        clove_error("GL ERROR at %s: 0x%04x\n", where, (unsigned) err);
     }
-
-    GLint curProgram = 0;
-    GLint curArrayBuf = 0;
-    GLint curElemBuf = 0;
-    GLint activeTex = 0;
-    GLint tex2D = 0;
-
-#ifdef GL_CURRENT_PROGRAM
-    glGetIntegerv(GL_CURRENT_PROGRAM, &curProgram);
-#endif
-#ifdef GL_ARRAY_BUFFER_BINDING
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &curArrayBuf);
-#endif
-#ifdef GL_ELEMENT_ARRAY_BUFFER_BINDING
-    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &curElemBuf);
-#endif
-#ifdef GL_ACTIVE_TEXTURE
-    glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTex);
-#endif
-#ifdef GL_TEXTURE_BINDING_2D
-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex2D);
-#endif
-
-    clove_error("GL STATE at %s: program=%d arrayBuf=%d elemBuf=%d activeTex=0x%04x tex2D=%d\n",
-                where, (int) curProgram, (int) curArrayBuf, (int) curElemBuf, (unsigned) activeTex, (int) tex2D);
 }
+
 
 void graphics_drawArray(graphics_Quad const *quad, mat4x4 const *tr2d, GLuint ibo, GLuint count, GLenum type,
                         GLenum indexType, float const *useColor, float ws, float hs) {
-    graphics_debug_gl("graphics_drawArray: begin");
-
 #ifdef GL_VERTEX_ARRAY_BINDING
     GLint vao = 0;
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
@@ -261,9 +236,6 @@ void graphics_drawArray(graphics_Quad const *quad, mat4x4 const *tr2d, GLuint ib
     graphics_bindDefaultVao();
 #endif
 
-    // Clear any error potentially produced by VAO binding/query so subsequent checks are meaningful.
-    while (glGetError() != GL_NO_ERROR) {
-    }
     // tr = proj * view * model * vpos;
 
     // layout: pos(2), uv(2), color(4) => 8 floats per vertex
@@ -287,15 +259,8 @@ void graphics_drawArray(graphics_Quad const *quad, mat4x4 const *tr2d, GLuint ib
     if (ibo != 0) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     }
-    graphics_debug_gl("graphics_drawArray: before glDrawElements");
-    int err = glGetError();
-    if (err != GL_NO_ERROR) {
-        clove_error("GL ERROR at graphics_Batch_draw after drawArray: 0x%04x\n", (unsigned) err);
-    }
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
     glDrawElements(type, count, indexType, (GLvoid const *) 0);
-    graphics_debug_gl("graphics_drawArray: after glDrawElements");
-
-    // No VAO restore needed on GL 2.1.
 }
 
 void graphics_drawBatch(
@@ -312,15 +277,13 @@ void graphics_drawBatch(
     GLint vao = 0;
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
     if (vao == 0) {
+        printf("Default VAO bind in drawBatch\n");
         graphics_bindDefaultVao();
     }
 #else
     graphics_bindDefaultVao();
 #endif
 
-    // Clear any previous GL error so checks are meaningful.
-    while (glGetError() != GL_NO_ERROR) {
-    }
 
     // IMPORTANT: do NOT bind any VAO here.
     // Caller must have a VAO bound (defaultVao for non-batch, batch->vao for batch).
@@ -334,18 +297,12 @@ void graphics_drawBatch(
         hs
     );
 
-    GLenum preErr = glGetError();
-    if (preErr != GL_NO_ERROR) {
-        clove_error("GL ERROR at graphics_drawBatch: pre-draw: 0x%04x\n", (unsigned) preErr);
-    }
-
-    glActiveTexture(GL_TEXTURE0);
     glDrawElements(type, count, indexType, (GLvoid const *) 0);
 
-    GLenum postErr = glGetError();
-    if (postErr != GL_NO_ERROR) {
-        clove_error("GL ERROR at graphics_drawBatch: post-draw: 0x%04x\n", (unsigned) postErr);
-    }
+    // GLenum postErr = glGetError();
+    // if (postErr != GL_NO_ERROR) {
+    //     clove_error("GL ERROR at graphics_drawBatch: post-draw: 0x%04x\n", (unsigned) postErr);
+    // }
 }
 
 int *graphics_getDesktopDimension() {

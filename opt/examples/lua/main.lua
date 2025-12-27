@@ -16,6 +16,7 @@ end
 
 function love.update(dt)
     if love.keyboard.isDown("esc") then
+        print("Closing!")
         love.event.quit()
     end
 
@@ -33,6 +34,7 @@ function setupSpriteBatch()
 end
 
 function love.draw()
+    -- love.graphics.rectangle("fill", 100, 100, 100, 100)
     if not use_batch then
         for i=1,how_much do
             love.graphics.draw(image, math.random(0,love.window.getWidth()), math.random(0,love.window.getHeight()) )
@@ -41,7 +43,7 @@ function love.draw()
         love.graphics.draw(batch)
     end
 
-    -- love.graphics.print(""..love.timer.getFPS(),10,10)
+    love.graphics.print(""..love.timer.getFPS(),10,10)
 end
 
 function love.keypressed(k)

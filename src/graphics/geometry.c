@@ -17,6 +17,7 @@
 #include "../include/vertex.h"
 
 static struct {
+    GLuint vao;
     GLuint dataVBO;
     GLuint dataIBO;
     uint32_t currentDataSize;
@@ -30,6 +31,9 @@ static struct {
 } moduleData;
 
 void graphics_geometry_init(void) {
+    // Core profile requires a VAO for vertex attribute state.
+    glGenVertexArrays(1, &moduleData.vao);
+    glBindVertexArray(moduleData.vao);
 
     glGenBuffers(1, &moduleData.dataVBO);
     glBindBuffer(GL_ARRAY_BUFFER, moduleData.dataVBO);
@@ -38,11 +42,14 @@ void graphics_geometry_init(void) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.dataIBO);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8*sizeof(GLfloat), 0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), 0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void *) (2 * sizeof(GLfloat)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 8*sizeof(GLfloat), (void*)(4*sizeof(GLfloat)));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void *) (4 * sizeof(GLfloat)));
+
+    // Done configuring VAO state
+    glBindVertexArray(0);
 
     graphics_Shader_new(&moduleData.plainColorShader, NULL,
                         "vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_cords ) {\n"
@@ -56,7 +63,8 @@ void graphics_geometry_init(void) {
     moduleData.currentIndexSize = 0;
 }
 
-void graphics_geometry_free () {
+void graphics_geometry_free() {
+    glDeleteVertexArrays(1, &moduleData.vao);
     glDeleteBuffers(1, &moduleData.dataIBO);
     glDeleteBuffers(1, &moduleData.dataVBO);
     free(moduleData.data);
@@ -66,16 +74,16 @@ void graphics_geometry_free () {
 
 static void growBuffers(int vertices, int indices) {
     uint32_t datasize = vertices * 8 * sizeof(GLfloat);
-    if(moduleData.currentDataSize < datasize) {
+    if (moduleData.currentDataSize < datasize) {
         free(moduleData.data);
-        moduleData.data = (float*)malloc(datasize);
+        moduleData.data = (float *) malloc(datasize);
         moduleData.currentDataSize = datasize;
     }
 
     uint32_t indexsize = indices * sizeof(uint32_t);
-    if(moduleData.currentIndexSize < indexsize) {
+    if (moduleData.currentIndexSize < indexsize) {
         free(moduleData.index);
-        moduleData.index = (uint32_t*)malloc(indexsize);
+        moduleData.index = (uint32_t *) malloc(indexsize);
         moduleData.currentIndexSize = indexsize;
     }
 }
@@ -87,11 +95,12 @@ static void drawBufferSpecial(uint32_t indices,
                               float w, float h,
                               float sx, float sy,
                               float ox, float oy, GLenum type) {
+    glBindVertexArray(moduleData.vao);
     glBindBuffer(GL_ARRAY_BUFFER, moduleData.dataVBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices*8*sizeof(GLfloat), moduleData.data, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices * 8 * sizeof(GLfloat), moduleData.data, GL_STREAM_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.dataIBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices*sizeof(uint32_t),
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices * sizeof(uint32_t),
                  moduleData.index, GL_STREAM_DRAW);
 
     glLineWidth(moduleData.lineWidth);
@@ -107,14 +116,17 @@ static void drawBufferSpecial(uint32_t indices,
     graphics_setShader(shader);
 
     glLineWidth(1.0f);
+
+    glBindVertexArray(0);
 }
 
 static void drawBuffer(uint32_t indices, int vertices, GLenum type) {
+    glBindVertexArray(moduleData.vao);
     glBindBuffer(GL_ARRAY_BUFFER, moduleData.dataVBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices*8*sizeof(GLfloat), moduleData.data,  GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices * 8 * sizeof(GLfloat), moduleData.data, GL_STREAM_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.dataIBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices*sizeof(uint32_t),
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices * sizeof(uint32_t),
                  moduleData.index, GL_STREAM_DRAW);
 
     glLineWidth(moduleData.lineWidth);
@@ -129,36 +141,39 @@ static void drawBuffer(uint32_t indices, int vertices, GLenum type) {
 
     graphics_setShader(shader);
     glLineWidth(1.0f);
+
+    glBindVertexArray(0);
 }
 
 void graphics_geometry_lineCircle(float x, float y, float radius,
                                   uint32_t segments, float r, float sx, float sy, float ox, float oy) {
-    growBuffers(segments+1, segments+2);
+    growBuffers(segments + 1, segments + 2);
 
     float step = LOVE_PI2 / segments;
     float ang = 0;
 
     moduleData.index[0] = 1;
-    moduleData.index[segments+1] = 1;
-    for(uint32_t i = 0; i < segments; ++i, ang -= step) {
-        moduleData.data[8*(i+1)+0] = sinf(ang) * radius;
-        moduleData.data[8*(i+1)+1] = cosf(ang) * radius;
+    moduleData.index[segments + 1] = 1;
+    for (uint32_t i = 0; i < segments; ++i, ang -= step) {
+        moduleData.data[8 * (i + 1) + 0] = sinf(ang) * radius;
+        moduleData.data[8 * (i + 1) + 1] = cosf(ang) * radius;
 
-        moduleData.data[8*(i+1)+2] = 0.0f;
-        moduleData.data[8*(i+1)+3] = 0.0f;
+        moduleData.data[8 * (i + 1) + 2] = 0.0f;
+        moduleData.data[8 * (i + 1) + 3] = 0.0f;
 
-        moduleData.data[8*(i+1)+4] = 1.0f;
-        moduleData.data[8*(i+1)+5] = 1.0f;
-        moduleData.data[8*(i+1)+6] = 1.0f;
-        moduleData.data[8*(i+1)+7] = 1.0f;
-        moduleData.index[i+1] = i+1;
+        moduleData.data[8 * (i + 1) + 4] = 1.0f;
+        moduleData.data[8 * (i + 1) + 5] = 1.0f;
+        moduleData.data[8 * (i + 1) + 6] = 1.0f;
+        moduleData.data[8 * (i + 1) + 7] = 1.0f;
+        moduleData.index[i + 1] = i + 1;
     }
 
-    drawBufferSpecial(segments+2, segments+1, x, y, r, 1, 1, sx, sy, ox, oy, GL_LINE_STRIP);
+    drawBufferSpecial(segments + 2, segments + 1, x, y, r, 1, 1, sx, sy, ox, oy, GL_LINE_STRIP);
 }
 
-void graphics_geometry_fillCircle(float x, float y, float radius, uint32_t segments, float r, float sx, float sy, float ox, float oy) {
-    growBuffers(segments+1, segments+2);
+void graphics_geometry_fillCircle(float x, float y, float radius, uint32_t segments, float r, float sx, float sy,
+                                  float ox, float oy) {
+    growBuffers(segments + 1, segments + 2);
 
     float step = LOVE_PI2 / segments;
     float ang = 0;
@@ -173,22 +188,22 @@ void graphics_geometry_fillCircle(float x, float y, float radius, uint32_t segme
     moduleData.data[7] = 1.0f;
 
     moduleData.index[0] = 0;
-    moduleData.index[segments+1] = 1;
-    for(uint32_t i = 0; i < segments; ++i, ang -= step) {
-        moduleData.data[8*(i+1)+0] = sin(ang) * radius;
-        moduleData.data[8*(i+1)+1] = cos(ang) * radius;
+    moduleData.index[segments + 1] = 1;
+    for (uint32_t i = 0; i < segments; ++i, ang -= step) {
+        moduleData.data[8 * (i + 1) + 0] = sin(ang) * radius;
+        moduleData.data[8 * (i + 1) + 1] = cos(ang) * radius;
 
-        moduleData.data[8*(i+1)+2] = 0.0f;
-        moduleData.data[8*(i+1)+3] = 0.0f;
+        moduleData.data[8 * (i + 1) + 2] = 0.0f;
+        moduleData.data[8 * (i + 1) + 3] = 0.0f;
 
-        moduleData.data[8*(i+1)+4] = 1.0f;
-        moduleData.data[8*(i+1)+5] = 1.0f;
-        moduleData.data[8*(i+1)+6] = 1.0f;
-        moduleData.data[8*(i+1)+7] = 1.0f;
-        moduleData.index[i+1] = i+1;
+        moduleData.data[8 * (i + 1) + 4] = 1.0f;
+        moduleData.data[8 * (i + 1) + 5] = 1.0f;
+        moduleData.data[8 * (i + 1) + 6] = 1.0f;
+        moduleData.data[8 * (i + 1) + 7] = 1.0f;
+        moduleData.index[i + 1] = i + 1;
     }
 
-    drawBufferSpecial(segments+2, segments+1, x, y, r, 1, 1, sx, sy, ox, oy, GL_TRIANGLE_FAN);
+    drawBufferSpecial(segments + 2, segments + 1, x, y, r, 1, 1, sx, sy, ox, oy, GL_TRIANGLE_FAN);
 }
 
 void graphics_geometry_rectangle(bool filled,
@@ -197,7 +212,6 @@ void graphics_geometry_rectangle(bool filled,
                                  float rotation,
                                  float sx, float sy,
                                  float ox, float oy) {
-
     growBuffers(32, 6);
 
     bool special = rotation != 0.0f || sx != 1.0f || sy != 1.0f;
@@ -207,7 +221,7 @@ void graphics_geometry_rectangle(bool filled,
      * the rest are texcoords(2 floats) and color(4 floats)
      */
 
-    if(!special) {
+    if (!special) {
         moduleData.data[0] = x + w * sx; //0
         moduleData.data[1] = y;
 
@@ -219,8 +233,7 @@ void graphics_geometry_rectangle(bool filled,
 
         moduleData.data[24] = x + w * sx; //3
         moduleData.data[25] = y + h * sy;
-
-    }else {
+    } else {
         /* For more info see image.c -> imageData[]
          * these are vertices */
         moduleData.data[0] = 0.0f; //0
@@ -281,7 +294,6 @@ void graphics_geometry_rectangle(bool filled,
             drawBufferSpecial(6, 32, x, y, rotation, w, h, sx, sy, ox, oy, GL_TRIANGLES);
         else
             drawBuffer(6, 32, GL_TRIANGLES);
-
     } else {
         moduleData.index[0] = 0;
         moduleData.index[1] = 1;
@@ -301,14 +313,14 @@ void graphics_geometry_points(float *points, uint32_t count) {
     growBuffers(count, count);
 
     for (uint32_t i = 0; i < count; i++) {
-        moduleData.data[8*i+0] = points[2*i];
-        moduleData.data[8*i+1] = points[2*i+1];
-        moduleData.data[8*i+2] = 0.0f;
-        moduleData.data[8*i+3] = 0.0f;
-        moduleData.data[8*i+4] = 1.0f;
-        moduleData.data[8*i+5] = 1.0f;
-        moduleData.data[8*i+6] = 1.0f;
-        moduleData.data[8*i+7] = 1.0f;
+        moduleData.data[8 * i + 0] = points[2 * i];
+        moduleData.data[8 * i + 1] = points[2 * i + 1];
+        moduleData.data[8 * i + 2] = 0.0f;
+        moduleData.data[8 * i + 3] = 0.0f;
+        moduleData.data[8 * i + 4] = 1.0f;
+        moduleData.data[8 * i + 5] = 1.0f;
+        moduleData.data[8 * i + 6] = 1.0f;
+        moduleData.data[8 * i + 7] = 1.0f;
 
         moduleData.index[i] = i;
     }
@@ -320,18 +332,18 @@ void graphics_geometry_line(float *points, uint32_t count) {
     graphics_geometry_polygon(false, points, count);
 }
 
-void graphics_geometry_polygon(bool filled, float* vertices, uint32_t count) {
+void graphics_geometry_polygon(bool filled, float *vertices, uint32_t count) {
     growBuffers(count, count);
 
-    for(uint32_t i = 0; i < count; i++) {
-        moduleData.data[8*i+0] = vertices[2*i];
-        moduleData.data[8*i+1] = vertices[2*i+1];
-        moduleData.data[8*i+2] = 0.0f;
-        moduleData.data[8*i+3] = 0.0f;
-        moduleData.data[8*i+4] = 1.0f;
-        moduleData.data[8*i+5] = 1.0f;
-        moduleData.data[8*i+6] = 1.0f;
-        moduleData.data[8*i+7] = 1.0f;
+    for (uint32_t i = 0; i < count; i++) {
+        moduleData.data[8 * i + 0] = vertices[2 * i];
+        moduleData.data[8 * i + 1] = vertices[2 * i + 1];
+        moduleData.data[8 * i + 2] = 0.0f;
+        moduleData.data[8 * i + 3] = 0.0f;
+        moduleData.data[8 * i + 4] = 1.0f;
+        moduleData.data[8 * i + 5] = 1.0f;
+        moduleData.data[8 * i + 6] = 1.0f;
+        moduleData.data[8 * i + 7] = 1.0f;
         moduleData.index[i] = i;
     }
 

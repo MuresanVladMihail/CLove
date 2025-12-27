@@ -261,7 +261,7 @@ void lua_main_activity_load(int argc, char *argv[]) {
                   config.window.window);
     /*
      * When we do not have a visible window we can't put
-     * these propieties
+     * these properties
      */
     if (config.window.window) {
         graphics_setTitle(config.window.title);

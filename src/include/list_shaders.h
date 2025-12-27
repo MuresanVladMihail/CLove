@@ -21,8 +21,8 @@ static GLchar const vertexHeader[] =
 
 static GLchar const vertexFooter[] =
         "void main() {\n"
-        "  gl_Position = projection * view * model * vec4(vPos * size, 0.0, 1.0);\n"
-        "  fUV = vUV * textureRect[1] + textureRect[0];\n"
+        "gl_Position = projection * view * model * vec4(vPos * size, 0.1, 1.0);\n"
+        "  fUV = vUV;\n"
         "  fColor = vColor;\n"
         "}\n";
 
