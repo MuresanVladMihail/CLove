@@ -101,7 +101,7 @@ static char *unicodeToUtf8Heap(const WCHAR *w_str)
 
 static inline HANDLE winFindFirstFileW(const WCHAR *path, LPWIN32_FIND_DATAW d)
 {
-    #ifdef PHYSFS_PLATFORM_WINRT
+    #if defined(PHYSFS_PLATFORM_WINRT) || (_WIN32_WINNT >= 0x0501) // Windows XP+
     return FindFirstFileExW(path, FindExInfoStandard, d,
                             FindExSearchNameMatch, NULL, 0);
     #else
@@ -111,7 +111,7 @@ static inline HANDLE winFindFirstFileW(const WCHAR *path, LPWIN32_FIND_DATAW d)
 
 static inline BOOL winInitializeCriticalSection(LPCRITICAL_SECTION lpcs)
 {
-    #ifdef PHYSFS_PLATFORM_WINRT
+    #if defined(PHYSFS_PLATFORM_WINRT) || (_WIN32_WINNT >= 0x0600) // Windows Vista+
     return InitializeCriticalSectionEx(lpcs, 2000, 0);
     #else
     InitializeCriticalSection(lpcs);
@@ -123,7 +123,7 @@ static inline HANDLE winCreateFileW(const WCHAR *wfname, const DWORD mode,
                                     const DWORD creation)
 {
     const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE;
-    #ifdef PHYSFS_PLATFORM_WINRT
+    #if defined(PHYSFS_PLATFORM_WINRT) || (_WIN32_WINNT >= 0x0602) // Windows 8+
     return CreateFile2(wfname, mode, share, creation, NULL);
     #else
     return CreateFileW(wfname, mode, share, NULL, creation,
@@ -134,7 +134,7 @@ static inline HANDLE winCreateFileW(const WCHAR *wfname, const DWORD mode,
 static BOOL winSetFilePointer(HANDLE h, const PHYSFS_sint64 pos,
                               PHYSFS_sint64 *_newpos, const DWORD whence)
 {
-    #ifdef PHYSFS_PLATFORM_WINRT
+    #if defined(PHYSFS_PLATFORM_WINRT) || (_WIN32_WINNT >= 0x0501) // Windows XP+
     LARGE_INTEGER lipos;
     LARGE_INTEGER linewpos;
     BOOL rc;
@@ -158,7 +158,7 @@ static BOOL winSetFilePointer(HANDLE h, const PHYSFS_sint64 pos,
 
 static PHYSFS_sint64 winGetFileSize(HANDLE h)
 {
-    #ifdef PHYSFS_PLATFORM_WINRT
+    #if defined(PHYSFS_PLATFORM_WINRT) || (_WIN32_WINNT >= 0x0600) // Windows Vista+
     FILE_STANDARD_INFO info;
     const BOOL rc = GetFileInformationByHandleEx(h, FileStandardInfo,
                                                  &info, sizeof (info));
@@ -566,17 +566,25 @@ char *__PHYSFS_platformCalcUserDir(void)
     else
     {
         DWORD psize = 0;
-        WCHAR dummy = 0;
         LPWSTR wstr = NULL;
         BOOL rc = 0;
 
         /*
          * Should fail. Will write the size of the profile path in
          *  psize. Also note that the second parameter can't be
-         *  NULL or the function fails.
+         *  NULL or the function fails on Windows XP, but has to be NULL on
+         *  Windows 10 or it will fail.  :(
          */
         rc = pGetDir(accessToken, NULL, &psize);
         GOTO_IF(rc, PHYSFS_ERR_OS_ERROR, done);  /* should have failed! */
+
+        if (psize == 0)  /* probably on Windows XP, try a different way. */
+        {
+            WCHAR x = 0;
+            rc = pGetDir(accessToken, &x, &psize);
+            GOTO_IF(rc, PHYSFS_ERR_OS_ERROR, done);  /* should have failed! */
+            GOTO_IF(!psize, PHYSFS_ERR_OS_ERROR, done);  /* Uhoh... */
+        } /* if */
 
         /* Allocate memory for the profile directory */
         wstr = (LPWSTR) __PHYSFS_smallAlloc((psize + 1) * sizeof (WCHAR));
