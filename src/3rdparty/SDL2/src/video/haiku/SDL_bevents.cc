@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,7 +20,7 @@
 */
 #include "../../SDL_internal.h"
 
-#if SDL_VIDEO_DRIVER_HAIKU
+#ifdef SDL_VIDEO_DRIVER_HAIKU
 
 #include "SDL_bevents.h"
 
@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 void HAIKU_PumpEvents(_THIS) {
-	/* Since the event thread is its own thread, this isn't really necessary */
+    /* Since the event thread is its own thread, this isn't really necessary */
 }
 
 #ifdef __cplusplus

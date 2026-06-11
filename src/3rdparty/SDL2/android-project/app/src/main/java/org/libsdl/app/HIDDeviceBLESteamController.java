@@ -9,15 +9,15 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothGattService;
+import android.hardware.usb.UsbDevice;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.os.*;
 
 //import com.android.internal.util.HexDump;
 
 import java.lang.Runnable;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.UUID;
@@ -166,13 +166,13 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
         mHandler = new Handler(Looper.getMainLooper());
 
         mGatt = connectGatt();
-        final HIDDeviceBLESteamController finalThis = this;
-        mHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                finalThis.checkConnectionForChromebookIssue();
-            }
-        }, CHROMEBOOK_CONNECTION_CHECK_INTERVAL);
+        // final HIDDeviceBLESteamController finalThis = this;
+        // mHandler.postDelayed(new Runnable() {
+        //     @Override
+        //     public void run() {
+        //         finalThis.checkConnectionForChromebookIssue();
+        //     }
+        // }, CHROMEBOOK_CONNECTION_CHECK_INTERVAL);
     }
 
     public String getIdentifier() {
@@ -186,10 +186,13 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
     // Because on Chromebooks we show up as a dual-mode device, it will attempt to connect TRANSPORT_AUTO, which will use TRANSPORT_BREDR instead
     // of TRANSPORT_LE.  Let's force ourselves to connect low energy.
     private BluetoothGatt connectGatt(boolean managed) {
-        try {
-            Method m = mDevice.getClass().getDeclaredMethod("connectGatt", Context.class, boolean.class, BluetoothGattCallback.class, int.class);
-            return (BluetoothGatt) m.invoke(mDevice, mManager.getContext(), managed, this, TRANSPORT_LE);
-        } catch (Exception e) {
+        if (Build.VERSION.SDK_INT >= 23 /* Android 6.0 (M) */) {
+            try {
+                return mDevice.connectGatt(mManager.getContext(), managed, this, TRANSPORT_LE);
+            } catch (Exception e) {
+                return mDevice.connectGatt(mManager.getContext(), managed, this);
+            }
+        } else {
             return mDevice.connectGatt(mManager.getContext(), managed, this);
         }
     }
@@ -426,7 +429,7 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
                     }
                 });
             }
-        } 
+        }
         else if (newState == 0) {
             mIsConnected = false;
         }
@@ -467,7 +470,7 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
             // Only register controller with the native side once it has been fully configured
             if (!isRegistered()) {
                 Log.v(TAG, "Registering Steam Controller with ID: " + getId());
-                mManager.HIDDeviceConnected(getId(), getIdentifier(), getVendorId(), getProductId(), getSerialNumber(), getVersion(), getManufacturerName(), getProductName(), 0);
+                mManager.HIDDeviceConnected(getId(), getIdentifier(), getVendorId(), getProductId(), getSerialNumber(), getVersion(), getManufacturerName(), getProductName(), 0, 0, 0, 0);
                 setRegistered();
             }
         }
@@ -479,7 +482,7 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
     // Enable this for verbose logging of controller input reports
         //Log.v(TAG, "onCharacteristicChanged uuid=" + characteristic.getUuid() + " data=" + HexDump.dumpHexString(characteristic.getValue()));
 
-        if (characteristic.getUuid().equals(inputCharacteristic)) {
+        if (characteristic.getUuid().equals(inputCharacteristic) && !mFrozen) {
             mManager.HIDDeviceInputReport(getId(), characteristic.getValue());
         }
     }
@@ -562,6 +565,11 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
     }
 
     @Override
+    public UsbDevice getDevice() {
+        return null;
+    }
+
+    @Override
     public boolean open() {
         return true;
     }
@@ -577,7 +585,7 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
         }
 
         // We need to skip the first byte, as that doesn't go over the air
-	byte[] actual_report = Arrays.copyOfRange(report, 1, report.length - 1);
+        byte[] actual_report = Arrays.copyOfRange(report, 1, report.length - 1);
         //Log.v(TAG, "sendFeatureReport " + HexDump.dumpHexString(actual_report));
         writeCharacteristic(reportCharacteristic, actual_report);
         return report.length;
@@ -624,6 +632,8 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
 
     @Override
     public void shutdown() {
+        close();
+
         BluetoothGatt g = mGatt;
         if (g != null) {
             g.disconnect();
