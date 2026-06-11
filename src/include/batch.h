@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2025 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -40,7 +40,8 @@ typedef struct {
 
 void graphics_batch_init(void);
 
-void graphics_Batch_new(graphics_Batch *batch, graphics_Image const *texture, int maxSize, graphics_BatchUsage usage);
+void graphics_Batch_new(graphics_Batch *batch, graphics_Image const *texture, size_t maxSize,
+                        graphics_BatchUsage usage);
 
 int graphics_Batch_add(graphics_Batch *batch, graphics_Quad const *q, float x, float y, float r, float sx, float sy,
                        float ox, float oy, float kx, float ky);

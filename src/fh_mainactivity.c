@@ -55,7 +55,9 @@ typedef struct {
 static MainLoopData loopData;
 
 static void quit_function(void) {
-    if (fh_call_function(loopData.prog, "love_quit", NULL, 0, NULL) < 0) {
+    // love_quit is an optional callback
+    if (fh_function_exists(loopData.prog, "love_quit") &&
+        fh_call_function(loopData.prog, "love_quit", NULL, 0, NULL) < 0) {
         clove_error("Error: %s\n", fh_get_error(loopData.prog));
     }
 #ifdef USE_NATIVE
@@ -64,6 +66,10 @@ static void quit_function(void) {
 }
 
 static void focus_function(void) {
+    // love_focus is an optional callback; calling a missing function would
+    // also pollute the program error state every frame
+    if (!fh_function_exists(loopData.prog, "love_focus"))
+        return;
     loopData.focus.data.b = graphics_hasFocus();
     if (fh_call_function(loopData.prog, "love_focus", &loopData.focus, 1, NULL) == -2) {
         clove_error("Error: %s\n", fh_get_error(loopData.prog));
@@ -322,7 +328,7 @@ void fh_main_activity_load(int argc, char *argv[]) {
         dump_bytecode = true;
     }
 
-    int ret = -1;
+    int ret = 0;
     if (run_package) {
         ret = fh_run_pack(loopData.prog, dump_bytecode, argv[1], "config.fh", NULL, argv, argc, false);
         if (ret == 0) {

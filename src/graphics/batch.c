@@ -14,7 +14,7 @@
 #include "../include/graphics.h"
 
 static struct {
-	GLuint sharedIndexBuffer;
+	GLuint ibo;
 	uint16_t *sharedIndexBufferData;
 	int indexBufferSize;
 	mat4x4 tr2d;
@@ -51,24 +51,23 @@ static void graphics_batch_makeIndexBuffer(int quadCount) {
 
 	graphics_bindDefaultVao();
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.sharedIndexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeBytes, moduleData.sharedIndexBufferData, GL_STATIC_DRAW);
 
-	// Leave the EBO bound on the default VAO. Unbinding here can be surprising and isn't needed.
 	glBindVertexArray(0);
 
 	moduleData.indexBufferSize = quadCount;
 }
 
 void graphics_batch_init(void) {
-	glGenBuffers(1, &moduleData.sharedIndexBuffer);
+	glGenBuffers(1, &moduleData.ibo);
 	moduleData.sharedIndexBufferData = NULL;
 	moduleData.indexBufferSize = 0;
 	graphics_batch_makeIndexBuffer(128);
 }
 
 void graphics_Batch_changeBufferSize(graphics_Batch *batch, int newSize) {
-	SAFE_FREE(batch->vertexData);
+	CLOVE_SAFE_FREE(batch->vertexData);
 	batch->vertexData = malloc(4 * newSize * sizeof(graphics_Vertex));
 	if (batch->vbo == 0) {
 		glGenBuffers(1, &batch->vbo);
@@ -82,9 +81,10 @@ void graphics_Batch_changeBufferSize(graphics_Batch *batch, int newSize) {
 }
 
 
-void graphics_Batch_new(graphics_Batch *batch, graphics_Image const *texture, int maxSize, graphics_BatchUsage usage) {
+void graphics_Batch_new(graphics_Batch *batch, graphics_Image const *texture, size_t maxSize,
+                        graphics_BatchUsage usage) {
 	// Safety: make sure the shared index buffer is created before any batch VAO tries to reference it.
-	if (moduleData.sharedIndexBuffer == 0) {
+	if (moduleData.ibo == 0) {
 		graphics_batch_init();
 	}
 	batch->texture = texture;
@@ -94,7 +94,6 @@ void graphics_Batch_new(graphics_Batch *batch, graphics_Image const *texture, in
 	batch->dirty = false;
 	batch->usage = usage;
 
-	// IMPORTANT: asigură EBO mare pentru maxSize quads
 	graphics_batch_makeIndexBuffer(maxSize);
 
 	glGenVertexArrays(1, &batch->vao);
@@ -116,7 +115,7 @@ void graphics_Batch_new(graphics_Batch *batch, graphics_Image const *texture, in
 	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(graphics_Vertex),
 	                      (void *) offsetof(graphics_Vertex, color));
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.sharedIndexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.ibo);
 	glBindVertexArray(0);
 
 	batch->bound = false;
@@ -213,7 +212,7 @@ void graphics_Batch_draw(graphics_Batch *batch,
 	graphics_batch_makeIndexBuffer(batch->insertPos);
 
 	glBindVertexArray(batch->vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.sharedIndexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, moduleData.ibo);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, batch->texture->texID);
@@ -289,6 +288,7 @@ void graphics_Batch_clearColor(graphics_Batch *batch) {
 }
 
 void graphics_Batch_free(graphics_Batch *batch) {
+	CLOVE_SAFE_FREE(batch->texture);
 	if (batch->vao != 0) {
 		glDeleteVertexArrays(1, &batch->vao);
 		batch->vao = 0;
@@ -298,14 +298,14 @@ void graphics_Batch_free(graphics_Batch *batch) {
 		batch->vbo = 0;
 	}
 
-	SAFE_FREE(batch->vertexData);
+	CLOVE_SAFE_FREE(batch->vertexData);
 }
 
 void graphics_Batch_shutdown() {
-	if (moduleData.sharedIndexBuffer) {
-		glDeleteBuffers(1, &moduleData.sharedIndexBuffer);
-		moduleData.sharedIndexBuffer = 0;
+	if (moduleData.ibo) {
+		glDeleteBuffers(1, &moduleData.ibo);
+		moduleData.ibo = 0;
 	}
-	SAFE_FREE(moduleData.sharedIndexBufferData);
+	CLOVE_SAFE_FREE(moduleData.sharedIndexBufferData);
 	moduleData.indexBufferSize = 0;
 }

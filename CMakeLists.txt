@@ -1,7 +1,7 @@
 #
 #   clove
 #
-#   Copyright (C) 2016-2019 Muresan Vlad
+#   Copyright (C) 2016-2025 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -11,8 +11,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(clove)
 
-option(USE_LUA "Build CLove using Lua as scripting language" TRUE)
-option(USE_FH "Build CLove using FH as scripting language" FALSE)
+option(USE_LUA "Build CLove using Lua as scripting language" FALSE)
+option(USE_FH "Build CLove using FH as scripting language" TRUE)
 
 option(STATIC_LIB "Builds CLove as a static library" TRUE)
 option(DYNAMIC_LIB "Builds CLove as a shared library" FALSE)
@@ -168,8 +168,8 @@ if (USE_FH)
 endif ()
 
 set(clove_package "clove")
-set(clove_creator "Muresan Vlad")
-set(clove_copyright "Copyright (c) 2015-2021, ${clove_creator}.")
+set(clove_creator "Mureşan Vlad-Mihail")
+set(clove_copyright "Copyright (c) 2015-2025, ${clove_creator}.")
 message(${clove_copyright})
 
 if (STATIC_LIB)

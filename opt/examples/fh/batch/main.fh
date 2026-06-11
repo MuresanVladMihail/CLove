@@ -14,12 +14,14 @@ fn love_textinput(text) {
 }
 
 fn love_keypressed(key) {
+    love_event_quit();
 }
 
 fn love_keyreleased(key) {
 }
 
 fn love_quit() {
+
 }
 
 fn love_focus(focused) {
@@ -27,20 +29,21 @@ fn love_focus(focused) {
 
 fn setSpriteBatch(self) {
     love_graphics_batch_clear(self.batch);
-    for (let i = 0; i < 2000; i = i + 1) {
+    for (let i = 0; i < self.count; i = i + 1) {
 
         love_graphics_batch_add(self.batch,
-                math_random(0, love_window_getWidth()),
-                math_random(0, love_window_getHeight()));
+                math_random(0, love_window_getWidth()+100),
+                math_random(0, love_window_getHeight()+100));
     }
     love_graphics_batch_flush(self.batch);
 }
 
 fn love_load()  {
     let self = {};
+    self.count = 50000;
 
     self.image = love_graphics_newImage("../hey.png");
-    self.batch = love_graphics_newSpriteBatch(self.image, 2000);
+    self.batch = love_graphics_newSpriteBatch(self.image, self.count);
     setSpriteBatch(self);
 
     love_draw(self);
@@ -49,7 +52,6 @@ fn love_load()  {
 }
 
 fn love_update(dt, self) {
-
     setSpriteBatch(self);
 }
 

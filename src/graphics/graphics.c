@@ -298,11 +298,6 @@ void graphics_drawBatch(
     );
 
     glDrawElements(type, count, indexType, (GLvoid const *) 0);
-
-    // GLenum postErr = glGetError();
-    // if (postErr != GL_NO_ERROR) {
-    //     clove_error("GL ERROR at graphics_drawBatch: post-draw: 0x%04x\n", (unsigned) postErr);
-    // }
 }
 
 int *graphics_getDesktopDimension() {

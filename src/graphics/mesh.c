@@ -46,8 +46,8 @@ void graphics_Mesh_free(graphics_Mesh* mesh) {
     glDeleteBuffers(1, &mesh->ibo);
     glDeleteBuffers(1, &mesh->vbo);
 
-    SAFE_FREE(mesh->indices);
-    SAFE_FREE(mesh->vertices);
+    CLOVE_SAFE_FREE(mesh->indices);
+    CLOVE_SAFE_FREE(mesh->vertices);
 }
 
 void graphics_Mesh_setTexture(graphics_Mesh* mesh, graphics_Image* image) {
@@ -64,7 +64,7 @@ void graphics_Mesh_setVertices(graphics_Mesh* mesh, graphics_Vertex* vertices, i
     glBufferData(GL_ARRAY_BUFFER, vertexCount * sizeof(graphics_Vertex), vertices, GL_DYNAMIC_DRAW);
 
     if (vertexCount != mesh->vertexCount) {
-        SAFE_FREE(mesh->vertices);
+        CLOVE_SAFE_FREE(mesh->vertices);
         mesh->vertices = malloc(sizeof(graphics_Vertex) * vertexCount);
         mesh->vertexCount = vertexCount;
     }
@@ -78,7 +78,7 @@ void graphics_Mesh_setIndices(graphics_Mesh* mesh, unsigned int* indices, int in
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof(unsigned int), indices, GL_DYNAMIC_DRAW);
 
     if (indexCount != mesh->indexCount) {
-        SAFE_FREE(mesh->indices);
+        CLOVE_SAFE_FREE(mesh->indices);
         mesh->indices = malloc(sizeof(unsigned int) * indexCount);
         mesh->indexCount = indexCount;
     }

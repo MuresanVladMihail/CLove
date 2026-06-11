@@ -46,9 +46,9 @@ static unsigned round_up(unsigned n, unsigned incr) {
 }
 
 
-static unsigned checksum(const mtar_raw_header_t* rh) {
+static unsigned checksum(const mtar_raw_header_t *rh) {
   unsigned i;
-  unsigned char *p = (unsigned char*) rh;
+  unsigned char *p = (unsigned char *) rh;
   unsigned res = 256;
   for (i = 0; i < offsetof(mtar_raw_header_t, checksum); i++) {
     res += p[i];
@@ -137,17 +137,17 @@ static int header_to_raw(mtar_raw_header_t *rh, const mtar_header_t *h) {
 }
 
 
-const char* mtar_strerror(int err) {
+const char *mtar_strerror(int err) {
   switch (err) {
-    case MTAR_ESUCCESS     : return "success";
-    case MTAR_EFAILURE     : return "failure";
-    case MTAR_EOPENFAIL    : return "could not open";
-    case MTAR_EREADFAIL    : return "could not read";
-    case MTAR_EWRITEFAIL   : return "could not write";
-    case MTAR_ESEEKFAIL    : return "could not seek";
-    case MTAR_EBADCHKSUM   : return "bad checksum";
-    case MTAR_ENULLRECORD  : return "null record";
-    case MTAR_ENOTFOUND    : return "file not found";
+    case MTAR_ESUCCESS: return "success";
+    case MTAR_EFAILURE: return "failure";
+    case MTAR_EOPENFAIL: return "could not open";
+    case MTAR_EREADFAIL: return "could not read";
+    case MTAR_EWRITEFAIL: return "could not write";
+    case MTAR_ESEEKFAIL: return "could not seek";
+    case MTAR_EBADCHKSUM: return "bad checksum";
+    case MTAR_ENULLRECORD: return "null record";
+    case MTAR_ENOTFOUND: return "file not found";
   }
   return "unknown error";
 }
@@ -186,9 +186,9 @@ int mtar_open(mtar_t *tar, const char *filename, const char *mode) {
   tar->close = file_close;
 
   /* Assure mode is always binary */
-  if ( strchr(mode, 'r') ) mode = "rb";
-  if ( strchr(mode, 'w') ) mode = "wb";
-  if ( strchr(mode, 'a') ) mode = "ab";
+  if (strchr(mode, 'r')) mode = "rb";
+  if (strchr(mode, 'w')) mode = "wb";
+  if (strchr(mode, 'a')) mode = "ab";
   /* Open file */
   tar->stream = fopen(filename, mode);
   if (!tar->stream) {
@@ -250,14 +250,15 @@ int mtar_find(mtar_t *tar, const char *name, mtar_header_t *h) {
     return err;
   }
   /* Iterate all files until we hit an error or find the file */
-  while ( (err = mtar_read_header(tar, &header)) == MTAR_ESUCCESS ) {
-    if ( !strcmp(header.name, name) ) {
+  while ((err = mtar_read_header(tar, &header)) == MTAR_ESUCCESS) {
+    if (!strcmp(header.name, name)) {
       if (h) {
         *h = header;
       }
       return MTAR_ESUCCESS;
     }
-    mtar_next(tar);
+    int nerr = mtar_next(tar);
+    if (nerr != MTAR_ESUCCESS) return nerr;
   }
   /* Return error */
   if (err == MTAR_ENULLRECORD) {

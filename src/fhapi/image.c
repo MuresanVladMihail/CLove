@@ -165,10 +165,14 @@ static int fn_love_image_refresh(struct fh_program *prog,
 
 static int fn_love_image_setPixel(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE))
+    if (n_args != 7)
+        return fh_set_error(prog, "Expected 7 arguments (image, x, y, r, g, b, a)");
+
+    if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE) &&
+        !fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected image");
 
-    for (int i = 1; i <= 5; i++) {
+    for (int i = 1; i <= 6; i++) {
         if (!fh_is_number(&args[i]))
             return fh_set_error(prog, "Expected number at index: %d", i);
     }
@@ -208,6 +212,9 @@ static int fn_love_image_setPixel(struct fh_program *prog,
 
 static int fn_love_image_getPixel(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "Expected 3 arguments (image, x, y)");
+
     for (int i = 1; i <= 2; i++) {
         if (!fh_is_number(&args[i]))
             return fh_set_error(prog, "Expected number at index: %d", i);

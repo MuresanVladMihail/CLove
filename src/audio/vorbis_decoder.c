@@ -37,6 +37,8 @@ int audio_vorbis_load(ALuint buffer, char const *filename) {
 int audio_vorbis_loadStream(audio_vorbis_DecoderData* data, char const *filename) {
   int err;
   data->vorbis = stb_vorbis_open_filename(filename, &err, NULL);
+  if (!data->vorbis)
+    return err ? err : -1;
 
   data->info = stb_vorbis_get_info(data->vorbis);
 

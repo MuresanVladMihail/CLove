@@ -1,7 +1,7 @@
 local image = nil
 local batch = nil
 
-local how_much = 2000 -- CHANGE THIS AS YOU LIKE TO TEST THE FPS
+local how_much = 150000 -- CHANGE THIS AS YOU LIKE TO TEST THE FPS
 
 local use_batch = true -- SWITCH THIS TO SEE THE DIFFERENCE
 
@@ -34,7 +34,6 @@ function setupSpriteBatch()
 end
 
 function love.draw()
-    -- love.graphics.rectangle("fill", 100, 100, 100, 100)
     if not use_batch then
         for i=1,how_much do
             love.graphics.draw(image, math.random(0,love.window.getWidth()), math.random(0,love.window.getHeight()) )

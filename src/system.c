@@ -36,9 +36,9 @@ const char* system_getClipboardText()
 
   if (text)
     {
+      free(moduleData.clipboardText);
       moduleData.clipboardText = malloc(strlen(text) + 1);
       strcpy(moduleData.clipboardText, text);
-      moduleData.clipboardText[strlen(moduleData.clipboardText)] = '\0';
       SDL_free(text);
 
       return moduleData.clipboardText;
@@ -49,7 +49,8 @@ const char* system_getClipboardText()
 
 void system_setClipboardText(const char* text)
 {
-  moduleData.clipboardText = (char*)text;
+  free(moduleData.clipboardText);
+  moduleData.clipboardText = text ? strdup(text) : NULL;
   SDL_SetClipboardText(text);
 }
 

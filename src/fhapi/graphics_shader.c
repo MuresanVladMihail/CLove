@@ -150,6 +150,10 @@ static int fn_love_graphics_newShader(struct fh_program *prog,
 
 static int fn_love_graphics_getShader(struct fh_program *prog,
                                       struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (!moduleData.currentShader) {
+        *ret = fh_new_null();
+        return 0;
+    }
     *ret = fh_new_c_obj(prog, moduleData.currentShader, NULL, FH_GRAPHICS_SHADER);
     return 0;
 }

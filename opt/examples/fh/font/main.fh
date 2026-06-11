@@ -32,11 +32,11 @@ fn love_update(dt) {
 fn love_load()  {
     let self = {};
 
-    let big = love_graphics_newFont(36);
+    let big = love_graphics_newFont(64);
     self.bigFont = big;
 
-    self.small = love_graphics_newFont("vera.ttf", 16);
-    love_font_setFilter(self.small, "nearest", "nearest", love_graphics_getMaxAnisotropy());
+    self.small = love_graphics_newFont("vera.ttf", 32);
+    love_font_setFilter(self.small, "linear", "linear", love_graphics_getMaxAnisotropy());
 
     println(love_font_getHeight(self.bigFont), " ",
             love_font_getWidth(self.bigFont, "Hello world!"), " ",
@@ -61,14 +61,14 @@ fn love_load()  {
 
 fn love_draw(self) {
     love_graphics_setFont(self.bigFont);
-    love_graphics_print("Hello world!", 250, 270);
+    love_graphics_print("Hello world!", 350, 170);
     let cf = love_graphics_getFont();
     love_graphics_setFont(cf);
     love_graphics_setFont(self.small);
-    love_graphics_print("Hi", 150, 100, 90, 10, 10);
-    love_graphics_print(self.text[0], 300, 100);
+    love_graphics_print("Hi", 450, 50, 90, 10, 10);
+    love_graphics_print(self.text[0], 300, 50);
     love_graphics_setFont(self.bitmapFont);
-    love_graphics_print(self.text_bitmap[0], 260, 350, 0, 2, 2);
+    love_graphics_print(self.text_bitmap[0], 460, 250, 0, 2, 2);
 }
 
 fn main() {

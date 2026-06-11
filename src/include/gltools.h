@@ -27,4 +27,4 @@ typedef struct {
 
 float graphics_Texture_getMaxAnisotropy(void);
 void graphics_Texture_getFilter(GLuint texID, graphics_Filter *filter);
-void graphics_Texture_setFilter(GLuint texID, graphics_Filter *filter);
+void graphics_Texture_setFilter(GLuint texID, const graphics_Filter *filter);

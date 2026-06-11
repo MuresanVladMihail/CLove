@@ -31,7 +31,7 @@ static struct {
 static fh_c_obj_gc_callback gcFont(graphics_Font *font) {
     graphics_Font_free(font);
     free(font);
-    return (fh_c_obj_gc_callback)1;
+    return (fh_c_obj_gc_callback) 1;
 }
 
 static int fn_love_graphics_newFont(struct fh_program *prog,
@@ -44,10 +44,10 @@ static int fn_love_graphics_newFont(struct fh_program *prog,
         if (type == FH_VAL_STRING) {
             filename = fh_get_string(&args[0]);
             if (fh_is_number(&args[1])) {
-                moduleData.currentFontSize = (int)fh_get_number(&args[1]);
+                moduleData.currentFontSize = (int) fh_get_number(&args[1]);
             }
-        } else if (type == FH_VAL_FLOAT){
-            moduleData.currentFontSize = (int)fh_get_number(&args[0]);
+        } else if (type == FH_VAL_FLOAT) {
+            moduleData.currentFontSize = (int) fh_get_number(&args[0]);
         } else {
             return fh_set_error(prog, "Illegal parameter, expected null, string or number for the first argument");
         }
@@ -71,7 +71,6 @@ static void graphics_loadDefaultFont() {
 
 static int fn_love_graphics_setFont(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
-
     if (fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
         moduleData.isBitmapFont = false;
         moduleData.currentFont = fh_get_c_obj_value(&args[0]);
@@ -80,7 +79,7 @@ static int fn_love_graphics_setFont(struct fh_program *prog,
         moduleData.currentBitmapFont = fh_get_c_obj_value(&args[0]);
     } else if (fh_is_number(&args[0])) {
         moduleData.isBitmapFont = false;
-        graphics_Font_new(&moduleData.defaultFont, NULL, (int)fh_get_number(&args[0]));
+        graphics_Font_new(&moduleData.defaultFont, NULL, (int) fh_get_number(&args[0]));
         moduleData.currentFont = &moduleData.defaultFont;
     } else {
         return fh_set_error(prog, "Expected font, number or image font");
@@ -93,12 +92,16 @@ static int fn_love_graphics_setFont(struct fh_program *prog,
 static int fn_love_graphics_getFont(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
     if (moduleData.isBitmapFont) {
+        if (!moduleData.currentBitmapFont) {
+            *ret = fh_new_null();
+            return 0;
+        }
         *ret = fh_new_c_obj(prog, moduleData.currentBitmapFont, NULL, FH_BITMAP_FONT_TYPE);
     } else {
-		if (!moduleData.currentFont) {
-			*ret = fh_new_null();
-			return 0;
-		}
+        if (!moduleData.currentFont) {
+            *ret = fh_new_null();
+            return 0;
+        }
         *ret = fh_new_c_obj(prog, moduleData.currentFont, NULL, FH_FONT_TYPE);
     }
     return 0;
@@ -115,15 +118,15 @@ static int fn_love_graphics_print(struct fh_program *prog,
 
     const char *text = fh_get_string(&args[0]);
 
-    int x = fh_optnumber(args, n_args, 1, 0);
-    int y = fh_optnumber(args, n_args, 2, 0);
-    int r = fh_optnumber(args, n_args, 3, 0);
-    int sx = fh_optnumber(args, n_args, 4, 1.0);
-    int sy = fh_optnumber(args, n_args, 5, 1.0);
-    int ox = fh_optnumber(args, n_args, 6, 0);
-    int oy = fh_optnumber(args, n_args, 7, 0);
-    int kx = fh_optnumber(args, n_args, 8, 0);
-    int ky = fh_optnumber(args, n_args, 9, 0);
+    double x = fh_optnumber(args, n_args, 1, 0);
+    double y = fh_optnumber(args, n_args, 2, 0);
+    double r = fh_optnumber(args, n_args, 3, 0);
+    double sx = fh_optnumber(args, n_args, 4, 1.0);
+    double sy = fh_optnumber(args, n_args, 5, 1.0);
+    double ox = fh_optnumber(args, n_args, 6, 0);
+    double oy = fh_optnumber(args, n_args, 7, 0);
+    double kx = fh_optnumber(args, n_args, 8, 0);
+    double ky = fh_optnumber(args, n_args, 9, 0);
 
     if (moduleData.isBitmapFont) {
         graphics_BitmapFont_render(moduleData.currentBitmapFont, text, x, y, r, sx, sy, ox, oy, kx, ky);
@@ -235,7 +238,7 @@ static int fn_love_font_getWrap(struct fh_program *prog,
     }
 
     const char *line = fh_get_string(&args[1]);
-    int wraplimit = (int)fh_get_number(&args[2]);
+    int wraplimit = (int) fh_get_number(&args[2]);
 
     char *wrappedtext = malloc(strlen(line));
     int wrappedlines;
@@ -292,7 +295,7 @@ static int fn_love_font_setFilter(struct fh_program *prog,
 
     graphics_Filter newFilter;
 
-    newFilter.maxAnisotropy = (float)fh_optnumber(args, n_args, 3, 1.0);
+    newFilter.maxAnisotropy = (float) fh_optnumber(args, n_args, 3, 1.0);
 
     if (strcmp(min, "none") == 0) {
         newFilter.minMode = graphics_FilterMode_none;
@@ -390,5 +393,5 @@ void fh_graphics_font_register(struct fh_program *prog) {
     moduleData.currentBitmapFont = NULL;
     moduleData.isBitmapFont = false;
 
-    fh_add_c_funcs(prog, c_funcs, sizeof(c_funcs)/sizeof(c_funcs[0]));
+    fh_add_c_funcs(prog, c_funcs, sizeof(c_funcs) / sizeof(c_funcs[0]));
 }

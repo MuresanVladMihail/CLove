@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2019 Muresan Vlad
+#   Copyright (C) 2019-2025 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -18,22 +18,21 @@
 #include "graphics_quad.h"
 #include "image.h"
 
-static fh_c_obj_gc_callback batch_gc(graphics_Batch *batch) {
+static void batch_gc(graphics_Batch *batch) {
     graphics_Batch_free(batch);
     free(batch);
-    return (fh_c_obj_gc_callback)1;
 }
 
 static int fn_love_graphics_newSpriteBatch(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                           struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
         return fh_set_error(prog, "Expected image type");
     }
     fh_image_t *image = fh_get_c_obj_value(&args[0]);
-    int count = (int)fh_optnumber(args, n_args, 1, 128);
+    int count = (int) fh_optnumber(args, n_args, 1, 128);
 
     graphics_Batch *batch = malloc(sizeof(graphics_Batch));
-    graphics_Batch_new(batch, image->img, count, graphics_BatchUsage_static);
+    graphics_Batch_new(batch, image->img, count, graphics_BatchUsage_dynamic);
 
     fh_c_obj_gc_callback *callback = batch_gc;
     *ret = fh_new_c_obj(prog, batch, callback, FH_GRAPHICS_BATCH);
@@ -41,7 +40,7 @@ static int fn_love_graphics_newSpriteBatch(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_bind(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                       struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -52,7 +51,7 @@ static int fn_love_graphics_batch_bind(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_unbind(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                         struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -63,7 +62,7 @@ static int fn_love_graphics_batch_unbind(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_flush(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                        struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -81,7 +80,7 @@ static const graphics_Quad defaultQuad = {
 };
 
 static int fn_love_graphics_batch_add(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                      struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -95,15 +94,15 @@ static int fn_love_graphics_batch_add(struct fh_program *prog,
         basedidx = 2;
     }
 
-    float x = (float)fh_optnumber(args,  n_args, basedidx, 0.0);
-    float y = (float)fh_optnumber(args,  n_args, basedidx + 1, 0.0);
-    float r = (float)fh_optnumber(args,  n_args, basedidx + 2, 0.0);
-    float sx = (float)fh_optnumber(args, n_args, basedidx + 3, 1.0);
-    float sy = (float)fh_optnumber(args, n_args, basedidx + 4, 1.0);
-    float ox = (float)fh_optnumber(args, n_args, basedidx + 5, 0.0);
-    float oy = (float)fh_optnumber(args, n_args, basedidx + 6, 0.0);
-    float kx = (float)fh_optnumber(args, n_args, basedidx + 7, 0.0);
-    float ky = (float)fh_optnumber(args, n_args, basedidx + 8, 0.0);
+    float x = (float) fh_optnumber(args, n_args, basedidx, 0.0);
+    float y = (float) fh_optnumber(args, n_args, basedidx + 1, 0.0);
+    float r = (float) fh_optnumber(args, n_args, basedidx + 2, 0.0);
+    float sx = (float) fh_optnumber(args, n_args, basedidx + 3, 1.0);
+    float sy = (float) fh_optnumber(args, n_args, basedidx + 4, 1.0);
+    float ox = (float) fh_optnumber(args, n_args, basedidx + 5, 0.0);
+    float oy = (float) fh_optnumber(args, n_args, basedidx + 6, 0.0);
+    float kx = (float) fh_optnumber(args, n_args, basedidx + 7, 0.0);
+    float ky = (float) fh_optnumber(args, n_args, basedidx + 8, 0.0);
 
     int i = graphics_Batch_add(batch, quad, x, y, r, sx, sy, ox, oy, kx, ky);
     *ret = fh_new_number(i);
@@ -111,13 +110,13 @@ static int fn_love_graphics_batch_add(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_set(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                      struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH) || !fh_is_number(&args[1])) {
         return fh_set_error(prog, "Expected spritebatch and id");
     }
     graphics_Batch *batch = fh_get_c_obj_value(&args[0]);
 
-    int id = (int)fh_get_number(&args[1]);
+    int id = (int) fh_get_number(&args[1]);
 
     graphics_Quad const *quad = &defaultQuad;
     int basedidx = 2;
@@ -127,15 +126,15 @@ static int fn_love_graphics_batch_set(struct fh_program *prog,
         basedidx = 3;
     }*/
 
-    float x = (float)fh_optnumber(args, n_args, basedidx, 0.0);
-    float y = (float)fh_optnumber(args, n_args, basedidx + 1, 0.0);
-    float r = (float)fh_optnumber(args, n_args, basedidx + 2, 0.0);
-    float sx = (float)fh_optnumber(args, n_args, basedidx + 3, 1.0);
-    float sy = (float)fh_optnumber(args, n_args, basedidx + 4, sx);
-    float ox = (float)fh_optnumber(args, n_args, basedidx + 5, 0.0);
-    float oy = (float)fh_optnumber(args, n_args, basedidx + 6, 0.0);
-    float kx = (float)fh_optnumber(args, n_args, basedidx + 7, 0.0);
-    float ky = (float)fh_optnumber(args, n_args, basedidx + 8, 0.0);
+    float x = (float) fh_optnumber(args, n_args, basedidx, 0.0);
+    float y = (float) fh_optnumber(args, n_args, basedidx + 1, 0.0);
+    float r = (float) fh_optnumber(args, n_args, basedidx + 2, 0.0);
+    float sx = (float) fh_optnumber(args, n_args, basedidx + 3, 1.0);
+    float sy = (float) fh_optnumber(args, n_args, basedidx + 4, sx);
+    float ox = (float) fh_optnumber(args, n_args, basedidx + 5, 0.0);
+    float oy = (float) fh_optnumber(args, n_args, basedidx + 6, 0.0);
+    float kx = (float) fh_optnumber(args, n_args, basedidx + 7, 0.0);
+    float ky = (float) fh_optnumber(args, n_args, basedidx + 8, 0.0);
 
     graphics_Batch_set(batch, id, quad, x, y, r, sx, sy, ox, oy, kx, ky);
     *ret = fh_new_null();
@@ -143,7 +142,7 @@ static int fn_love_graphics_batch_set(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_clear(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                        struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -154,7 +153,7 @@ static int fn_love_graphics_batch_clear(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_getBufferSize(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                                struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -164,19 +163,19 @@ static int fn_love_graphics_batch_getBufferSize(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_setBufferSize(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                                struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH) || !fh_is_number(&args[1])) {
         return fh_set_error(prog, "Expected spritebatch and new size:number");
     }
     graphics_Batch *batch = fh_get_c_obj_value(&args[0]);
-    int newsize = (int)fh_get_number(&args[1]);
+    int newsize = (int) fh_get_number(&args[1]);
     graphics_Batch_changeBufferSize(batch, newsize);
     *ret = fh_new_null();
     return 0;
 }
 
 static int fn_love_graphics_batch_getCount(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                           struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -186,7 +185,7 @@ static int fn_love_graphics_batch_getCount(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_setTexture(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                             struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH) || !fh_is_c_obj_of_type(&args[1], FH_IMAGE_TYPE)) {
         return fh_set_error(prog, "Expected spritebatch and image");
     }
@@ -200,7 +199,7 @@ static int fn_love_graphics_batch_setTexture(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_getTexture(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                             struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -208,11 +207,10 @@ static int fn_love_graphics_batch_getTexture(struct fh_program *prog,
 
     *ret = fh_new_c_obj(prog, batch->texture, NULL, FH_IMAGE_TYPE);
     return 0;
-
 }
 
 static int fn_love_graphics_batch_setColor(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                           struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -225,10 +223,10 @@ static int fn_love_graphics_batch_setColor(struct fh_program *prog,
             if (!fh_is_number(&args[i]))
                 return fh_set_error(prog, "Expected r, g, b");
         }
-        float r = (float)fh_get_number(&args[1]);
-        float g = (float)fh_get_number(&args[2]);
-        float b = (float)fh_get_number(&args[3]);
-        float a = (float)fh_optnumber(args, n_args, 4, 1.0);
+        float r = (float) fh_get_number(&args[1]);
+        float g = (float) fh_get_number(&args[2]);
+        float b = (float) fh_get_number(&args[3]);
+        float a = (float) fh_optnumber(args, n_args, 4, 1.0);
         graphics_Batch_setColor(batch, r, g, b, a);
     }
 
@@ -237,7 +235,7 @@ static int fn_love_graphics_batch_setColor(struct fh_program *prog,
 }
 
 static int fn_love_graphics_batch_getColor(struct fh_program *prog,
-                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+                                           struct fh_value *ret, struct fh_value *args, int n_args) {
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -285,5 +283,5 @@ static const struct fh_named_c_func c_funcs[] = {
 };
 
 void fh_graphics_batch_register(struct fh_program *prog) {
-    fh_add_c_funcs(prog, c_funcs, sizeof(c_funcs)/sizeof(c_funcs[0]));
+    fh_add_c_funcs(prog, c_funcs, sizeof(c_funcs) / sizeof(c_funcs[0]));
 }

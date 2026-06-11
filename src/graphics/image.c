@@ -55,7 +55,6 @@ void graphics_Image_new_with_ImageData(graphics_Image *dst, image_ImageData *dat
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, dst->ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(imageIndices), imageIndices, GL_STATIC_DRAW);
 
-    // layout: pos(2), uv(2), color(4)
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(graphics_Vertex),
                           (void *) offsetof(graphics_Vertex, pos));

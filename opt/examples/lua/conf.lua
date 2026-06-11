@@ -10,5 +10,5 @@ function love.conf(t)
     t.window.vsync = true
     t.window.resizable = false
     t.window.title = "No title in conf.lua"
-    t.window.stats = true
+    t.window.stats = false
 end

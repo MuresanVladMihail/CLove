@@ -74,7 +74,7 @@ int fn_love_window_getDisplayCount(struct fh_program *prog, struct fh_value *ret
 
 int fn_love_window_setIcon(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
 
-    if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
+    if (n_args != 1 || !fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Illegal argument, expected image");
 
     fh_image_t *imgd = fh_get_c_obj_value(&args[0]);
@@ -101,7 +101,7 @@ int fn_love_window_setTitle(struct fh_program *prog, struct fh_value *ret, struc
 int fn_love_window_setVsync(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 1 || !fh_is_bool(&args[0]))
         return fh_set_error(prog, "Expected boolean");
-    graphics_setVsync(&args[0]);
+    graphics_setVsync(fh_get_bool(&args[0]));
     *ret = fh_new_null();
     return 0;
 }

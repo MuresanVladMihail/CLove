@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2025 Muresan Vlad
 #   Big thanks to Florian Kesseler
 #
 #   This project is free software; you can redistribute it and/or modify it
@@ -35,35 +35,47 @@ static struct {
     int wordcount;
     graphics_Batch *batches;
     int batchcount;
-    int batchsize;
+    size_t batchsize;
 } moduleData;
 
 
 void graphics_font_init() {
-    int error = FT_Init_FreeType(&moduleData.ft);
-    if (error)
+    if (FT_Init_FreeType(&moduleData.ft)) {
         clove_error("Error, could not initialize freetype! \n");
+    }
     moduleData.batchcount = 0;
     moduleData.batches = NULL;
     moduleData.batchsize = 0;
 }
 
 static void graphics_GlyphMap_newTexture(graphics_GlyphMap *map) {
-    map->textures = realloc(map->textures, sizeof(GLuint) * (map->numTextures + 1));
-    glGenTextures(1, &map->textures[map->numTextures]);
-    glBindTexture(GL_TEXTURE_2D, map->textures[map->numTextures]);
+    GLuint *newTextures = realloc(map->textures, sizeof(GLuint) * (map->numTextures + 1));
+    if (!newTextures) {
+        clove_error("Error, could not allocate memory for new glyph texture!\n");
+        return;
+    }
+    map->textures = newTextures;
+
+    GLuint tex = 0;
+    glGenTextures(1, &tex);
+    map->textures[map->numTextures] = tex;
+
+    glBindTexture(GL_TEXTURE_2D, tex);
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
-                 map->textureWidth, map->textureHeight,
-                 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, map->textureWidth, map->textureHeight, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     if (map->numTextures > 0) {
+        GLuint prevTex = map->textures[map->numTextures - 1];
+        GLuint newTex = map->textures[map->numTextures];
         graphics_Filter filter;
-        graphics_Texture_getFilter(map->textures[map->numTextures - 1], &filter);
-        graphics_Texture_setFilter(map->textures[map->numTextures], &filter);
+        graphics_Texture_getFilter(prevTex, &filter);
+        filter.mipmapMode = graphics_FilterMode_none;
+        filter.maxAnisotropy = 1.0f;
+        graphics_Texture_setFilter(newTex, &filter);
     }
     ++map->numTextures;
 }
@@ -80,7 +92,8 @@ static graphics_Glyph const *graphics_Font_findGlyph(graphics_Font *font, unsign
         // The list is sorted, break early if possible
         if (glyph->code > unicode) {
             break;
-        } else if (glyph->code == unicode) {
+        }
+        if (glyph->code == unicode) {
             return glyph;
         }
     }
@@ -114,9 +127,9 @@ static graphics_Glyph const *graphics_Font_findGlyph(graphics_Font *font, unsign
 
     uint8_t *buf = malloc(4 * b.rows * b.width);
     uint8_t *row = b.buffer;
-    for (unsigned int i = 0; i < b.rows; ++i) {
+    for (unsigned int rowIndex = 0; rowIndex < b.rows; ++rowIndex) {
         for (unsigned int c = 0; c < b.width; ++c) {
-            size_t p = 4 * (i * (size_t) b.width + c);
+            size_t p = 4 * (rowIndex * (size_t) b.width + c);
             buf[p + 0] = 255; // R
             buf[p + 1] = 255; // G
             buf[p + 2] = 255; // B
@@ -165,14 +178,14 @@ static graphics_Glyph const *graphics_Font_findGlyph(graphics_Font *font, unsign
     font->glyphs.currentX += b.width + GlyphTexturePadding;
     font->glyphs.currentRowHeight = max(font->glyphs.currentRowHeight, b.rows + GlyphTexturePadding);
 
-    free(buf);
+    CLOVE_SAFE_FREE(buf);
     FT_Done_Glyph(g);
 
     return newGlyph;
 }
 
-static int const TextureWidth = 128;
-static int const TextureHeight = 128;
+static int const DEFAULT_TEXTURE_WIDTH = 128;
+static int const DEFAULT_TEXTURE_HEIGHT = 128;
 
 int graphics_Font_new(graphics_Font *dst, char const *filename, int ptsize) {
     int error;
@@ -184,11 +197,10 @@ int graphics_Font_new(graphics_Font *dst, char const *filename, int ptsize) {
     if (error != 0) {
         if (error == FT_Err_Unknown_File_Format) {
             clove_error("Error, unknown font format: %s\n", filename);
-            return 1;
-        } else {
-            clove_error("Error, the font file: %s, could not be opened or read\n", filename);
-            return 1;
+            return error;
         }
+        clove_error("Error, the font file: %s, could not be opened or read\n", filename);
+        return error;
     }
 
     FT_Set_Pixel_Sizes(dst->face, 0, ptsize);
@@ -196,8 +208,8 @@ int graphics_Font_new(graphics_Font *dst, char const *filename, int ptsize) {
 
     memset(&dst->glyphs, 0, sizeof(graphics_GlyphMap));
 
-    dst->glyphs.textureWidth = TextureWidth;
-    dst->glyphs.textureHeight = TextureHeight;
+    dst->glyphs.textureWidth = DEFAULT_TEXTURE_WIDTH;
+    dst->glyphs.textureHeight = DEFAULT_TEXTURE_HEIGHT;
 
     // create a new texture with no data in it.
     graphics_GlyphMap_newTexture(&dst->glyphs);
@@ -235,20 +247,27 @@ int graphics_Font_getWrap(graphics_Font *font, char const *line, int wraplimit, 
         }
         c[i++] = (char) uni;
     }
-    c[i] = '\0';
+    if (c) {
+        c[i] = '\0';
+    }
 
     return wrappedlines;
 }
 
-static void prepareBatches(graphics_Font *font, int chars) {
-    int newSize = max(chars, moduleData.batchsize);
+static void prepareBatches(graphics_Font *font, size_t chars) {
+    size_t newSize = max(chars, moduleData.batchsize);
 
     /*
      * This will be called only once to set up the only texture used for batch which will contain
      * all the text from print and printf functions.
      */
     if (font->glyphs.numTextures > moduleData.batchcount) {
-        moduleData.batches = realloc(moduleData.batches, font->glyphs.numTextures * sizeof(graphics_Batch));
+        graphics_Batch *newData = realloc(moduleData.batches, font->glyphs.numTextures * sizeof(graphics_Batch));
+        if (!newData) {
+            clove_error("Error reallocating memory for font batches!\n");
+            return;
+        }
+        moduleData.batches = newData;
         for (int i = moduleData.batchcount; i < font->glyphs.numTextures; ++i) {
             graphics_Image *img = malloc(sizeof(graphics_Image));
             img->texID = font->glyphs.textures[i];
@@ -259,30 +278,19 @@ static void prepareBatches(graphics_Font *font, int chars) {
         }
     }
 
-    /*
-     * If batchsize is smaller than the size of the text we want to print then we
-     * need to increas the size of the batch and update the rest of components
-     */
-    if (font->batchsize < newSize) {
-        for (int i = 0; i < moduleData.batchcount; ++i) {
-            graphics_Batch_bind(&moduleData.batches[i]);
+    for (int i = 0; i < moduleData.batchcount; ++i) {
+        graphics_Batch_bind(&moduleData.batches[i]);
+        if (font->batchsize < newSize) {
+            // If batchsize is smaller than the size of the text we want to print then we
+            // need to increase the size of the batch and update the rest of components
             graphics_Batch_changeBufferSize(&moduleData.batches[i], newSize);
-            ((graphics_Image *) moduleData.batches[i].texture)->texID = font->glyphs.textures[i];
-            ((graphics_Image *) moduleData.batches[i].texture)->width = font->glyphs.textureWidth;
-            ((graphics_Image *) moduleData.batches[i].texture)->height = font->glyphs.textureHeight;
-        }
-    } else {
-        /*
-         * In case we do not need to increase the size of the batch we just update the
-         * components
-         */
-        for (int i = 0; i < moduleData.batchcount; ++i) {
-            graphics_Batch_bind(&moduleData.batches[i]);
+        } else {
+            // In case we do not need to increase the size of the batch we just update the components
             graphics_Batch_clear(&moduleData.batches[i]);
-            ((graphics_Image *) moduleData.batches[i].texture)->texID = font->glyphs.textures[i];
-            ((graphics_Image *) moduleData.batches[i].texture)->width = font->glyphs.textureWidth;
-            ((graphics_Image *) moduleData.batches[i].texture)->height = font->glyphs.textureHeight;
         }
+        ((graphics_Image *) moduleData.batches[i].texture)->texID = font->glyphs.textures[i];
+        ((graphics_Image *) moduleData.batches[i].texture)->width = font->glyphs.textureWidth;
+        ((graphics_Image *) moduleData.batches[i].texture)->height = font->glyphs.textureHeight;
     }
 
     moduleData.batchcount = font->glyphs.numTextures;
@@ -293,10 +301,8 @@ void graphics_Font_render(graphics_Font *font, char const *text, int px, int py,
                           float oy, float kx, float ky) {
     prepareBatches(font, strlen(text));
     uint32_t cp;
-    //graphics_Shader* shader = graphics_getShader();
-    //graphics_setDefaultShader();
-    int x = 0;
-    int y = font->ascent;
+    float x = 0;
+    float y = font->ascent;
     while ((cp = utf8_scan(&text))) {
         // This will create the glyph if required
         graphics_Glyph const *glyph = graphics_Font_findGlyph(font, cp);
@@ -317,8 +323,6 @@ void graphics_Font_render(graphics_Font *font, char const *text, int px, int py,
         graphics_Batch_unbind(&moduleData.batches[i]);
         graphics_Batch_draw(&moduleData.batches[i], px, py, r, sx, sy, ox, oy, kx, ky);
     }
-
-    //graphics_setShader(shader);
 }
 
 
@@ -365,7 +369,7 @@ void graphics_Font_getFilter(graphics_Font *font, graphics_Filter *filter) {
 
 void graphics_GlyphMap_free(graphics_GlyphMap *map) {
     glDeleteTextures(map->numTextures, map->textures);
-    free(map->textures);
+    CLOVE_SAFE_FREE(map->textures);
 }
 
 void graphics_Font_free(graphics_Font *obj) {

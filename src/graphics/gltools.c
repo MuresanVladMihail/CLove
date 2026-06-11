@@ -1,16 +1,26 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2025 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
 */
 #include "../include/gltools.h"
+
+#include <stdio.h>
+
 #include "../include/gl.h"
 #include "../include/minmax.h"
 
-void graphics_Texture_setFilter(GLuint texID, graphics_Filter *filter) {
+static inline void glCheckError(const char *where) {
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR) {
+		printf("[GL ERROR] %s: 0x%X\n", where, err);
+	}
+}
+
+void graphics_Texture_setFilter(const GLuint texID, const graphics_Filter *filter) {
 	glBindTexture(GL_TEXTURE_2D, texID);
 
 	// Keep textures "complete" on strict drivers (macOS core profile).
@@ -152,6 +162,10 @@ void graphics_Texture_getFilter(GLuint texID, graphics_Filter *filter) {
 		case GL_LINEAR_MIPMAP_LINEAR:
 			filter->minMode = graphics_FilterMode_linear;
 			filter->mipmapMode = graphics_FilterMode_linear;
+			break;
+		default:
+			filter->minMode = graphics_FilterMode_linear;
+			filter->mipmapMode = graphics_FilterMode_none;
 			break;
 	}
 

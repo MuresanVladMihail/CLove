@@ -141,3 +141,6 @@ core
 .gdb_history
 *.creator.*
 tags
+
+# local backup of the old GLEW copy, not part of the build
+glew-old/

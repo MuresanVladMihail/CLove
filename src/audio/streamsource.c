@@ -16,6 +16,7 @@
 // loaders
 #include "../include/wav_decoder.h"
 #include "../include/vorbis_decoder.h"
+#include "../include/utils.h"
 
 static struct {
     audio_StreamSource ** playingStreams;
@@ -50,8 +51,11 @@ int audio_loadStream(audio_StreamSource *source, char const * filename) {
     source->decoderData = malloc(sizeof(audio_vorbis_DecoderData));
 
     //NOTE: CLove only supports vorbis files when it comes to streaming!
-    if (audio_vorbis_loadStream(source->decoderData, filename) == VORBIS_file_open_failure) {
-        return VORBIS_file_open_failure;
+    // any nonzero stb_vorbis error means the decoder was not opened
+    if (audio_vorbis_loadStream(source->decoderData, filename) != 0) {
+        free(source->decoderData);
+        source->decoderData = NULL;
+        return 0;
     }
 
     alGenSources(1, &source->source);
@@ -122,8 +126,14 @@ void audio_StreamSource_play(audio_StreamSource *source) {
     alSourceQueueBuffers(source->source, 6, source->buffers);
 
     if(moduleData.playingStreamCount == moduleData.playingStreamSize) {
+        audio_StreamSource **grown = realloc(moduleData.playingStreams,
+                                             moduleData.playingStreamSize * 2 * sizeof(audio_StreamSource*));
+        if (!grown) {
+            clove_error("audio: out of memory growing playing stream list");
+            return;
+        }
         moduleData.playingStreamSize *= 2;
-        moduleData.playingStreams = realloc(moduleData.playingStreams, moduleData.playingStreamSize*sizeof(audio_StreamSource*));
+        moduleData.playingStreams = grown;
     }
 
     moduleData.playingStreams[moduleData.playingStreamCount] = source;
@@ -137,10 +147,10 @@ void audio_StreamSource_setLooping(audio_StreamSource* source, int value) {
 }
 
 void audio_StreamSource_stop(audio_StreamSource* source) {
-    source->state = audio_SourceState_stopped;
     if (source->state == audio_SourceState_playing) {
         alSourceStop(source->source);
     }
+    source->state = audio_SourceState_stopped;
 }
 
 void audio_StreamSource_resume(audio_StreamSource* source) {
@@ -200,8 +210,8 @@ void audio_StreamSource_setPosition(audio_StreamSource *source, float x, float y
 }
 
 void audio_StreamSource_free(audio_StreamSource* source) {
+    alSourcei(source->source, AL_BUFFER, AL_NONE);
     alDeleteSources(1, &source->source);
     alDeleteBuffers(6, source->buffers);
-    alSourcei(source->source, AL_BUFFER, AL_NONE);
 }
 

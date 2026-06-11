@@ -75,8 +75,8 @@ void audio_SourceCommon_stop(audio_SourceCommon *source) {
 
 void audio_SourceCommon_free(audio_SourceCommon *source) {
   audio_SourceCommon_stop(source);
-  alDeleteSources(1, &source->source);
   alSourcei(source->source, AL_BUFFER, AL_NONE);
+  alDeleteSources(1, &source->source);
 }
 
 audio_SourceState audio_SourceCommon_getState(audio_SourceCommon const *source) {
