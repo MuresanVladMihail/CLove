@@ -22,12 +22,29 @@ version 0.8.0 not yet released
 * added: love.system.setClipboardText(text).
 * added: love_system_getClipboardText().
 * added: love_system_getProcessorCount().
+* added: end-to-end FH test suite under tests/ with a runner; the process exit code now reflects script errors (FH only).
+* added: optional callbacks (love_focus, love_quit) no longer raise an error every frame when left undefined (FH only).
+* added: CLAUDE.md and SKILLS.md documentation.
 
 * fixed: graphics#setFullscreen.
 * fixed: newImageFont is not broken anymore.
+* fixed: ~15s freeze on macOS when closing the window (SDL 2.0.8 CoreAudio device close); resolved by updating SDL.
+* fixed: double-free crash on exit when a SpriteBatch was created from an image (the batch freed the image's borrowed texture).
+* fixed: love_quad_setViewport read the wrong arguments and corrupted the quad (FH only).
+* fixed: love_image_setPixel/getPixel argument validation (out-of-bounds read with too few arguments) (FH only).
+* fixed: love_window_setVsync ignored its argument (a pointer was passed instead of the boolean) (FH only).
+* fixed: graphics getShader/getFont returned a wrapper over NULL instead of null when none was set (FH only).
+* fixed: use-after-free when freeing audio sources (the OpenAL buffer was detached after the source was deleted).
+* fixed: audio stream sources never actually stopped (a dead condition in the stop path).
+* fixed: NULL dereference when a streamed Vorbis file fails to open, plus a leak on load failure.
+* fixed: unchecked realloc of the playing-stream list.
 
 * modify: Changed the structure of folders, enabling the usage of the framework as a library.
 * modify: Removed OpenAL and replaced it with MojoAL.
+* modify: updated the bundled SDL to 2.32.10 (from 2.0.8); macOS deployment target raised to 10.11.
+* modify: updated the embedded FH interpreter (separate integer/float types, fused loop opcode, adaptive GC, faster small-object allocation).
+* modify: modernized CMakeLists.txt (CONFIGURE_DEPENDS globs, fixed the never-built shared-library option, dl linked as a library).
+* modify: at shutdown the script VM is freed before GL/audio teardown, so object destructors run against live contexts.
 
 * removed: C++ support
 
