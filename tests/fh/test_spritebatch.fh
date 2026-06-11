@@ -1,0 +1,27 @@
+# Sprite batch + image lifetime.
+# Regression guard: a SpriteBatch borrows the image's graphics_Image; the
+# batch destructor used to free it, double-freeing the image's texture at GC
+# (crash on exit). Creating both and letting them be collected must be clean.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    let data = love_graphics_newImageData(8, 8);
+    let img = love_graphics_newImage(data);
+    let batch = love_graphics_newSpriteBatch(img, 16);
+
+    love_graphics_batch_clear(batch);
+    love_graphics_batch_add(batch, 1, 2);
+    love_graphics_batch_flush(batch);
+
+    check(batch != null, "batch should be created");
+    # the real assertion is implicit: teardown must not double-free img->img
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

@@ -288,7 +288,10 @@ void graphics_Batch_clearColor(graphics_Batch *batch) {
 }
 
 void graphics_Batch_free(graphics_Batch *batch) {
-	CLOVE_SAFE_FREE(batch->texture);
+	// NOTE: batch->texture is a BORROWED reference (passed into
+	// graphics_Batch_new, owned by the image it came from). It must NOT be
+	// freed here — doing so double-freed the image's graphics_Image, since
+	// the image's own destructor (the fhapi image onFree callback) frees it.
 	if (batch->vao != 0) {
 		glDeleteVertexArrays(1, &batch->vao);
 		batch->vao = 0;
