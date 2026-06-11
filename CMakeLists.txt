@@ -156,6 +156,13 @@ endif()
 
 # freetype — its target propagates its include dirs, but the static `love`
 # library compiles font code without linking it, so add the include globally.
+# Disable freetype's optional external dependencies so the build stays
+# self-contained: otherwise its CMake auto-links system harfbuzz/png/brotli/
+# bzip2 (e.g. from Homebrew), which aren't needed and aren't portable.
+set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_PNG      ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BROTLI   ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BZIP2    ON CACHE BOOL "" FORCE)
 add_subdirectory(src/3rdparty/freetype)
 include_directories(src/3rdparty/freetype/include)
 set(FREETYPE_LIBRARIES freetype)

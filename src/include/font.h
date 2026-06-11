@@ -12,11 +12,11 @@
 #include "image.h"
 #include "quad.h"
 
+// Use FreeType's canonical macro includes (ft2build.h sets these up); the
+// per-header layout changed between versions, the macros did not.
 #include "../3rdparty/freetype/include/ft2build.h"
-#include "../3rdparty/freetype/include/freetype.h"
-#include "../3rdparty/freetype/include/ftglyph.h"
-
 #include FT_FREETYPE_H
+#include FT_GLYPH_H
 
 typedef struct {
     unsigned int code;
