@@ -82,11 +82,11 @@ static int fn_love_geometry_points(struct fh_program *prog,
 
     struct fh_array *a = GET_VAL_ARRAY(arr);
     for (int i = 0; i < len; i++) {
-        if (a->items[i].type != FH_VAL_FLOAT) {
+        if (!fh_is_number(&a->items[i])) {
             free (vertices);
             return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
         }
-        vertices[i] = (float)a->items[i].data.num;
+        vertices[i] = (float)fh_get_number(&a->items[i]);
     }
 
     graphics_geometry_points(vertices, len * 0.5);
@@ -107,11 +107,11 @@ static int fn_love_geometry_line(struct fh_program *prog,
 
     struct fh_array *a = GET_VAL_ARRAY(arr);
     for (int i = 0; i < len; i++) {
-        if (a->items[i].type != FH_VAL_FLOAT) {
+        if (!fh_is_number(&a->items[i])) {
             free (vertices);
             return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
         }
-        vertices[i] = (float)a->items[i].data.num;
+        vertices[i] = (float)fh_get_number(&a->items[i]);
     }
 
     graphics_geometry_line(vertices, len * 0.5f);
@@ -134,11 +134,11 @@ static int fn_love_geometry_polygon(struct fh_program *prog,
 
     struct fh_array *a = GET_VAL_ARRAY(arr);
     for (int i = 0; i < len; i++) {
-        if (a->items[i].type != FH_VAL_FLOAT) {
+        if (!fh_is_number(&a->items[i])) {
             free (vertices);
             return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
         }
-        vertices[i] = (float)a->items[i].data.num;
+        vertices[i] = (float)fh_get_number(&a->items[i]);
     }
 
     if (strcmp(filled, "fill") == 0)

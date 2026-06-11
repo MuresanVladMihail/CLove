@@ -345,11 +345,11 @@ static int fn_love_ui_layout_row(struct fh_program *prog,
         int size[len];
         struct fh_array *a = GET_VAL_ARRAY(arr);
         for (int i = 0; i < len; i++) {
-            if (a->items[i].type != FH_VAL_FLOAT) {
+            if (!fh_is_number(&a->items[i])) {
                 free (size);
                 return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
             }
-            size[i] = (int)a->items[i].data.num;
+            size[i] = (int)fh_get_number(&a->items[i]);
         }
         ui_layout_row(no_items, size, height);
     } else if (no_items == -1 && fh_is_null(&args[1])) {

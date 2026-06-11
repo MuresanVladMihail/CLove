@@ -46,7 +46,7 @@ static int fn_love_graphics_newFont(struct fh_program *prog,
             if (fh_is_number(&args[1])) {
                 moduleData.currentFontSize = (int) fh_get_number(&args[1]);
             }
-        } else if (type == FH_VAL_FLOAT) {
+        } else if (fh_is_number(&args[0])) {
             moduleData.currentFontSize = (int) fh_get_number(&args[0]);
         } else {
             return fh_set_error(prog, "Illegal parameter, expected null, string or number for the first argument");

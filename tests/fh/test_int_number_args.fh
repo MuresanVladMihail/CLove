@@ -1,0 +1,23 @@
+# Integer arguments accepted where a number is expected.
+# Regression guard: after FH gained separate integer/float types, several
+# bindings still checked `type == FH_VAL_FLOAT` and rejected integer literals
+# (e.g. love_graphics_newFont(24), geometry vertex arrays of ints).
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    # integer font size (was rejected: "expected null, string or number")
+    let f = love_graphics_newFont(24);
+    check(f != null, "newFont with an integer size should work");
+
+    # geometry vertex array with integer coordinates (was rejected per-element)
+    love_geometry_polygon("line", [0, 0, 100, 0, 50, 80]);
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

@@ -27,11 +27,11 @@ static int fn_love_math_isConvex(struct fh_program *prog,
 
     struct fh_array *a = GET_VAL_ARRAY(arr);
     for (int i = 0; i < len; i++) {
-        if (a->items[i].type != FH_VAL_FLOAT) {
+        if (!fh_is_number(&a->items[i])) {
             free (vertices);
             return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
         }
-        vertices[i] = (float)a->items[i].data.num;
+        vertices[i] = (float)fh_get_number(&a->items[i]);
     }
     *ret = fh_new_bool(math_isConvex(vertices, len/2));
     free(vertices);
