@@ -1,0 +1,32 @@
+# Quad viewport round-trip.
+# Regression guard: love_quad_setViewport used to read args[0..3] (the quad
+# object itself) instead of args[1..4], silently corrupting the quad.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    # newQuad normalises against the reference size, so (16,16) in a 64x64
+    # sheet is stored as 0.25.
+    let q = love_graphics_newQuad(0, 0, 16, 16, 64, 64);
+    let v0 = love_quad_getViewport(q);
+    check(v0[0] == 0.0 && v0[1] == 0.0 && v0[2] == 0.25 && v0[3] == 0.25,
+          "initial normalised viewport should be (0,0,0.25,0.25)");
+
+    # setViewport stores the components verbatim; the regression we guard is
+    # that they are read from args[1..4] (the quad used to overwrite them with
+    # its own object pointer reinterpreted as a number).
+    love_quad_setViewport(q, 5, 6, 7, 8);
+    let v = love_quad_getViewport(q);
+    check(v[0] == 5, "viewport x should be 5");
+    check(v[1] == 6, "viewport y should be 6");
+    check(v[2] == 7, "viewport w should be 7");
+    check(v[3] == 8, "viewport h should be 8");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

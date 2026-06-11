@@ -251,7 +251,7 @@ void fh_main_loop(int argc, char **argv) {
     audio_updateStreams();
 }
 
-void fh_main_activity_load(int argc, char *argv[]) {
+int fh_main_activity_load(int argc, char *argv[]) {
     fh_init();
     clove_reload = false;
     clove_running = true;
@@ -259,7 +259,7 @@ void fh_main_activity_load(int argc, char *argv[]) {
     loopData.prog = fh_new_program();
     if (!loopData.prog) {
         clove_error("ERROR: out of memory for initializing language FH\n");
-        return;
+        return 1;
     }
 
     keyboard_init();
@@ -346,7 +346,7 @@ void fh_main_activity_load(int argc, char *argv[]) {
     if (ret < 0) {
         clove_error("ERROR: %s\n", fh_get_error(loopData.prog));
         main_clean();
-        return;
+        return 1;
     }
 
     loopData.delta = fh_new_number(1);
@@ -358,7 +358,7 @@ void fh_main_activity_load(int argc, char *argv[]) {
         clove_error("Error: %s\n", fh_get_error(loopData.prog));
         fh_running = false;
         main_clean();
-        return;
+        return 1;
     }
 
 
@@ -385,14 +385,17 @@ void fh_main_activity_load(int argc, char *argv[]) {
      * its default value, 'true', and the "if" from below won't be called but we will still
      * get the errors because of 'clove_error' function called in the errornous function.
      */
+    int exit_code = 0;
     if (!fh_running) {
         clove_error("ERROR: %s\n", fh_get_error(loopData.prog));
+        exit_code = 1;
     }
 
     if (!loopData.called_quit) {
         quit_function();
     }
     main_clean();
+    return exit_code;
 }
 
 #endif

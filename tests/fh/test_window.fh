@@ -1,0 +1,26 @@
+# Window metadata getters are self-consistent.
+# (Exact pixel sizes are avoided on purpose: HiDPI/retina backings can make
+#  the drawable larger than the requested logical size.)
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    let w = love_window_getWidth();
+    let h = love_window_getHeight();
+    check(w > 0, "window width should be positive");
+    check(h > 0, "window height should be positive");
+
+    let dim = love_window_getDimensions();
+    check(dim[0] == w, "getDimensions width must match getWidth");
+    check(dim[1] == h, "getDimensions height must match getHeight");
+
+    check(love_window_getDisplayCount() >= 1, "at least one display expected");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

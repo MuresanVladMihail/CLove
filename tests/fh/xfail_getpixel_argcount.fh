@@ -1,0 +1,14 @@
+# getPixel without coordinates must error, not read uninitialised arguments.
+
+fn run() {
+    let d = love_graphics_newImageData(4, 4);
+    let p = love_image_getPixel(d); # missing x,y
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}

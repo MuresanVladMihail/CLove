@@ -1,0 +1,15 @@
+# setPixel with too few arguments must raise a clean error, not read past the
+# argument array. Runner expects a non-zero exit (the error aborts the script).
+
+fn run() {
+    let d = love_graphics_newImageData(4, 4);
+    love_image_setPixel(d, 0, 0); # missing r,g,b,a
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}

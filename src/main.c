@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     lua_main_activity_load(argc, argv);
   #endif
   #ifdef USE_FH
-    fh_main_activity_load(argc, argv);
+    return fh_main_activity_load(argc, argv);
   #endif
   return 0;
 }

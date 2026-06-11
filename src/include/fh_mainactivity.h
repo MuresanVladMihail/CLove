@@ -29,5 +29,7 @@
 #include "keyboard.h"
 #include "mouse.h"
 
-void fh_main_activity_load(int argc, char* argv[]);
+/* Returns a process exit code: 0 on a clean run / quit, 1 if the script
+ * (or engine) raised an error. Lets a test harness rely on $?. */
+int fh_main_activity_load(int argc, char* argv[]);
 void fh_main_loop(int argc, char **argv);

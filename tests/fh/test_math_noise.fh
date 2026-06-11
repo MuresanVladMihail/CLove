@@ -1,0 +1,33 @@
+# Simplex noise: deterministic, bounded, and available in 1..4 dimensions.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    # determinism: same input -> same output
+    let a = love_math_noise(0.5);
+    let b = love_math_noise(0.5);
+    check(a == b, "noise must be deterministic for the same input");
+
+    # range: simplex noise is in [-1, 1]
+    let n = 0;
+    while (n < 50) {
+        let v = love_math_noise(n * 0.13, n * 0.07);
+        check(v >= -1.0 && v <= 1.0, "2D noise out of [-1,1]");
+        n = n + 1;
+    }
+
+    # all arities should return a number (1D..4D)
+    let v1 = love_math_noise(1.0);
+    let v3 = love_math_noise(1.0, 2.0, 3.0);
+    let v4 = love_math_noise(1.0, 2.0, 3.0, 4.0);
+    check(v3 >= -1.0 && v3 <= 1.0, "3D noise out of range");
+    check(v4 >= -1.0 && v4 <= 1.0, "4D noise out of range");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

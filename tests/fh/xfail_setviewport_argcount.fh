@@ -1,0 +1,14 @@
+# setViewport with a missing component must error rather than corrupt the quad.
+
+fn run() {
+    let q = love_graphics_newQuad(0, 0, 16, 16, 64, 64);
+    love_quad_setViewport(q, 1, 2, 3); # missing h
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}

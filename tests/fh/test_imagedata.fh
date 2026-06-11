@@ -1,0 +1,36 @@
+# ImageData pixel round-trip.
+# Regression guard: love_image_setPixel/getPixel had wrong argument handling
+# (setPixel read args[6] without validating arg count). Here we write known
+# RGBA values and read them straight back.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    let d = love_graphics_newImageData(4, 4);
+
+    check(love_image_getWidth(d) == 4, "width should be 4");
+    check(love_image_getHeight(d) == 4, "height should be 4");
+
+    love_image_setPixel(d, 1, 2, 10, 20, 30, 40);
+    let p = love_image_getPixel(d, 1, 2);
+    check(p[0] == 10, "red should be 10");
+    check(p[1] == 20, "green should be 20");
+    check(p[2] == 30, "blue should be 30");
+    check(p[3] == 40, "alpha should be 40");
+
+    # a different pixel must be unaffected by the write above
+    love_image_setPixel(d, 0, 0, 200, 201, 202, 203);
+    let q = love_image_getPixel(d, 0, 0);
+    check(q[0] == 200 && q[1] == 201 && q[2] == 202 && q[3] == 203,
+          "pixel (0,0) should hold its own value");
+    let still = love_image_getPixel(d, 1, 2);
+    check(still[0] == 10 && still[3] == 40, "pixel (1,2) must not be clobbered");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}
