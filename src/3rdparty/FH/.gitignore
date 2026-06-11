@@ -2,6 +2,7 @@
 # Prerequisites
 *.d
 
+*.tar
 fh.*
 
 # Object files
@@ -133,9 +134,7 @@ Temporary Items
 *.out
 *.app
 
-# the fh interpreter binary (NOT the FH/ source directory; the bare
-# pattern "fh" also matched FH/ on case-insensitive filesystems)
-FH/fh
+fh
 core
 .*.swp
 .gdb_history
