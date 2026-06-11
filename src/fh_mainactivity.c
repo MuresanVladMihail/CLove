@@ -78,20 +78,28 @@ static void focus_function(void) {
 
 /*
  * Tear down everything and produce the process exit code (0 clean, 1 on a
- * script/engine error). audio_close() must precede graphics_shutdown()'s
- * SDL_Quit() so the audio device is released first.
+ * script/engine error).
  *
- * (Historically the bundled SDL 2.0.8 CoreAudio backend stalled ~15s closing
- *  the audio device here on macOS; updating to SDL 2.32.10 fixed that.)
+ * Order matters: fh_deinit() runs the script VM's garbage collector, whose
+ * c_obj destructors call back into the engine — images do glDeleteTextures,
+ * audio sources do alDeleteSources. Those must run while the GL and OpenAL
+ * contexts are still alive, so the VM is freed BEFORE graphics_shutdown()
+ * and audio_close(). (Freeing it afterwards drove GL deletes against a
+ * destroyed context and could abort in the driver's allocator.)
+ *
+ * audio_close() then precedes graphics_shutdown()'s SDL_Quit() so the audio
+ * device is released before SDL tears down. (The bundled SDL 2.0.8 CoreAudio
+ * backend used to stall ~15s closing the device here on macOS; SDL 2.32.10
+ * fixed that.)
  */
 static int clove_finish(int exit_code) {
+    fh_deinit(loopData.prog);
     joystick_close();
     ui_deinit();
     graphics_geometry_free();
     audio_close();
     graphics_shutdown();
     filesystem_free();
-    fh_deinit(loopData.prog);
     return exit_code;
 }
 
