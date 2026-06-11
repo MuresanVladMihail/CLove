@@ -7,247 +7,208 @@
 #   under the terms of the MIT license. See LICENSE.md for details.
 #
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
-project(clove)
+project(clove C CXX)
 
-option(USE_LUA "Build CLove using Lua as scripting language" FALSE)
-option(USE_FH "Build CLove using FH as scripting language" TRUE)
+# ----------------------------------------------------------------------------
+# Options
+# ----------------------------------------------------------------------------
+option(USE_FH      "Build CLove with FH as the scripting language"  ON)
+option(USE_LUA     "Build CLove with Lua as the scripting language" OFF)
+option(STATIC_LIB  "Also build CLove as a static library"           ON)
+option(DYNAMIC_LIB "Also build CLove as a shared library"           OFF)
 
-option(STATIC_LIB "Builds CLove as a static library" TRUE)
-option(DYNAMIC_LIB "Builds CLove as a shared library" FALSE)
+if(USE_FH)
+    message(STATUS "CLove scripting language: FH")
+endif()
+if(USE_LUA)
+    message(STATUS "CLove scripting language: Lua")
+endif()
 
-if (USE_LUA)
-    ADD_DEFINITIONS(-DUSE_LUA=ON)
-    message(STATUS, "Using Lua")
-endif (USE_LUA)
+# Defines consumed by the engine sources (e.g. main.c: #ifdef USE_FH).
+# Applied directory-wide so every CLove target (executable + libraries) agrees.
+if(USE_FH)
+    add_compile_definitions(USE_FH=ON)
+endif()
+if(USE_LUA)
+    add_compile_definitions(USE_LUA=ON)
+endif()
+add_compile_definitions(SDL2 FT2_BUILD_LIBRARY)
 
-if (USE_FH)
-    ADD_DEFINITIONS(-DUSE_FH=ON)
-    message(STATUS, "Using FH")
-endif (USE_FH)
+# ----------------------------------------------------------------------------
+# Platform-specific compiler / linker setup
+#
+# OS_SPECIFIC_LIBRARIES: extra system libs linked into the clove executable.
+# SOURCE_PHYSFS_FILES:   PhysFS sources (its platform set differs per OS).
+# ----------------------------------------------------------------------------
+if(WIN32)
+    find_package(OpenGL REQUIRED)
 
-IF (WIN32)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MOE_BUILD_FLAGS}")
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Z7 /W4 /Od /MDd /D_DEBUG /D__Debug__")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /W1 /Ox /Ot /MD /DNDEBUG")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /GR /FC /DWIN32 /D_MBCS")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7 /W4 /Od /MDd /D_DEBUG /D__Debug__")
+    set(CMAKE_C_FLAGS_DEBUG     "${CMAKE_C_FLAGS_DEBUG} /Z7 /W4 /Od /MDd /D_DEBUG /D__Debug__")
+    set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} /W1 /Ox /Ot /MD /DNDEBUG")
+    set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} /EHsc /GR /FC /DWIN32 /D_MBCS")
+    set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} /Z7 /W4 /Od /MDd /D_DEBUG /D__Debug__")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /W1 /Ox /Ot /MD /DNDEBUG")
-    set(CMAKE_EXE_LINKER_FLAGS "")
-    FIND_PACKAGE(OpenGL REQUIRED)
-    set(MTCL_BUILD_FLAGS "")
-    set(OS_SPECIFIC_LIBRARIES)
 
-    FILE(GLOB SOURCE_PHYSFS_FILES
-            src/3rdparty/physfs/*.c
-            src/3rdparty/physfs/*.h)
+    set(OS_SPECIFIC_LIBRARIES ws2_32)
 
-ENDIF ()
+    file(GLOB SOURCE_PHYSFS_FILES CONFIGURE_DEPENDS
+        src/3rdparty/physfs/*.c
+        src/3rdparty/physfs/*.h)
 
-IF (UNIX AND NOT APPLE)
-    FIND_PACKAGE(OpenGL REQUIRED)
-    set(CMAKE_C_FLAGS " -std=c99 -g -Wvla -Wall -static-libgcc ${CMAKE_C_FLAGS} -fPIC -DLINUX -ldl")
-    set(CMAKE_C_FLAGS_DEBUG "  -std=c99 ${CMAKE_C_FLAGS_DEBUG} -D__Debug__")
-    set(CMAKE_C_FLAGS_RELEASE " -std=c99 ${CMAKE_C_FLAGS_RELEASE} -O3")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MTCL_BUILD_FLAGS} -fPIC -DLINUX -ldl")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D__Debug__")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-    set(CMAKE_SHARED_LINKER_FLAGS "-ldl -Wl,-rpath=$ORIGIN,--as-needed,--allow-multiple-definition,--build-id")
-    set(OS_SPECIFIC_LIBRARIES pthread Xxf86vm X11 Xrandr Xi)
-    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-    set(CMAKE_INSTALL_RPATH "install")
-
-    FILE(GLOB SOURCE_PHYSFS_FILES
-            src/3rdparty/physfs/*.c
-            src/3rdparty/physfs/*.h)
-
-ENDIF ()
-
-if (APPLE)
-    LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-    IF ("${isSystemDir}" STREQUAL "-1")
-    ENDIF ("${isSystemDir}" STREQUAL "-1")
-    FIND_PACKAGE(OpenGL REQUIRED)
-    find_library(COCOA_LIB Cocoa)
+elseif(APPLE)
+    find_package(OpenGL REQUIRED)
+    find_library(COCOA_LIB         Cocoa)
     find_library(CORE_SERVICES_LIB CoreServices)
-    find_library(FOUNDATION_LIB Foundation)
-    find_library(IOKIT_LIB IOKit)
-    set(MTCL_BUILD_FLAGS "-mmacosx-version-min=10.6")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MTCL_BUILD_FLAGS} -Wall -Wvla -O3 -DOSX")
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${MTCL_BUILD_FLAGS}  -D__Debug__ -g3")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MTCL_BUILD_FLAGS} -O3 -DOSX")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D__Debug__ ${MTCL_BUILD_FLAGS}")
-    set(CMAKE_SHARED_LINKER_FLAGS "-Wl")
+    find_library(FOUNDATION_LIB    Foundation)
+    find_library(IOKIT_LIB         IOKit)
+
+    # SDL 2.32+ requires a deployment target of at least 10.7; 10.6 fails its
+    # SDL_platform.h guard. 10.11 is a safe modern floor for current toolchains.
+    set(MTCL_BUILD_FLAGS "-mmacosx-version-min=10.11")
+    set(CMAKE_C_FLAGS         "${CMAKE_C_FLAGS} ${MTCL_BUILD_FLAGS} -Wall -Wvla -O3 -DOSX")
+    set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} ${MTCL_BUILD_FLAGS} -D__Debug__ -g3")
+    set(CMAKE_CXX_FLAGS       "${CMAKE_CXX_FLAGS} ${MTCL_BUILD_FLAGS} -O3 -DOSX")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${MTCL_BUILD_FLAGS} -D__Debug__")
+
     set(OS_SPECIFIC_LIBRARIES ${COCOA_LIB} ${CORE_SERVICES_LIB} ${FOUNDATION_LIB} ${IOKIT_LIB})
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
     set(CMAKE_INSTALL_RPATH "install")
 
-    FILE(GLOB SOURCE_PHYSFS_FILES
-            src/3rdparty/physfs/*.c
-            src/3rdparty/physfs/*.h
-            src/3rdparty/physfs/*.m)
+    file(GLOB SOURCE_PHYSFS_FILES CONFIGURE_DEPENDS
+        src/3rdparty/physfs/*.c
+        src/3rdparty/physfs/*.h
+        src/3rdparty/physfs/*.m)
 
-endif ()
+elseif(UNIX)
+    find_package(OpenGL REQUIRED)
 
-FILE(
-        GLOB SOURCE_FILES
-        src/*.c
-        src/*.h
-        src/audio/*.h
-        src/audio/*.c
-        src/filesystem/*.h
-        src/filesystem/*.c
-        src/graphics/*.h
-        src/graphics/*.c
-        src/image/*.h
-        src/image/*.c
-        src/svg/*.h
-        src/svg/*.c
-        src/tools/*.c
-        src/tools/*.h
-        src/math/*.h
-        src/math/*.c
-        src/timer/*.h
-        src/timer/*.c
-        src/net/*.c
-        src/net/*.h
-        src/physics/*.c
-        src/physics/*.h
-        src/ui/*.c
-        src/ui/*.h
-        src/include/*.h
-        src/include/*.c
+    set(CMAKE_C_FLAGS         "${CMAKE_C_FLAGS} -std=c99 -g -Wall -Wvla -static-libgcc -fPIC -DLINUX")
+    set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} -D__Debug__")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
+    set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} -fPIC -DLINUX")
+    set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} -D__Debug__")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+    set(CMAKE_SHARED_LINKER_FLAGS
+        "-Wl,-rpath=$ORIGIN,--as-needed,--allow-multiple-definition,--build-id")
 
-        #Add custom native plugins
-        native/*.c*
-        native/*.h
+    # dl is linked as a library (CMAKE_DL_LIBS) below, not as a compile flag.
+    set(OS_SPECIFIC_LIBRARIES pthread Xxf86vm X11 Xrandr Xi ${CMAKE_DL_LIBS})
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+    set(CMAKE_INSTALL_RPATH "install")
 
-        #3rdparty "small" libs
-        src/3rdparty/microui/src/*.c
-        src/3rdparty/microui/src/*.inl
-        src/3rdparty/microui/src/*.h
-        src/3rdparty/microtar/*.c
-        src/3rdparty/microtar/*.h
-        src/3rdparty/noise/*.c
-        src/3rdparty/noise/*.h
-        src/3rdparty/slre/*.c
-        src/3rdparty/slre/*.h
-        src/3rdparty/CMath/*.h
-        src/3rdparty/CMath/*.c
+    file(GLOB SOURCE_PHYSFS_FILES CONFIGURE_DEPENDS
+        src/3rdparty/physfs/*.c
+        src/3rdparty/physfs/*.h)
+endif()
 
-        #mojoAL
-        src/3rdparty/mojoAL/mojoal.c
-        src/3rdparty/mojoAL/AL/*.h
-)
+# ----------------------------------------------------------------------------
+# Source files
+#
+# Globs use CONFIGURE_DEPENDS so newly added files are picked up on the next
+# build without re-running cmake by hand.
+# ----------------------------------------------------------------------------
+file(GLOB SOURCE_FILES CONFIGURE_DEPENDS
+    src/*.c               src/*.h
+    src/audio/*.c         src/audio/*.h
+    src/filesystem/*.c    src/filesystem/*.h
+    src/graphics/*.c      src/graphics/*.h
+    src/image/*.c         src/image/*.h
+    src/svg/*.c           src/svg/*.h
+    src/tools/*.c         src/tools/*.h
+    src/math/*.c          src/math/*.h
+    src/timer/*.c         src/timer/*.h
+    src/net/*.c           src/net/*.h
+    src/physics/*.c       src/physics/*.h
+    src/ui/*.c            src/ui/*.h
+    src/include/*.c       src/include/*.h
 
-if (USE_LUA)
-    FILE(
-            GLOB SOURCE_LUA_FILES
-            src/luaapi/*.h
-            src/luaapi/*.c
-    )
-endif ()
+    # custom native plugins
+    native/*.c* native/*.h
 
-if (USE_FH)
-    FILE(
-            GLOB SOURCE_FH_FILES
-            src/fhapi/*.h
-            src/fhapi/*.c
-            src/3rdparty/FH/src/*.c
-            src/3rdparty/FH/src/*.h
-            src/3rdparty/FH/src/map/*.c
-            src/3rdparty/FH/src/map/*.h
-            src/3rdparty/FH/src/vec/*.c
-            src/3rdparty/FH/src/vec/*.h
-            src/3rdparty/FH/src/regex/*.c
-            src/3rdparty/FH/src/regex/*.h
-            src/3rdparty/FH/src/crypto/*.c
-            src/3rdparty/FH/src/crypto/*.h
-    )
-endif ()
+    # small, single/dual-file vendored libraries
+    src/3rdparty/microui/src/*.c  src/3rdparty/microui/src/*.inl  src/3rdparty/microui/src/*.h
+    src/3rdparty/microtar/*.c     src/3rdparty/microtar/*.h
+    src/3rdparty/noise/*.c        src/3rdparty/noise/*.h
+    src/3rdparty/slre/*.c         src/3rdparty/slre/*.h
+    src/3rdparty/CMath/*.c        src/3rdparty/CMath/*.h
+    src/3rdparty/mojoAL/mojoal.c  src/3rdparty/mojoAL/AL/*.h)
 
-set(clove_package "clove")
-set(clove_creator "Mureşan Vlad-Mihail")
-set(clove_copyright "Copyright (c) 2015-2025, ${clove_creator}.")
-message(${clove_copyright})
+if(USE_FH)
+    file(GLOB SOURCE_FH_FILES CONFIGURE_DEPENDS
+        src/fhapi/*.c                 src/fhapi/*.h
+        src/3rdparty/FH/src/*.c        src/3rdparty/FH/src/*.h
+        src/3rdparty/FH/src/map/*.c    src/3rdparty/FH/src/map/*.h
+        src/3rdparty/FH/src/vec/*.c    src/3rdparty/FH/src/vec/*.h
+        src/3rdparty/FH/src/regex/*.c  src/3rdparty/FH/src/regex/*.h
+        src/3rdparty/FH/src/crypto/*.c src/3rdparty/FH/src/crypto/*.h)
+endif()
 
-if (STATIC_LIB)
-    add_library(love STATIC ${SOURCE_FILES})
-endif (STATIC_LIB)
+if(USE_LUA)
+    file(GLOB SOURCE_LUA_FILES CONFIGURE_DEPENDS
+        src/luaapi/*.c src/luaapi/*.h)
+endif()
 
-if (SHARED_LIB)
-    add_library(love_shared SHARED ${SOURCE_FILES})
-endif (SHARED_LIB)
+# ----------------------------------------------------------------------------
+# Vendored dependencies (built from source via their own CMake)
+# ----------------------------------------------------------------------------
 
-add_executable(
-        clove
-        ${SOURCE_FH_FILES}
-        ${SOURCE_LUA_FILES}
-        ${SOURCE_FILES}
-        ${SOURCE_PHYSFS_FILES}
-)
-
-#chipmunk2d
-#add_subdirectory(src/3rdparty/Chipmunk2D)
-#set(CHIPMUNK_INCLUDE_DIR src/3rdparty/Chipmunk2D/include)
-#set(CHIPMUNK_LIBRARIES chipmunk)
-
-#zlib
-#if (USE_PHYSFS)
-#   set(ZLIB_FOUND TRUE)
-#  add_subdirectory(src/3rdparty/zlib)
-# set(ZLIB_INCLUDE_DIR src/3rdparty/zlib)
-# set(ZLIB_LIBRARIES zlibstatic)
-#endif(USE_PHYSFS)
-
-#freetype
+# freetype — its target propagates its include dirs, but the static `love`
+# library compiles font code without linking it, so add the include globally.
 add_subdirectory(src/3rdparty/freetype)
 include_directories(src/3rdparty/freetype/include)
 set(FREETYPE_LIBRARIES freetype)
 
-#lua
-if (USE_LUA)
-    add_subdirectory(src/3rdparty/lua)
-    set(LUA_INCLUDE_DIR src/3rdparty/lua/)
-    set(LUA_LIBRARIES lua)
-endif (USE_LUA)
-
-#glew
+# glew (static)
 add_subdirectory(src/3rdparty/glew/build/cmake)
-set(GLEW_INCLUDE_DIR src/3rdparty/glew/include/GL/)
 set(GLEW_LIBRARIES glew_s)
 
-#sdl2
-add_subdirectory(src/3rdparty/SDL2/)
-set(SDL_INCLUDE_DIR src/3rdparty/SDL2/include/)
+# SDL2 — link statically; force the static target on and skip the shared lib
+# and tests so SDL exposes the SDL2-static / SDL2main targets.
+set(SDL_SHARED        OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC        ON  CACHE BOOL "" FORCE)
+set(SDL_TEST          OFF CACHE BOOL "" FORCE)
+set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
+add_subdirectory(src/3rdparty/SDL2)
 set(SDL_LIBRARIES SDL2-static SDL2main)
 
-add_definitions(-DFT2_BUILD_LIBRARY)
-add_definitions(-DSDL2)
+if(USE_LUA)
+    add_subdirectory(src/3rdparty/lua)
+    set(LUA_LIBRARIES lua)
+endif()
 
+# Currently unused vendored libraries, kept for reference:
+#   add_subdirectory(src/3rdparty/Chipmunk2D)   # physics
+#   add_subdirectory(src/3rdparty/zlib)          # compression
 
-if (WIN32)
+# ----------------------------------------------------------------------------
+# Targets
+# ----------------------------------------------------------------------------
+set(CLOVE_LINK_LIBRARIES
+    ${SDL_LIBRARIES}
+    ${GLEW_LIBRARIES}
+    ${OPENGL_LIBRARIES}
+    ${FREETYPE_LIBRARIES}
+    ${OS_SPECIFIC_LIBRARIES})
+if(USE_LUA)
+    list(APPEND CLOVE_LINK_LIBRARIES ${LUA_LIBRARIES})
+endif()
 
-    target_link_libraries(clove ws2_32.lib
-            ${SDL_LIBRARIES} ${GLEW_LIBRARIES}
-            ${OPENGL_LIBRARIES}
-            ${FREETYPE_LIBRARIES})
+# The clove executable: engine + scripting bindings + PhysFS.
+add_executable(clove
+    ${SOURCE_FILES}
+    ${SOURCE_FH_FILES}
+    ${SOURCE_LUA_FILES}
+    ${SOURCE_PHYSFS_FILES})
+target_link_libraries(clove ${CLOVE_LINK_LIBRARIES})
 
-    if (USE_LUA)
-        target_link_libraries(clove ${LUA_LIBRARIES})
-    endif (USE_LUA)
+# Optional reusable libraries built from the engine sources.
+if(STATIC_LIB)
+    add_library(love STATIC ${SOURCE_FILES})
+endif()
+if(DYNAMIC_LIB)
+    add_library(love_shared SHARED ${SOURCE_FILES})
+endif()
 
-else ()
-    target_link_libraries(clove
-            ${SDL_LIBRARIES} ${GLEW_LIBRARIES}
-            ${OPENGL_LIBRARIES}
-            ${FREETYPE_LIBRARIES}
-    )
-
-    if (USE_LUA)
-        target_link_libraries(clove ${LUA_LIBRARIES})
-    endif (USE_LUA)
-
-endif (WIN32)
-
+message(STATUS "Copyright (c) 2015-2025, Mureşan Vlad-Mihail.")

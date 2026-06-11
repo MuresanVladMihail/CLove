@@ -42,10 +42,6 @@
 
 #include "../native/game.h"
 
-#ifdef __APPLE__
-#include <unistd.h> /* _exit */
-#endif
-
 // #define USE_NATIVE 1
 
 typedef struct {
@@ -81,31 +77,22 @@ static void focus_function(void) {
 }
 
 /*
- * Tear down and produce the process exit code.
+ * Tear down everything and produce the process exit code (0 clean, 1 on a
+ * script/engine error). audio_close() must precede graphics_shutdown()'s
+ * SDL_Quit() so the audio device is released first.
  *
- * On macOS the bundled SDL 2.0.8 CoreAudio backend blocks for ~15 seconds
- * when the audio device is closed at shutdown (mojoAL alcCloseDevice ->
- * SDL_CloseAudioDevice, and equally via SDL_Quit). Since the process is
- * terminating anyway, run the cheap, useful teardown (the user's love_quit
- * has already fired), flush output, and _exit() so the OS reclaims the audio
- * device instead of stalling the close by 15s. Other platforms keep the
- * full, clean teardown.
+ * (Historically the bundled SDL 2.0.8 CoreAudio backend stalled ~15s closing
+ *  the audio device here on macOS; updating to SDL 2.32.10 fixed that.)
  */
 static int clove_finish(int exit_code) {
     joystick_close();
     ui_deinit();
     graphics_geometry_free();
-#ifdef __APPLE__
-    fh_deinit(loopData.prog);
-    fflush(NULL);
-    _exit(exit_code);
-#else
+    audio_close();
     graphics_shutdown();
     filesystem_free();
-    audio_close();
     fh_deinit(loopData.prog);
     return exit_code;
-#endif
 }
 
 static const char ui_key_map[256] = {
