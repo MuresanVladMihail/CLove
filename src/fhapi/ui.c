@@ -342,16 +342,21 @@ static int fn_love_ui_layout_row(struct fh_program *prog,
     if (no_items > -1 && fh_is_array(&args[1])) {
         struct fh_value *arr = &args[1];
         int len = fh_get_array_len(arr);
-        int size[len];
+        // heap-allocated (was a stack VLA that the error path wrongly free()d,
+        // and that could overflow the stack for a large array)
+        int *size = malloc((size_t) len * sizeof(int));
+        if (!size)
+            return fh_set_error(prog, "out of memory");
         struct fh_array *a = GET_VAL_ARRAY(arr);
         for (int i = 0; i < len; i++) {
             if (!fh_is_number(&a->items[i])) {
-                free (size);
+                free(size);
                 return fh_set_error(prog, "Expected index %d in array to be of type number, got %s", i, fh_type_to_str(prog, a->items[i].type));
             }
             size[i] = (int)fh_get_number(&a->items[i]);
         }
         ui_layout_row(no_items, size, height);
+        free(size);
     } else if (no_items == -1 && fh_is_null(&args[1])) {
         ui_layout_row(-1, NULL, height);
     } else {
