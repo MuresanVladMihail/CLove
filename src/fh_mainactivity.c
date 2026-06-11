@@ -42,6 +42,10 @@
 
 #include "../native/game.h"
 
+#ifdef __APPLE__
+#include <unistd.h> /* _exit */
+#endif
+
 // #define USE_NATIVE 1
 
 typedef struct {
@@ -76,14 +80,32 @@ static void focus_function(void) {
     }
 }
 
-static void main_clean(void) {
+/*
+ * Tear down and produce the process exit code.
+ *
+ * On macOS the bundled SDL 2.0.8 CoreAudio backend blocks for ~15 seconds
+ * when the audio device is closed at shutdown (mojoAL alcCloseDevice ->
+ * SDL_CloseAudioDevice, and equally via SDL_Quit). Since the process is
+ * terminating anyway, run the cheap, useful teardown (the user's love_quit
+ * has already fired), flush output, and _exit() so the OS reclaims the audio
+ * device instead of stalling the close by 15s. Other platforms keep the
+ * full, clean teardown.
+ */
+static int clove_finish(int exit_code) {
     joystick_close();
     ui_deinit();
     graphics_geometry_free();
+#ifdef __APPLE__
+    fh_deinit(loopData.prog);
+    fflush(NULL);
+    _exit(exit_code);
+#else
     graphics_shutdown();
     filesystem_free();
     audio_close();
     fh_deinit(loopData.prog);
+    return exit_code;
+#endif
 }
 
 static const char ui_key_map[256] = {
@@ -345,8 +367,7 @@ int fh_main_activity_load(int argc, char *argv[]) {
 
     if (ret < 0) {
         clove_error("ERROR: %s\n", fh_get_error(loopData.prog));
-        main_clean();
-        return 1;
+        return clove_finish(1);
     }
 
     loopData.delta = fh_new_number(1);
@@ -357,8 +378,7 @@ int fh_main_activity_load(int argc, char *argv[]) {
     if (fh_call_function(loopData.prog, "love_load", NULL, 0, &loopData.opt) < 0) {
         clove_error("Error: %s\n", fh_get_error(loopData.prog));
         fh_running = false;
-        main_clean();
-        return 1;
+        return clove_finish(1);
     }
 
 
@@ -394,8 +414,7 @@ int fh_main_activity_load(int argc, char *argv[]) {
     if (!loopData.called_quit) {
         quit_function();
     }
-    main_clean();
-    return exit_code;
+    return clove_finish(exit_code);
 }
 
 #endif
