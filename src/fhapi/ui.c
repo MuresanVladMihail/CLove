@@ -78,8 +78,8 @@ static int fn_love_ui_layout_setNext(struct fh_program *prog,
 
 static int fn_love_ui_rect(struct fh_program *prog,
                            struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (n_args < 6)
-        return fh_set_error(prog, "Expected at least 6 arguments, got %d", n_args);
+    if (n_args < 7)
+        return fh_set_error(prog, "Expected at least 7 arguments, got %d", n_args);
 
     for (int i = 0; i < 6; i++) {
         if (!fh_is_number(&args[i])) {
@@ -136,6 +136,8 @@ static int fn_love_ui_control_text(struct fh_program *prog,
 
 static int fn_love_ui_getContainerScroll(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_getContainerScroll(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_UI_TYPE)) {
         return fh_set_error(prog, "Expected argument 0 to be an ui container");
     }
@@ -156,6 +158,8 @@ static int fn_love_ui_getContainerScroll(struct fh_program *prog,
 
 static int fn_love_ui_setContainerScroll(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_ui_setContainerScroll(): expected 3 arguments, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_UI_TYPE)) {
         return fh_set_error(prog, "Expected argument 0 to be an ui container");
     }
@@ -172,6 +176,8 @@ static int fn_love_ui_setContainerScroll(struct fh_program *prog,
 
 static int fn_love_ui_getContainerContentSize(struct fh_program *prog,
                                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_getContainerContentSize(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_UI_TYPE)) {
         return fh_set_error(prog, "Expected argument 0 to be an ui container");
     }
@@ -192,6 +198,8 @@ static int fn_love_ui_getContainerContentSize(struct fh_program *prog,
 
 static int fn_love_ui_getContainerInfo(struct fh_program *prog,
                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_getContainerInfo(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_UI_TYPE)) {
         return fh_set_error(prog, "Expected argument 0 to be an ui container");
     }
@@ -223,6 +231,8 @@ static int fn_love_ui_getContainerInfo(struct fh_program *prog,
 
 static int fn_love_ui_setContainerInfo(struct fh_program *prog,
                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_ui_setContainerInfo(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_UI_TYPE)) {
         return fh_set_error(prog, "Expected argument 0 to be an ui container");
     }
@@ -249,6 +259,8 @@ static int fn_love_ui_setContainerInfo(struct fh_program *prog,
 
 static int fn_love_ui_begin_popup(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_begin_popup(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "expected title, string at index 0");
     }
@@ -262,6 +274,8 @@ static int fn_love_ui_begin_popup(struct fh_program *prog,
 
 static int fn_love_ui_open_popup(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_open_popup(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "expected title, string at index 0");
     }
@@ -287,6 +301,8 @@ static int fn_love_ui_end_popup(struct fh_program *prog,
 
 static int fn_love_ui_begin_window(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 5)
+        return fh_set_error(prog, "love_ui_begin_window(): expected at least 5 arguments, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "expected title, string at index 0");
     }
@@ -362,7 +378,8 @@ static int fn_love_ui_layout_row(struct fh_program *prog,
 
 static int fn_love_ui_layout_width(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
-    UNUSED(n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_layout_width(): expected 1 argument, got %d", n_args);
     if (!fh_is_number(&args[0]))
         return fh_set_error(prog, "Expected number");
 
@@ -374,7 +391,8 @@ static int fn_love_ui_layout_width(struct fh_program *prog,
 
 static int fn_love_ui_layout_height(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
-    UNUSED(n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_layout_height(): expected 1 argument, got %d", n_args);
     if (!fh_is_number(&args[0]))
         return fh_set_error(prog, "Expected number");
 
@@ -386,6 +404,8 @@ static int fn_love_ui_layout_height(struct fh_program *prog,
 
 static int fn_love_ui_header(struct fh_program *prog,
                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_ui_header(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string title for argument 0");
     }
@@ -397,6 +417,8 @@ static int fn_love_ui_header(struct fh_program *prog,
 
 static int fn_love_ui_begin_tree(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_ui_begin_tree(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string for argument 0");
     }
@@ -418,6 +440,8 @@ static int fn_love_ui_end_tree(struct fh_program *prog,
 
 static int fn_love_ui_begin_panel(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog, "love_ui_begin_panel(): expected at least 2 arguments, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_UI_TYPE) ||
         !fh_is_string(&args[1])) {
         return fh_set_error(prog, "Expected argument 0 to be an ui window and argument 1 to be a title");
@@ -455,6 +479,8 @@ static int fn_love_ui_last_id(struct fh_program *prog,
 
 static int fn_love_ui_hasFocus(struct fh_program *prog,
                                struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_hasFocus(): expected 1 argument, got %d", n_args);
     if (!fh_is_number(&args[0])) {
         return fh_set_error(prog, "expected id as number");
     }
@@ -465,6 +491,8 @@ static int fn_love_ui_hasFocus(struct fh_program *prog,
 
 static int fn_love_ui_setFocus(struct fh_program *prog,
                                struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_setFocus(): expected 1 argument, got %d", n_args);
     if (!fh_is_number(&args[0])) {
         return fh_set_error(prog, "expected id as number");
     }
@@ -476,6 +504,8 @@ static int fn_love_ui_setFocus(struct fh_program *prog,
 
 static int fn_love_ui_slider(struct fh_program *prog,
                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 4)
+        return fh_set_error(prog, "love_ui_slider(): expected at least 4 arguments, got %d", n_args);
     for (int i = 0; i < 4; i++) {
         if (!fh_is_number(&args[i])) {
             return fh_set_error(prog, "Argument %d was expected to be of type number", i);
@@ -492,6 +522,8 @@ static int fn_love_ui_slider(struct fh_program *prog,
 
 static int fn_love_ui_label(struct fh_program *prog,
                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_ui_label(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string label");
     }
@@ -505,6 +537,8 @@ static int fn_love_ui_label(struct fh_program *prog,
 
 static int fn_love_ui_res_state(struct fh_program *prog,
                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_res_state(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string!");
     }
@@ -525,6 +559,8 @@ static int fn_love_ui_res_state(struct fh_program *prog,
 
 static int fn_love_ui_opt(struct fh_program *prog,
                           struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_opt(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string!");
     }
@@ -551,6 +587,8 @@ static int fn_love_ui_opt(struct fh_program *prog,
 
 static int fn_love_ui_align(struct fh_program *prog,
                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_align(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string!");
     }
@@ -569,7 +607,8 @@ static int fn_love_ui_align(struct fh_program *prog,
 
 static int fn_love_ui_setColor(struct fh_program *prog,
                                struct fh_value *ret, struct fh_value *args, int n_args) {
-    UNUSED(n_args);
+    if (n_args != 5)
+        return fh_set_error(prog, "love_ui_setColor(): expected 5 arguments, got %d", n_args);
     for (int i = 0; i < 4; i++) {
         if (!fh_is_number(&args[i]))
             return fh_set_error(prog, "Expected number at argument index %d", i);
@@ -592,7 +631,8 @@ static int fn_love_ui_setColor(struct fh_program *prog,
 
 static int fn_love_ui_getColor(struct fh_program *prog,
                                struct fh_value *ret, struct fh_value *args, int n_args) {
-    UNUSED(n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_getColor(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string!");
     }
@@ -653,7 +693,8 @@ static int fn_love_ui_getColor(struct fh_program *prog,
 
 static int fn_love_ui_text(struct fh_program *prog,
                            struct fh_value *ret, struct fh_value *args, int n_args) {
-    UNUSED(n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_text(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string!");
     }
@@ -665,6 +706,8 @@ static int fn_love_ui_text(struct fh_program *prog,
 
 static int fn_love_ui_checkbox(struct fh_program *prog,
                                struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_ui_checkbox(): expected 3 arguments, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string label");
     } else if (!fh_is_bool(&args[1])) {
@@ -682,6 +725,8 @@ static int fn_love_ui_checkbox(struct fh_program *prog,
 
 static int fn_love_ui_button(struct fh_program *prog,
                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_ui_button(): expected 2 arguments, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string label");
     } else if (!fh_is_number(&args[1])) {
@@ -710,6 +755,8 @@ static int fn_love_ui_clear_textbox(struct fh_program *prog,
 
 static int fn_love_ui_textbox(struct fh_program *prog,
                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_ui_textbox(): expected 2 arguments, got %d", n_args);
     if (!fh_is_string(&args[0])) {
         return fh_set_error(prog, "Expected string label");
     } else if (!fh_is_number(&args[1])) {

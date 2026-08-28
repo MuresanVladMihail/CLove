@@ -25,6 +25,8 @@ static void batch_gc(graphics_Batch *batch) {
 
 static int fn_love_graphics_newSpriteBatch(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_newSpriteBatch(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
         return fh_set_error(prog, "Expected image type");
     }
@@ -41,6 +43,8 @@ static int fn_love_graphics_newSpriteBatch(struct fh_program *prog,
 
 static int fn_love_graphics_batch_bind(struct fh_program *prog,
                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_batch_bind(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -52,6 +56,8 @@ static int fn_love_graphics_batch_bind(struct fh_program *prog,
 
 static int fn_love_graphics_batch_unbind(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_batch_unbind(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -63,6 +69,8 @@ static int fn_love_graphics_batch_unbind(struct fh_program *prog,
 
 static int fn_love_graphics_batch_flush(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_batch_flush(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -81,6 +89,8 @@ static const graphics_Quad defaultQuad = {
 
 static int fn_love_graphics_batch_add(struct fh_program *prog,
                                       struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog, "love_graphics_batch_add(): expected at least 2 arguments, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -111,6 +121,8 @@ static int fn_love_graphics_batch_add(struct fh_program *prog,
 
 static int fn_love_graphics_batch_set(struct fh_program *prog,
                                       struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog, "love_graphics_batch_set(): expected at least 2 arguments, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH) || !fh_is_number(&args[1])) {
         return fh_set_error(prog, "Expected spritebatch and id");
     }
@@ -143,6 +155,8 @@ static int fn_love_graphics_batch_set(struct fh_program *prog,
 
 static int fn_love_graphics_batch_clear(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_batch_clear(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -154,6 +168,8 @@ static int fn_love_graphics_batch_clear(struct fh_program *prog,
 
 static int fn_love_graphics_batch_getBufferSize(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_batch_getBufferSize(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -164,6 +180,8 @@ static int fn_love_graphics_batch_getBufferSize(struct fh_program *prog,
 
 static int fn_love_graphics_batch_setBufferSize(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_graphics_batch_setBufferSize(): expected 2 arguments, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH) || !fh_is_number(&args[1])) {
         return fh_set_error(prog, "Expected spritebatch and new size:number");
     }
@@ -176,6 +194,8 @@ static int fn_love_graphics_batch_setBufferSize(struct fh_program *prog,
 
 static int fn_love_graphics_batch_getCount(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_batch_getCount(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -186,6 +206,8 @@ static int fn_love_graphics_batch_getCount(struct fh_program *prog,
 
 static int fn_love_graphics_batch_setTexture(struct fh_program *prog,
                                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_graphics_batch_setTexture(): expected 2 arguments, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH) || !fh_is_c_obj_of_type(&args[1], FH_IMAGE_TYPE)) {
         return fh_set_error(prog, "Expected spritebatch and image");
     }
@@ -204,6 +226,8 @@ static int fn_love_graphics_batch_setTexture(struct fh_program *prog,
 
 static int fn_love_graphics_batch_getTexture(struct fh_program *prog,
                                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_batch_getTexture(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -221,6 +245,8 @@ static int fn_love_graphics_batch_getTexture(struct fh_program *prog,
 
 static int fn_love_graphics_batch_setColor(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog, "love_graphics_batch_setColor(): expected at least 2 arguments, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }
@@ -229,6 +255,8 @@ static int fn_love_graphics_batch_setColor(struct fh_program *prog,
     if (fh_is_null(&args[1])) {
         graphics_Batch_clearColor(batch);
     } else {
+        if (n_args < 5)
+            return fh_set_error(prog, "love_graphics_batch_setColor(): expected at least 5 arguments (spritebatch, null-or-r, g, b, a), got %d", n_args);
         for (int i = 1; i < 5; i++) {
             if (!fh_is_number(&args[i]))
                 return fh_set_error(prog, "Expected r, g, b");
@@ -246,6 +274,8 @@ static int fn_love_graphics_batch_setColor(struct fh_program *prog,
 
 static int fn_love_graphics_batch_getColor(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_batch_getColor(): expected 1 argument, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_BATCH)) {
         return fh_set_error(prog, "Expected spritebatch");
     }

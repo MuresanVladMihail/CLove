@@ -14,6 +14,8 @@
 
 static int fn_love_filesystem_read(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_read(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected filename:string");
 
@@ -31,6 +33,8 @@ static int fn_love_filesystem_read(struct fh_program *prog,
 
 static int fn_love_filesystem_write(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_filesystem_write(): expected 2 arguments, got %d", n_args);
     if (!fh_is_string(&args[0]) || !fh_is_string(&args[1]))
         return fh_set_error(prog, "Illegal parameter, expected filename:string and data:string");
 
@@ -49,6 +53,8 @@ static int fn_love_filesystem_write(struct fh_program *prog,
 
 static int fn_love_filesystem_append(struct fh_program *prog,
                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_filesystem_append(): expected 2 arguments, got %d", n_args);
     if (!fh_is_string(&args[0]) || !fh_is_string(&args[1]))
         return fh_set_error(prog, "Illegal parameter, expected filename:string and data:string");
 
@@ -82,6 +88,8 @@ static int fn_love_filesystem_getSaveDirectory(struct fh_program *prog, struct f
 static int fn_love_filesystem_getInfo(struct fh_program *prog,
                                      struct fh_value *ret, struct fh_value *args, int n_args) {
 
+	if (n_args != 1)
+		return fh_set_error(prog, "love_filesystem_getInfo(): expected 1 argument, got %d", n_args);
 	if (!fh_is_string(&args[0])) {
 		return fh_set_error(prog, "Expected path");
 	}
@@ -126,6 +134,8 @@ static int fn_love_filesystem_getInfo(struct fh_program *prog,
 
 static int fn_love_filesystem_exists(struct fh_program *prog,
                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_exists(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected filename:string");
     const char *filename = fh_get_string(&args[0]);
@@ -136,6 +146,8 @@ static int fn_love_filesystem_exists(struct fh_program *prog,
 
 static int fn_love_filesystem_setSource(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_setSource(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected source:string");
     const char *source = fh_get_string(&args[0]);
@@ -154,6 +166,8 @@ static int fn_love_filesystem_getSource(struct fh_program *prog,
 
 static int fn_love_filesystem_remove(struct fh_program *prog,
                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_remove(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected filename:string");
     const char *filename = fh_get_string(&args[0]);
@@ -164,6 +178,8 @@ static int fn_love_filesystem_remove(struct fh_program *prog,
 
 static int fn_love_filesystem_rename(struct fh_program *prog,
                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_filesystem_rename(): expected 2 arguments, got %d", n_args);
     if (!fh_is_string(&args[0]) || !fh_is_string(&args[1]))
         return fh_set_error(prog, "Illegal parameter, expected old_filename:string and new_filename:string");
     const char *old_filename = fh_get_string(&args[0]);
@@ -175,6 +191,8 @@ static int fn_love_filesystem_rename(struct fh_program *prog,
 
 static int fn_love_filesystem_state(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_filesystem_state(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected filename:string");
     const char *filename = fh_get_string(&args[0]);
@@ -200,6 +218,8 @@ static int fn_love_filesystem_state(struct fh_program *prog,
 
 static int fn_love_filesystem_isSymLink(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_isSymLink(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected filename:string");
     const char *filename = fh_get_string(&args[0]);
@@ -210,6 +230,8 @@ static int fn_love_filesystem_isSymLink(struct fh_program *prog,
 
 static int fn_love_filesystem_mkDir(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_mkDir(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected name:string");
     const char *name = fh_get_string(&args[0]);
@@ -220,6 +242,8 @@ static int fn_love_filesystem_mkDir(struct fh_program *prog,
 
 static int fn_love_filesystem_isDir(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_isDir(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected name:string");
     const char *name = fh_get_string(&args[0]);
@@ -237,6 +261,8 @@ static int fn_love_filesystem_getUsrDir(struct fh_program *prog,
 
 static int fn_love_filesystem_setIdentity(struct fh_program *prog,
                                           struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_setIdentity(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected name:string");
     const char *name = fh_get_string(&args[0]);
@@ -247,6 +273,8 @@ static int fn_love_filesystem_setIdentity(struct fh_program *prog,
 
 static int fn_love_filesystem_enumerate(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_enumerate(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected name:string");
     const char *path = fh_get_string(&args[0]);
