@@ -100,8 +100,28 @@ itself — see the FH docs under `src/3rdparty/FH`.)
 
 ## Filesystem — `src/fhapi/filesystem.c`
 
-`love_filesystem_read`, `write`, `append`, `exists`, `remove`, `rename`,
-`state`, `enumerate`. (PHYSFS-backed; writes go to the save directory.)
+PHYSFS-backed; reads see both the game's source (archive or directory) and the
+save directory, writes go to the save directory only.
+
+- **Read/write:** `love_filesystem_read(name)`, `write(name, data)`,
+  `append(name, data)`, `exists(name)`, `remove(name)`,
+  `rename(old, new)`.
+- **Directories:** `love_filesystem_mkDir(name)`, `isDir(name)`,
+  `isSymLink(name)`, `enumerate(path) -> [names]` (list a directory's
+  contents; requires `setIdentity` to have been called first).
+- **Metadata:** `love_filesystem_getInfo(path) -> [type, size, modtime,
+  accesstime, createtime]` (`type` is `"file"`, `"directory"`, `"symlink"` or
+  `"other"`; returns `false` if the path doesn't exist), `love_filesystem_state(name [, mode])`
+  (`mode` is one of `"e"` exists, `"x"` executable, `"w"` writable, `"r"`
+  readable, `"rw"`/`"wr"` both; defaults to `"e"`).
+- **Source & identity:** `love_filesystem_setSource(path)` / `getSource()`
+  set/get the directory or archive CLove reads the game from;
+  `love_filesystem_setIdentity(name)` picks the save directory (under the
+  OS's per-user app-data location) and `love_filesystem_getSaveDirectory([company, project])`
+  returns its full path — call `setIdentity` before any write, `mkDir`, or
+  `enumerate` call. `love_filesystem_getUsrDir()` and
+  `love_filesystem_getCurrentDirectory()` return the platform user directory
+  and the process's current working directory, respectively.
 
 ## Timer — `src/fhapi/timer.c`
 
@@ -118,8 +138,36 @@ textboxes, labels, tree nodes, popups and a row/column layout system
 
 `love_getVersion() -> [major, minor, revision, codename]`.
 
+## Configuration (`config.fh`) — `src/fhapi/config.c`
+
+If present, `config.fh` must define `love_config(c)`; it's called once before
+the window exists, and CLove reads whichever of the following keys are set on
+`c` (all optional):
+
+| Key | Type | Effect |
+| --- | --- | --- |
+| `window_title` | string | Sets the window title. |
+| `window_width`, `window_height` | number | Sets the window size (each defaults to the other's current value if only one is given). |
+| `window_min_width`, `window_min_height` | number | Sets the window's minimum size. |
+| `window_max_width`, `window_max_height` | number | Sets the window's maximum size. |
+| `window_x`, `window_y` | number | Sets the window's screen position. |
+| `window_bordless` | bool | Removes the window border/decorations. |
+| `window_resizable` | bool | Allows the user to resize the window. |
+| `window_vsync` | bool | Enables/disables vsync. |
+| `window_destroy` | bool | If true, destroys the window immediately (`graphics_shutdown()`) — for running headless. |
+| `window_icon` | string (path) | Loads and sets the window icon. |
+| `window_fullscreen` | bool | Toggles fullscreen (uses the `"fullscreen"` type when true). |
+| `window_fullscreentype` | string | Enables fullscreen with a specific type (passed through to the platform). |
+| `version` | string | Expected CLove version; if it doesn't match the running version, a warning is logged (the game still runs). |
+
+There is no separate `config.fh`-level default object — any key you don't set
+is simply left at the engine's built-in default.
+
 ---
 
 When in doubt about an exact signature or argument order, read the binding in
-`src/fhapi/<module>.c`: each function validates its arguments up front, so the
-`fh_set_error("Expected ...")` messages double as the spec.
+`src/fhapi/<module>.c`: most binding functions validate their arguments up
+front, so `fh_set_error("Expected ...")` / `"Illegal parameter, expected ..."`
+messages usually double as a spec — but treat that as guidance, not a
+guarantee, since some functions accept variable argument counts by design
+and a few may not validate everything.

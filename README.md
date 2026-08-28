@@ -20,7 +20,7 @@ On Linux and OS X:
 - Go inside CLove/ and call `./build_linux.sh` or `./build_osx.sh`
 - On Debian based you must have installed:
   ```
-  sudo apt-get install freeglut3 freeglut3-dev libglew1.5 libglew1.5-dev
+  sudo apt-get install freeglut3 freeglut3-dev libglew-dev
   libglu1-mesa libglu1-mesa-dev libgl1-mesa-glx libgl1-mesa-dev libasound2-dev
   libaudio-dev libesd0-dev libpulse-dev libroar-dev
   ```
@@ -42,8 +42,8 @@ On Windows:
   `copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe`)
 - Download DX SDK 2010 only if you get errors from SDL when building:
   http://www.microsoft.com/en-us/download/details.aspx?id=6812
-- After you have successfully built CLove go into src/3rdparty directory and copy
-  the SDL2 and openal .dll next to clove.exe.
+- SDL2 and audio (MojoAL) are built and linked statically into `clove.exe`, so
+  there are no `.dll` files to copy next to it after building.
 
 For Web:
 - Install emscripten (1.38.15, commit 7a0e27441eda6cb0e3f1210e6837cae4b080ab4c) and add it to your path.
