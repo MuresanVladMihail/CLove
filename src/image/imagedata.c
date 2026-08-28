@@ -25,6 +25,7 @@ void image_ImageData_new_with_filename(image_ImageData *dst, char const *filenam
 
   if (!dst->surface) {
     clove_error("%s %s\n", "Error: Could not open image: ", filename);
+    dst->pixels = NULL;
     return;
   }
   dst->pixels = (pixel *) dst->surface;

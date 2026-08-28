@@ -21,6 +21,14 @@ fh_c_obj_gc_callback particle_gc(graphics_ParticleSystem *p) {
     return (fh_c_obj_gc_callback)1;
 }
 
+// Frees only the fh_image_t wrapper itself, not the graphics_Image it
+// points to - for handles (like getTexture() below) that borrow a texture
+// still owned by something else.
+static fh_c_obj_gc_callback freeImageWrapperOnly(fh_image_t *x) {
+    free(x);
+    return (fh_c_obj_gc_callback)1;
+}
+
 static int fn_love_graphics_newParticleSystem(struct fh_program *prog,
                                               struct fh_value *ret, struct fh_value *args, int n_args) {
 
@@ -29,7 +37,11 @@ static int fn_love_graphics_newParticleSystem(struct fh_program *prog,
 
     fh_image_t *image = fh_get_c_obj_value(&args[0]);
 
-    double buffer = fh_optnumber(&args[1], n_args, 1, 128);
+    // fh_optnumber() takes the base args[] array and an index, not a
+    // pre-offset pointer - passing &args[1] here silently read args[2]
+    // (one past the last valid argument) instead of the caller's buffer
+    // size whenever one was actually given.
+    double buffer = fh_optnumber(args, n_args, 1, 128);
 
     graphics_ParticleSystem *p = malloc(sizeof(graphics_ParticleSystem));
     graphics_ParticleSystem_new(p, image->img, (size_t)buffer);
@@ -734,10 +746,12 @@ static int fn_love_particleSystem_getTexture(struct fh_program *prog,
 
     graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
     fh_image_t *x = malloc(sizeof(fh_image_t));
+    x->data = NULL;
     x->img = graphics_ParticleSystem_getTexture(p);
     // We don't have to free the texture from the particle system that
     // we just fetched because it's just a reference, the object itself has its own life events
-    *ret = fh_new_c_obj(prog, x, NULL, FH_IMAGE_TYPE);
+    fh_c_obj_gc_callback *callback = freeImageWrapperOnly;
+    *ret = fh_new_c_obj(prog, x, callback, FH_IMAGE_TYPE);
     return 0;
 }
 

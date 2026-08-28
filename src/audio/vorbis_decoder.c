@@ -48,6 +48,15 @@ int audio_vorbis_loadStream(audio_vorbis_DecoderData* data, char const *filename
   return err;
 }
 
+void audio_vorbis_closeStream(audio_vorbis_DecoderData *data) {
+    if (data->vorbis) {
+        stb_vorbis_close(data->vorbis);
+        data->vorbis = NULL;
+    }
+    free(data->readBuffer);
+    data->readBuffer = NULL;
+}
+
 int audio_vorbis_preloadStreamSamples(audio_vorbis_DecoderData *data, int sampleCount) {
   int channels = data->info.channels >= 2 ? 2 : 1;   // Force to mono or stereo
 

@@ -136,8 +136,6 @@ int graphics_setFullscreen(bool fullscreen, const char *mode);
 
 bool graphics_isCreated();
 
-void graphics_shutdown();
-
 const char *graphics_getTitle();
 
 void graphics_setPosition(int x, int y);

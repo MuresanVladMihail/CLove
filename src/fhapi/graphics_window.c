@@ -83,8 +83,11 @@ int fn_love_window_setIcon(struct fh_program *prog, struct fh_value *ret, struct
 }
 
 int fn_love_window_getIcon(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
+    // FH_IMAGE_TYPE c_objs wrap an fh_image_t*; graphics_getIcon() returns
+    // a raw image_ImageData*, which is what FH_IMAGE_DATA_TYPE holds
+    // directly (see newImageData() in image.c) - tag it as that instead.
     image_ImageData *imgd = graphics_getIcon();
-    *ret = fh_new_c_obj(prog, imgd, NULL, FH_IMAGE_TYPE);
+    *ret = fh_new_c_obj(prog, imgd, NULL, FH_IMAGE_DATA_TYPE);
     return 0;
 }
 

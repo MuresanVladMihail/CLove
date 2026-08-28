@@ -190,9 +190,13 @@ static int fn_love_graphics_batch_setTexture(struct fh_program *prog,
         return fh_set_error(prog, "Expected spritebatch and image");
     }
     graphics_Batch *batch = fh_get_c_obj_value(&args[0]);
-    graphics_Image *image = fh_get_c_obj_value(&args[1]);
+    // FH_IMAGE_TYPE c_objs wrap an fh_image_t*, not a graphics_Image*
+    // directly (see fh_image_t in image.h and newSpriteBatch() above,
+    // which unwraps the same way) - unwrap it here too, or batch->texture
+    // ends up pointing at the wrong struct entirely.
+    fh_image_t *image = fh_get_c_obj_value(&args[1]);
 
-    batch->texture = image;
+    batch->texture = image->img;
 
     *ret = fh_new_null();
     return 0;
@@ -205,7 +209,13 @@ static int fn_love_graphics_batch_getTexture(struct fh_program *prog,
     }
     graphics_Batch *batch = fh_get_c_obj_value(&args[0]);
 
-    *ret = fh_new_c_obj(prog, batch->texture, NULL, FH_IMAGE_TYPE);
+    // Wrap in a proper fh_image_t (see setTexture above for why) with a
+    // NULL free callback: the batch still owns the underlying
+    // graphics_Image, this handle only borrows it.
+    fh_image_t *image = malloc(sizeof(fh_image_t));
+    image->data = NULL;
+    image->img = batch->texture;
+    *ret = fh_new_c_obj(prog, image, NULL, FH_IMAGE_TYPE);
     return 0;
 }
 
