@@ -43,7 +43,18 @@ tags
 
 # cmake output folder
 build/
+cmake-build-*/
 
 # cmake build files
 *.txt.*
 *.txt.*
+
+# local backup of the old GLEW copy (see CLAUDE.md)
+glew-old/
+
+# compiled engine binary (no extension on Linux/macOS) - covers stray
+# builds left inside example/game directories during local testing
+/opt/examples/**/clove
+
+# JetBrains IDE project state
+.idea/
