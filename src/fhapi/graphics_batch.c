@@ -255,9 +255,9 @@ static int fn_love_graphics_batch_setColor(struct fh_program *prog,
     if (fh_is_null(&args[1])) {
         graphics_Batch_clearColor(batch);
     } else {
-        if (n_args < 5)
-            return fh_set_error(prog, "love_graphics_batch_setColor(): expected at least 5 arguments (spritebatch, null-or-r, g, b, a), got %d", n_args);
-        for (int i = 1; i < 5; i++) {
+        if (n_args < 4)
+            return fh_set_error(prog, "love_graphics_batch_setColor(): expected at least 4 arguments (spritebatch, null-or-r, g, b[, a]), got %d", n_args);
+        for (int i = 1; i < 4; i++) {
             if (!fh_is_number(&args[i]))
                 return fh_set_error(prog, "Expected r, g, b");
         }
