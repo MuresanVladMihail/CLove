@@ -3,7 +3,7 @@
 *.d
 
 *.tar
-fh.*
+/fh
 
 # Object files
 *.o
