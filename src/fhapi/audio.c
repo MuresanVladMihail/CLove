@@ -394,13 +394,17 @@ static int fn_love_audio_setPosition(struct fh_program *prog,
 
 static int fn_love_audio_setGlobalVolume(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (n_args != 2)
-        return fh_set_error(prog, "love_audio_setGlobalVolume(): expected 2 arguments, got %d", n_args);
+    // This sets the engine-wide volume, not a per-source one - there's no
+    // source object to skip past, so the single argument is args[0], not
+    // args[1] (which previously made a correct 1-argument call fail with
+    // "expected 2 arguments" and required a bogus leading argument).
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_setGlobalVolume(): expected 1 argument, got %d", n_args);
 
-    if (!fh_is_number(&args[1]))
-        return fh_set_error(prog, "Expected volume:bool for the seecond argument");
+    if (!fh_is_number(&args[0]))
+        return fh_set_error(prog, "Expected volume:number");
 
-    float volume = (float)fh_get_number(&args[1]);
+    float volume = (float)fh_get_number(&args[0]);
 
     audio_setVolume(CLAMP(volume, 0.0f, 1.0f));
     *ret = fh_new_null();
