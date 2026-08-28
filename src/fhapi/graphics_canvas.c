@@ -50,6 +50,9 @@ static int fn_love_graphics_newCanvas(struct fh_program *prog, struct fh_value *
 
 static int fn_love_graphics_setCanvas(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
 
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_setCanvas(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_CANVAS)) {
        graphics_Canvas *c = fh_get_c_obj_value(&args[0]);
        graphics_setCanvas(c);
