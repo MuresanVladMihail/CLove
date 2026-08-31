@@ -122,6 +122,10 @@ static int fn_love_geometry_line(struct fh_program *prog,
 
 static int fn_love_geometry_polygon(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2) {
+        return fh_set_error(prog, "love_geometry_polygon(): expected at least 2 arguments, got %d", n_args);
+    }
+
     if (!fh_is_string(&args[0]) || !fh_is_array(&args[1])) {
         return fh_set_error(prog, "Expected 2 arguments, string and array, for love_geometry_polygon");
     }
@@ -156,6 +160,8 @@ static int fn_love_geometry_polygon(struct fh_program *prog,
 
 static int fn_love_geometry_setLineWidth(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_geometry_setLineWidth(): expected 1 argument, got %d", n_args);
 
     double w = fh_get_number(&args[0]);
     graphics_geometry_setLineWidth(w);

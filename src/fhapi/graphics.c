@@ -30,6 +30,9 @@
 static int fn_love_graphics_setBackgroundColor(struct fh_program *prog,
                                                struct fh_value *ret, struct fh_value *args, int n_args) {
 
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_setBackgroundColor(): expected at least 1 argument, got %d", n_args);
+
     if (!fh_is_number(&args[0]))
         return fh_set_error(prog, "Expected number");
 
@@ -68,6 +71,9 @@ static int fn_love_graphics_getBackgroundColor(struct fh_program *prog,
 
 static int fn_love_graphics_setColor(struct fh_program *prog,
                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_setColor(): expected at least 1 argument, got %d", n_args);
+
     if (!fh_is_number(&args[0]))
         return fh_set_error(prog, "Expected number");
 
@@ -129,6 +135,9 @@ static int fn_love_graphics_pop(struct fh_program *prog,
 
 static int fn_love_graphics_translate(struct fh_program *prog,
                                       struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog, "love_graphics_translate(): expected at least 2 arguments, got %d", n_args);
+
     if (!fh_is_number(&args[0]) || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected at least 2 numbers as arguments\n");
 
@@ -143,6 +152,9 @@ static int fn_love_graphics_translate(struct fh_program *prog,
 
 static int fn_love_graphics_scale(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog, "love_graphics_scale(): expected at least 2 arguments, got %d", n_args);
+
     if (!fh_is_number(&args[0]) || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected at least 2 numbers as arguments\n");
 
@@ -158,6 +170,9 @@ static int fn_love_graphics_scale(struct fh_program *prog,
 
 static int fn_love_graphics_rotate(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_rotate(): expected at least 1 argument, got %d", n_args);
+
     if (!fh_is_number(&args[0]) )
         return fh_set_error(prog, "Expected number as argument\n");
 
@@ -177,6 +192,9 @@ static int fn_love_graphics_origin(struct fh_program *prog,
 
 static int fn_love_graphics_shear(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_graphics_shear(): expected 2 arguments, got %d", n_args);
+
     if (! (fh_is_number(&args[0]) && fh_is_number(&args[1])) )
         return fh_set_error(prog, "Expected exactly 2 numbers as arguments\n");
 
@@ -190,10 +208,16 @@ static int fn_love_graphics_shear(struct fh_program *prog,
 
 static int fn_love_graphics_setColorMask(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_setColorMask(): expected at least 1 argument, got %d", n_args);
+
     if (fh_is_null(&args[0])) {
         graphics_setColorMask(true, true, true, true);
         return 0;
     } else {
+        if (n_args != 4)
+            return fh_set_error(prog, "love_graphics_setColorMask(): expected 4 arguments, got %d", n_args);
+
         for (int i = 0; i < 4; ++i) {
             if (!fh_is_bool(&args[i])) {
                 return fh_set_error(prog, "illegal parameters");
@@ -321,6 +345,9 @@ static int fn_love_graphics_setScissor(struct fh_program *prog,
         graphics_clearScissor();
         return 0;
     } else {
+        if (n_args != 4)
+            return fh_set_error(prog, "love_graphics_setScissor(): expected 0 or 4 arguments, got %d", n_args);
+
         for(int i = 0; i < 4; ++i) {
             if(!fh_is_number(&args[i])) {
                 return fh_set_error(prog, "illegal parameter");
@@ -387,6 +414,9 @@ static const graphics_Quad defaultQuad = {
 static int fn_love_graphics_draw(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
 
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_draw(): expected at least 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj(&args[0]))
         return fh_set_error(prog, "Expected image, batch, mesh, canvas or particle as first argument, got '%s'",
                             fh_type_to_str(prog, args[0].type));
@@ -395,7 +425,7 @@ static int fn_love_graphics_draw(struct fh_program *prog,
     int index = 1;
 
     const graphics_Quad *quad = &defaultQuad;
-    if (fh_is_c_obj_of_type(&args[index], FH_GRAPHICS_QUAD)) {
+    if (index < n_args && fh_is_c_obj_of_type(&args[index], FH_GRAPHICS_QUAD)) {
         quad = fh_get_c_obj_value(&args[index]);
         index ++;
     }

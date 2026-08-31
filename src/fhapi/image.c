@@ -14,10 +14,24 @@
 
 static fh_c_obj_gc_callback onFreeCallback(fh_image_t *data) {
     graphics_Image_free(data->img);
-    image_ImageData_free(data->data);
-    free(data->data);
+    // data->data is NULL after newImage() adopts an existing ImageData
+    // c_obj (ownership moves here - see below); nothing left to free then.
+    if (data->data) {
+        image_ImageData_free(data->data);
+        free(data->data);
+    }
     free(data->img);
     free(data);
+    return (fh_c_obj_gc_callback)1;
+}
+
+static fh_c_obj_gc_callback imageDataFreeCallback(image_ImageData *data) {
+    // NULL after newImage() adopts this handle (see below) and transfers
+    // ownership to the new Image's own free callback.
+    if (data) {
+        image_ImageData_free(data);
+        free(data);
+    }
     return (fh_c_obj_gc_callback)1;
 }
 
@@ -33,7 +47,8 @@ static int fn_love_graphics_newImageData(struct fh_program *prog,
 
     image_ImageData_new_with_size(data, (int) fh_get_number(&args[0]),
             (int) fh_get_number(&args[1]), 4);
-    *ret = fh_new_c_obj(prog, data, NULL, FH_IMAGE_DATA_TYPE);
+    fh_c_obj_gc_callback *callback = imageDataFreeCallback;
+    *ret = fh_new_c_obj(prog, data, callback, FH_IMAGE_DATA_TYPE);
     return 0;
 }
 
@@ -50,14 +65,29 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
 
         img->data = malloc(sizeof(image_ImageData));
         image_ImageData_new_with_filename(img->data, path);
+        if (!img->data->surface) {
+            // Load failed (missing/corrupt file) - img->data->pixels is
+            // NULL at this point; proceeding into
+            // graphics_Image_new_with_ImageData() would dereference it.
+            free(img->data);
+            free(img->img);
+            free(img);
+            return fh_set_error(prog, "Could not load image: %s", path);
+        }
         graphics_Image_new_with_ImageData(img->img, img->data);
     } else if(fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE)) {
         image_ImageData *data = fh_get_c_obj_value(&args[0]);
         img->data = data;
         graphics_Image_new_with_ImageData(img->img, data);
+        // Ownership of `data` moves to the new Image (onFreeCallback above
+        // frees img->data). Null out the source c_obj's pointer so its own
+        // free callback (imageDataFreeCallback) becomes a no-op instead of
+        // double-freeing the same image_ImageData when it's GC'd too.
+        fh_get_c_obj(&args[0])->ptr = NULL;
     } else {
+        // img->data was never set on this path - nothing to free but the
+        // two allocations made above.
         free(img->img);
-        free(img->data);
         free(img);
         return fh_set_error(prog, "Expected image data or path to image");
     }
@@ -69,6 +99,8 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
 
 static int fn_love_image_getWidth(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getWidth(): expected 1 argument, got %d", n_args);
 
     if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
         fh_image_t *img = fh_get_c_obj_value(&args[0]);
@@ -84,6 +116,9 @@ static int fn_love_image_getWidth(struct fh_program *prog,
 
 static int fn_love_image_getHeight(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getHeight(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
         fh_image_t *img = fh_get_c_obj_value(&args[0]);
         *ret = fh_new_number(image_ImageData_getHeight(img->data));
@@ -97,6 +132,9 @@ static int fn_love_image_getHeight(struct fh_program *prog,
 
 static int fn_love_image_getDimensions(struct fh_program *prog,
                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getDimensions(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected image");
 
@@ -121,6 +159,8 @@ static int fn_love_image_getDimensions(struct fh_program *prog,
 
 static int fn_love_image_getPath(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getPath(): expected 1 argument, got %d", n_args);
 
     if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
         fh_image_t *img = fh_get_c_obj_value(&args[0]);
@@ -136,6 +176,8 @@ static int fn_love_image_getPath(struct fh_program *prog,
 
 static int fn_love_image_getChannels(struct fh_program *prog,
                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getChannels(): expected 1 argument, got %d", n_args);
 
     if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
         fh_image_t *img = fh_get_c_obj_value(&args[0]);
@@ -150,15 +192,21 @@ static int fn_love_image_getChannels(struct fh_program *prog,
 
 static int fn_love_image_refresh(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_image_refresh(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected image");
     if (!fh_is_c_obj_of_type(&args[1], FH_IMAGE_DATA_TYPE))
         return fh_set_error(prog, "Expected image data as second argument");
 
+    // FH_IMAGE_DATA_TYPE c_objs wrap a raw image_ImageData* directly (see
+    // newImageData() above), not an fh_image_t* - reading it as one (as
+    // this used to) reinterprets unrelated struct bytes as a pointer.
     fh_image_t *img = fh_get_c_obj_value(&args[0]);
-    fh_image_t *imgd = fh_get_c_obj_value(&args[1]);
+    image_ImageData *imgd = fh_get_c_obj_value(&args[1]);
 
-    graphics_Image_refresh(img->img, imgd->data);
+    graphics_Image_refresh(img->img, imgd);
     *ret = fh_new_null();
     return 0;
 }
@@ -281,6 +329,9 @@ static int fn_love_image_getPixel(struct fh_program *prog,
 
 static int fn_love_image_getWrap(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getWrap(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected image");
 
@@ -317,6 +368,9 @@ static int fn_love_image_getWrap(struct fh_program *prog,
 
 static int fn_love_image_setWrap(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_image_setWrap(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE) || !fh_is_string(&args[1]) || !fh_is_string(&args[2]))
         return fh_set_error(prog, "Expected image, horizontal and veritical string mode");
 
@@ -346,6 +400,9 @@ static int fn_love_image_setWrap(struct fh_program *prog,
 
 static int fn_love_image_getFilter(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getFilter(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected image");
 
@@ -386,6 +443,9 @@ static int fn_love_image_getFilter(struct fh_program *prog,
 
 static int fn_love_image_setFilter(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 3)
+        return fh_set_error(prog, "love_image_setFilter(): expected at least 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE) || !fh_is_string(&args[1]) || !fh_is_string(&args[2]))
         return fh_set_error(prog, "Expected image, min and mag string mode");
 
@@ -422,6 +482,9 @@ static int fn_love_image_setFilter(struct fh_program *prog,
 
 static int fn_love_image_setMipmapFilter(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog, "love_image_setMipmapFilter(): expected at least 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected image, min and mag string mode");
 
@@ -458,6 +521,9 @@ static int fn_love_image_setMipmapFilter(struct fh_program *prog,
 
 static int fn_love_image_getMipmapFilter(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getMipmapFilter(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected image");
 

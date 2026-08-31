@@ -33,7 +33,12 @@ static int fn_love_graphics_newCanvas(struct fh_program *prog, struct fh_value *
     int width = fh_get_number(&args[0]);
     int height = fh_get_number(&args[1]);
 
-    graphics_Canvas *c = malloc(sizeof(graphics_Canvas));
+    // zero-initialized: graphics_Canvas_new()'s setup_quad() generates
+    // image.vbo/ibo directly but never image.vao (unlike the normal
+    // graphics_Image_new_with_ImageData() path), so a plain malloc() left
+    // it as uninitialized garbage that graphics_Canvas_free() would later
+    // pass to glDeleteVertexArrays().
+    graphics_Canvas *c = calloc(1, sizeof(graphics_Canvas));
 
     graphics_Canvas_new(c, width, height);
 
@@ -44,6 +49,9 @@ static int fn_love_graphics_newCanvas(struct fh_program *prog, struct fh_value *
 }
 
 static int fn_love_graphics_setCanvas(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
+
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_setCanvas(): expected 1 argument, got %d", n_args);
 
     if (fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_CANVAS)) {
        graphics_Canvas *c = fh_get_c_obj_value(&args[0]);

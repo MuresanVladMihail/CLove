@@ -46,6 +46,9 @@ bool static isSingleFragmentShader(char const* str) {
 
 static int fn_love_graphics_newShader(struct fh_program *prog,
                                       struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_newShader(): expected at least 1 argument, got %d", n_args);
+
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Expected vertex source");
 
@@ -160,8 +163,9 @@ static int fn_love_graphics_getShader(struct fh_program *prog,
 
 static int fn_love_graphics_setShader(struct fh_program *prog,
                                       struct fh_value *ret, struct fh_value *args, int n_args) {
-    UNUSED(prog);
-    UNUSED(n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_setShader(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_SHADER)) {
         moduleData.currentShader = fh_get_c_obj_value(&args[0]);
         graphics_setShader(&moduleData.currentShader->shader);
@@ -198,6 +202,9 @@ static char *pushShaderInfoLog(graphics_Shader const* shader) {
 
 static int fn_love_graphics_getShaderWarnings(struct fh_program *prog,
                                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_getShaderWarnings(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_SHADER))
         return fh_set_error(prog, "Expected shader");
 

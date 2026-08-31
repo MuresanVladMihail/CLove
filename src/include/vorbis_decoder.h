@@ -13,6 +13,7 @@
 
 int audio_vorbis_load(ALuint buffer, char const *filename);
 int audio_vorbis_loadStream(audio_vorbis_DecoderData* data, char const *filename);
+void audio_vorbis_closeStream(audio_vorbis_DecoderData *data);
 int audio_vorbis_preloadStreamSamples(audio_vorbis_DecoderData* decoderData, int sampleCount);
 int audio_vorbis_uploadSreamSamples(audio_vorbis_DecoderData* decoderData, ALuint buffer);
 void audio_vorbis_rewindStream(audio_vorbis_DecoderData *decoderData);

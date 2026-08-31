@@ -87,6 +87,9 @@ static fh_c_obj_gc_callback on_gc(graphics_Mesh *mesh) {
 
 static int fn_love_graphics_newMesh(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog, "love_graphics_newMesh(): expected at least 2 arguments, got %d", n_args);
+
     if (!fh_is_array(&args[0]) || !fh_is_array(&args[1]))
         return fh_set_error(prog, "Expected array of vertices and array of indices");
 
@@ -121,6 +124,9 @@ static int fn_love_graphics_newMesh(struct fh_program *prog,
 
 static int fn_love_mesh_setTexture(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_mesh_setTexture(): expected 2 arguments, got %d", n_args);
+
     // We also enable the user to pass "null" as texture param which results in having a blank mesh
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_MESH))
         return fh_set_error(prog, "Expected mesh");
@@ -142,9 +148,11 @@ static int fn_love_mesh_setTexture(struct fh_program *prog,
 
 static int fn_love_mesh_setVertices(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_mesh_setVertices(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_MESH) || !fh_is_array(&args[1]))
         return fh_set_error(prog, "Expected mesh and array of vertices");
-    UNUSED(n_args);
 
     graphics_Mesh *mesh = fh_get_c_obj_value(&args[0]);
     struct fh_array *arr = GET_VAL_ARRAY(&args[1]);
@@ -158,9 +166,11 @@ static int fn_love_mesh_setVertices(struct fh_program *prog,
 
 static int fn_love_mesh_setIndices(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_mesh_setIndices(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_MESH) || !fh_is_array(&args[1]))
         return fh_set_error(prog, "Expected mesh and array of vertices");
-    UNUSED(n_args);
 
     graphics_Mesh *mesh = fh_get_c_obj_value(&args[0]);
     struct fh_array *arr = GET_VAL_ARRAY(&args[1]);

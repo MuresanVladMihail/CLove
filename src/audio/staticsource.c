@@ -54,8 +54,17 @@ int audio_loadStatic(audio_StaticSource *source, char const * filename) {
 		loaded = audio_wav_load(source->buffer, filename);
 	}else if((strcmp(get_filename_ext(filename), "ogg")) == 0){
 		loaded = audio_vorbis_load(source->buffer, filename);
-	}else
+	}else {
+		audio_SourceCommon_free(&source->common);
+		alDeleteBuffers(1, &source->buffer);
 		return -1; //Unknow file type :(
+	}
+
+	if (loaded <= 0) {
+		audio_SourceCommon_free(&source->common);
+		alDeleteBuffers(1, &source->buffer);
+		return loaded;
+	}
 
 	alSourcei(source->common.source, AL_BUFFER, source->buffer);
 

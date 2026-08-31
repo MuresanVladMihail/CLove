@@ -21,15 +21,29 @@ fh_c_obj_gc_callback particle_gc(graphics_ParticleSystem *p) {
     return (fh_c_obj_gc_callback)1;
 }
 
+// Frees only the fh_image_t wrapper itself, not the graphics_Image it
+// points to - for handles (like getTexture() below) that borrow a texture
+// still owned by something else.
+static fh_c_obj_gc_callback freeImageWrapperOnly(fh_image_t *x) {
+    free(x);
+    return (fh_c_obj_gc_callback)1;
+}
+
 static int fn_love_graphics_newParticleSystem(struct fh_program *prog,
                                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_newParticleSystem(): expected at least 1 argument, got %d", n_args);
 
     if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected image");
 
     fh_image_t *image = fh_get_c_obj_value(&args[0]);
 
-    double buffer = fh_optnumber(&args[1], n_args, 1, 128);
+    // fh_optnumber() takes the base args[] array and an index, not a
+    // pre-offset pointer - passing &args[1] here silently read args[2]
+    // (one past the last valid argument) instead of the caller's buffer
+    // size whenever one was actually given.
+    double buffer = fh_optnumber(args, n_args, 1, 128);
 
     graphics_ParticleSystem *p = malloc(sizeof(graphics_ParticleSystem));
     graphics_ParticleSystem_new(p, image->img, (size_t)buffer);
@@ -42,6 +56,9 @@ static int fn_love_graphics_newParticleSystem(struct fh_program *prog,
 
 static int fn_love_particleSystem_clone(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_clone(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_c_obj_of_type(&args[1], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected two particle systems");
@@ -57,6 +74,9 @@ static int fn_love_particleSystem_clone(struct fh_program *prog,
 
 static int fn_love_particleSystem_setLinearDamping(struct fh_program *prog,
                                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setLinearDamping(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1])
             || !fh_is_number(&args[2]))
@@ -74,6 +94,9 @@ static int fn_love_particleSystem_setLinearDamping(struct fh_program *prog,
 
 static int fn_love_particleSystem_getLinearDamping(struct fh_program *prog,
                                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getLinearDamping(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -98,6 +121,9 @@ static int fn_love_particleSystem_getLinearDamping(struct fh_program *prog,
 
 static int fn_love_particleSystem_setBufferSize(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setBufferSize(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle and a size");
@@ -113,6 +139,9 @@ static int fn_love_particleSystem_setBufferSize(struct fh_program *prog,
 
 static int fn_love_particleSystem_getBufferSize(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getBufferSize(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -124,6 +153,9 @@ static int fn_love_particleSystem_getBufferSize(struct fh_program *prog,
 
 static int fn_love_particleSystem_setAreaSpread(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 4)
+        return fh_set_error(prog, "love_particleSystem_setAreaSpread(): expected 4 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_string(&args[1])
             || !fh_is_number(&args[2])
@@ -155,6 +187,9 @@ static int fn_love_particleSystem_setAreaSpread(struct fh_program *prog,
 
 static int fn_love_particleSystem_getAreaSpread(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getAreaSpread(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -196,6 +231,9 @@ static int fn_love_particleSystem_getAreaSpread(struct fh_program *prog,
 
 static int fn_love_particleSystem_setColors(struct fh_program *prog,
                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setColors(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE) || !fh_is_array(&args[1]))
         return fh_set_error(prog, "Expected particle and an array");
 
@@ -228,6 +266,9 @@ static int fn_love_particleSystem_setColors(struct fh_program *prog,
 
 static int fn_love_particleSystem_getColors(struct fh_program *prog,
                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getColors(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -260,6 +301,9 @@ static int fn_love_particleSystem_getColors(struct fh_program *prog,
 
 static int fn_love_particleSystem_getCount(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getCount(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -271,6 +315,9 @@ static int fn_love_particleSystem_getCount(struct fh_program *prog,
 
 static int fn_love_particleSystem_setDirection(struct fh_program *prog,
                                                struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setDirection(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle and number");
@@ -285,6 +332,9 @@ static int fn_love_particleSystem_setDirection(struct fh_program *prog,
 
 static int fn_love_particleSystem_setEmissionRate(struct fh_program *prog,
                                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setEmissionRate(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle");
@@ -299,6 +349,9 @@ static int fn_love_particleSystem_setEmissionRate(struct fh_program *prog,
 
 static int fn_love_particleSystem_setEmitterLifetime(struct fh_program *prog,
                                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setEmitterLifetime(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle");
@@ -313,6 +366,9 @@ static int fn_love_particleSystem_setEmitterLifetime(struct fh_program *prog,
 
 static int fn_love_particleSystem_setSizeVariation(struct fh_program *prog,
                                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setSizeVariation(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle");
@@ -327,6 +383,9 @@ static int fn_love_particleSystem_setSizeVariation(struct fh_program *prog,
 
 static int fn_love_particleSystem_setSpinVariation(struct fh_program *prog,
                                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setSpinVariation(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle");
@@ -341,6 +400,9 @@ static int fn_love_particleSystem_setSpinVariation(struct fh_program *prog,
 
 static int fn_love_particleSystem_setSpread(struct fh_program *prog,
                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setSpread(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle");
@@ -355,6 +417,9 @@ static int fn_love_particleSystem_setSpread(struct fh_program *prog,
 
 static int fn_love_particleSystem_getDirection(struct fh_program *prog,
                                                struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getDirection(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -366,6 +431,9 @@ static int fn_love_particleSystem_getDirection(struct fh_program *prog,
 
 static int fn_love_particleSystem_getEmissionRate(struct fh_program *prog,
                                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getEmissionRate(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -377,6 +445,9 @@ static int fn_love_particleSystem_getEmissionRate(struct fh_program *prog,
 
 static int fn_love_particleSystem_getEmitterLifetime(struct fh_program *prog,
                                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getEmitterLifetime(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -388,6 +459,9 @@ static int fn_love_particleSystem_getEmitterLifetime(struct fh_program *prog,
 
 static int fn_love_particleSystem_getSizeVariation(struct fh_program *prog,
                                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getSizeVariation(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -399,6 +473,9 @@ static int fn_love_particleSystem_getSizeVariation(struct fh_program *prog,
 
 static int fn_love_particleSystem_getSpinVariation(struct fh_program *prog,
                                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getSpinVariation(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -410,6 +487,9 @@ static int fn_love_particleSystem_getSpinVariation(struct fh_program *prog,
 
 static int fn_love_particleSystem_getSpread(struct fh_program *prog,
                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getSpread(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -421,6 +501,9 @@ static int fn_love_particleSystem_getSpread(struct fh_program *prog,
 
 static int fn_love_particleSystem_setOffset(struct fh_program *prog,
                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setOffset(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]) || !fh_is_number(&args[2]))
         return fh_set_error(prog, "Expected particle and two number values");
@@ -435,6 +518,9 @@ static int fn_love_particleSystem_setOffset(struct fh_program *prog,
 
 static int fn_love_particleSystem_setPosition(struct fh_program *prog,
                                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setPosition(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]) || !fh_is_number(&args[2]))
         return fh_set_error(prog, "Expected particle and two number values");
@@ -449,6 +535,9 @@ static int fn_love_particleSystem_setPosition(struct fh_program *prog,
 
 static int fn_love_particleSystem_setRadialAcceleration(struct fh_program *prog,
                                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setRadialAcceleration(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]) || !fh_is_number(&args[2]))
         return fh_set_error(prog, "Expected particle and two number values");
@@ -463,6 +552,9 @@ static int fn_love_particleSystem_setRadialAcceleration(struct fh_program *prog,
 
 static int fn_love_particleSystem_setRotation(struct fh_program *prog,
                                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setRotation(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]) || !fh_is_number(&args[2]))
         return fh_set_error(prog, "Expected particle and two number values");
@@ -477,6 +569,9 @@ static int fn_love_particleSystem_setRotation(struct fh_program *prog,
 
 static int fn_love_particleSystem_setSpeed(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setSpeed(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]) || !fh_is_number(&args[2]))
         return fh_set_error(prog, "Expected particle and two number values");
@@ -491,6 +586,9 @@ static int fn_love_particleSystem_setSpeed(struct fh_program *prog,
 
 static int fn_love_particleSystem_setSpin(struct fh_program *prog,
                                           struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setSpin(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]) || !fh_is_number(&args[2]))
         return fh_set_error(prog, "Expected particle and two number values");
@@ -505,6 +603,9 @@ static int fn_love_particleSystem_setSpin(struct fh_program *prog,
 
 static int fn_love_particleSystem_setTangentialAcceleration(struct fh_program *prog,
                                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setTangentialAcceleration(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]) || !fh_is_number(&args[2]))
         return fh_set_error(prog, "Expected particle and two number values");
@@ -519,6 +620,9 @@ static int fn_love_particleSystem_setTangentialAcceleration(struct fh_program *p
 
 static int fn_love_particleSystem_getOffset(struct fh_program *prog,
                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getOffset(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -542,6 +646,9 @@ static int fn_love_particleSystem_getOffset(struct fh_program *prog,
 }
 
 static int fn_love_particleSystem_getParticleLifetime(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getParticleLifetime(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -567,6 +674,9 @@ static int fn_love_particleSystem_getParticleLifetime(struct fh_program *prog, s
 
 static int fn_love_particleSystem_getPosition(struct fh_program *prog,
                                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getPosition(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -592,6 +702,9 @@ static int fn_love_particleSystem_getPosition(struct fh_program *prog,
 
 static int fn_love_particleSystem_getRadialAcceleration(struct fh_program *prog,
                                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getRadialAcceleration(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -617,6 +730,9 @@ static int fn_love_particleSystem_getRadialAcceleration(struct fh_program *prog,
 
 static int fn_love_particleSystem_getRotation(struct fh_program *prog,
                                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getRotation(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -641,6 +757,9 @@ static int fn_love_particleSystem_getRotation(struct fh_program *prog,
 
 static int fn_love_particleSystem_getSpeed(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getSpeed(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -666,6 +785,9 @@ static int fn_love_particleSystem_getSpeed(struct fh_program *prog,
 
 static int fn_love_particleSystem_getSpin(struct fh_program *prog,
                                           struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getSpin(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -691,6 +813,9 @@ static int fn_love_particleSystem_getSpin(struct fh_program *prog,
 
 static int fn_love_particleSystem_getTangentialAcceleration(struct fh_program *prog,
                                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getTangentialAcceleration(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float min, max;
@@ -716,6 +841,9 @@ static int fn_love_particleSystem_getTangentialAcceleration(struct fh_program *p
 
 static int fn_love_particleSystem_setTexture(struct fh_program *prog,
                                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setTexture(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_c_obj_of_type(&args[1], FH_IMAGE_TYPE))
         return fh_set_error(prog, "Expected particle and a texture");
@@ -729,20 +857,28 @@ static int fn_love_particleSystem_setTexture(struct fh_program *prog,
 
 static int fn_love_particleSystem_getTexture(struct fh_program *prog,
                                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getTexture(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
     graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
     fh_image_t *x = malloc(sizeof(fh_image_t));
+    x->data = NULL;
     x->img = graphics_ParticleSystem_getTexture(p);
     // We don't have to free the texture from the particle system that
     // we just fetched because it's just a reference, the object itself has its own life events
-    *ret = fh_new_c_obj(prog, x, NULL, FH_IMAGE_TYPE);
+    fh_c_obj_gc_callback *callback = freeImageWrapperOnly;
+    *ret = fh_new_c_obj(prog, x, callback, FH_IMAGE_TYPE);
     return 0;
 }
 
 static int fn_love_particleSystem_setSizes(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setSizes(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE) || !fh_is_array(&args[1]))
         return fh_set_error(prog, "Expected particle and an array");
 
@@ -765,6 +901,9 @@ static int fn_love_particleSystem_setSizes(struct fh_program *prog,
 
 static int fn_love_particleSystem_getSizes(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getSizes(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -792,6 +931,9 @@ static int fn_love_particleSystem_getSizes(struct fh_program *prog,
 
 static int fn_love_particleSystem_setQuads(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setQuads(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE) || !fh_is_array(&args[1]))
         return fh_set_error(prog, "Expected particle and an array");
 
@@ -816,6 +958,9 @@ static int fn_love_particleSystem_setQuads(struct fh_program *prog,
 
 static int fn_love_particleSystem_setRelativeRotation(struct fh_program *prog,
                                                       struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setRelativeRotation(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE) ||
             !fh_is_bool(&args[1]))
         return fh_set_error(prog, "Expected particle and boolean");
@@ -830,6 +975,9 @@ static int fn_love_particleSystem_setRelativeRotation(struct fh_program *prog,
 
 static int fn_love_particleSystem_hasRelativeRotation(struct fh_program *prog,
                                                       struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_hasRelativeRotation(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -840,6 +988,9 @@ static int fn_love_particleSystem_hasRelativeRotation(struct fh_program *prog,
 
 static int fn_love_particleSystem_setInsertMode(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_setInsertMode(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE) ||
             !fh_is_string(&args[1]))
         return fh_set_error(prog, "Expected particle and string");
@@ -865,6 +1016,9 @@ static int fn_love_particleSystem_setInsertMode(struct fh_program *prog,
 
 static int fn_love_particleSystem_getInsertMode(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getInsertMode(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -892,6 +1046,9 @@ static int fn_love_particleSystem_getInsertMode(struct fh_program *prog,
 
 static int fn_love_particleSystem_isActive(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_isActive(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -902,6 +1059,9 @@ static int fn_love_particleSystem_isActive(struct fh_program *prog,
 
 static int fn_love_particleSystem_isPaused(struct fh_program *prog,
                                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_isPaused(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -912,6 +1072,9 @@ static int fn_love_particleSystem_isPaused(struct fh_program *prog,
 
 static int fn_love_particleSystem_isStopped(struct fh_program *prog,
                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_isStopped(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -922,6 +1085,9 @@ static int fn_love_particleSystem_isStopped(struct fh_program *prog,
 
 static int fn_love_particleSystem_moveTo(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_moveTo(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
             || !fh_is_number(&args[1]) || !fh_is_number(&args[2]))
         return fh_set_error(prog, "Expected particle and two number values");
@@ -936,6 +1102,9 @@ static int fn_love_particleSystem_moveTo(struct fh_program *prog,
 
 static int fn_love_particleSystem_emit(struct fh_program *prog,
                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_emit(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE) ||
             !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle and number");
@@ -950,6 +1119,9 @@ static int fn_love_particleSystem_emit(struct fh_program *prog,
 
 static int fn_love_particleSystem_start(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_start(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -961,6 +1133,9 @@ static int fn_love_particleSystem_start(struct fh_program *prog,
 
 static int fn_love_particleSystem_stop(struct fh_program *prog,
                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_stop(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -972,6 +1147,9 @@ static int fn_love_particleSystem_stop(struct fh_program *prog,
 
 static int fn_love_particleSystem_reset(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_reset(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -983,6 +1161,9 @@ static int fn_love_particleSystem_reset(struct fh_program *prog,
 
 static int fn_love_particleSystem_pause(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_pause(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
 
@@ -994,6 +1175,9 @@ static int fn_love_particleSystem_pause(struct fh_program *prog,
 
 static int fn_love_particleSystem_update(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_particleSystem_update(): expected 2 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE) ||
             !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected particle and dt");
@@ -1007,6 +1191,9 @@ static int fn_love_particleSystem_update(struct fh_program *prog,
 
 static int fn_love_particleSystem_setLinearAcceleration(struct fh_program *prog,
                                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 5)
+        return fh_set_error(prog, "love_particleSystem_setLinearAcceleration(): expected 5 arguments, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE) ||
             !fh_is_number(&args[1]) || !fh_is_number(&args[2])
             || !fh_is_number(&args[3]) || !fh_is_number(&args[4]))
@@ -1024,6 +1211,9 @@ static int fn_love_particleSystem_setLinearAcceleration(struct fh_program *prog,
 
 static int fn_love_particleSystem_getLinearAcceleration(struct fh_program *prog,
                                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getLinearAcceleration(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
         return fh_set_error(prog, "Expected particle");
     float xmin, ymin, xmax, ymax;

@@ -36,6 +36,9 @@ static fh_c_obj_gc_callback gcFont(graphics_Font *font) {
 
 static int fn_love_graphics_newFont(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_newFont(): expected at least 1 argument, got %d", n_args);
+
     const char *filename = NULL;
     moduleData.currentFontSize = 12;
 
@@ -71,6 +74,9 @@ static void graphics_loadDefaultFont() {
 
 static int fn_love_graphics_setFont(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_setFont(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
         moduleData.isBitmapFont = false;
         moduleData.currentFont = fh_get_c_obj_value(&args[0]);
@@ -109,6 +115,9 @@ static int fn_love_graphics_getFont(struct fh_program *prog,
 
 static int fn_love_graphics_print(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_graphics_print(): expected at least 1 argument, got %d", n_args);
+
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Expected string");
 
@@ -139,6 +148,9 @@ static int fn_love_graphics_print(struct fh_program *prog,
 
 static int fn_love_font_getHeight(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_font_getHeight(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
         graphics_Font *font = fh_get_c_obj_value(&args[0]);
 
@@ -155,6 +167,9 @@ static int fn_love_font_getHeight(struct fh_program *prog,
 
 static int fn_love_font_getWidth(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_font_getWidth(): expected at least 1 argument, got %d", n_args);
+
     int string_index = 0;
     if (fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
         if (!fh_is_string(&args[1])) {
@@ -187,6 +202,9 @@ static int fn_love_font_getWidth(struct fh_program *prog,
 
 static int fn_love_font_getDescent(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_font_getDescent(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
         return fh_set_error(prog, "Expected font");
     }
@@ -198,6 +216,9 @@ static int fn_love_font_getDescent(struct fh_program *prog,
 
 static int fn_love_font_getAscent(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_font_getAscent(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
         return fh_set_error(prog, "Expected font");
     }
@@ -209,6 +230,9 @@ static int fn_love_font_getAscent(struct fh_program *prog,
 
 static int fn_love_font_getBaseline(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_font_getBaseline(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
         return fh_set_error(prog, "Expected font");
     }
@@ -221,6 +245,9 @@ static int fn_love_font_getBaseline(struct fh_program *prog,
 
 static int fn_love_font_getWrap(struct fh_program *prog,
                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_font_getWrap(): expected 3 arguments, got %d", n_args);
+
     if (!fh_is_string(&args[1]) || !fh_is_number(&args[2])) {
         return fh_set_error(prog, "Expected string and wrap limit");
     }
@@ -325,6 +352,9 @@ static int fn_love_font_setFilter(struct fh_program *prog,
 
 static int fn_love_font_getFilter(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_font_getFilter(): expected 1 argument, got %d", n_args);
+
     graphics_Font *font = NULL;
     graphics_BitmapFont *bitmapFont = NULL;
     bool isBitmapFont = false;

@@ -31,6 +31,9 @@ static fh_c_obj_gc_callback gcStreamSource(audio_StreamSource *source) {
 
 static int fn_love_audio_newSource(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_audio_newSource(): expected at least 1 argument, got %d", n_args);
+
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Expected string as filename");
 
@@ -71,6 +74,9 @@ static int fn_love_audio_newSource(struct fh_program *prog,
 
 static int fn_love_audio_play(struct fh_program *prog,
                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_play(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
         audio_StaticSource_play(source);
@@ -87,6 +93,9 @@ static int fn_love_audio_play(struct fh_program *prog,
 
 static int fn_love_audio_getType(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_getType(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         *ret = fh_new_string(prog, "static");
     } else if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STREAM_SOURCE_TYPE)) {
@@ -100,6 +109,9 @@ static int fn_love_audio_getType(struct fh_program *prog,
 
 static int fn_love_audio_stop(struct fh_program *prog,
                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_stop(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
         audio_StaticSource_stop(source);
@@ -116,6 +128,9 @@ static int fn_love_audio_stop(struct fh_program *prog,
 
 static int fn_love_audio_pause(struct fh_program *prog,
                                struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_pause(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
         audio_StaticSource_pause(source);
@@ -133,6 +148,9 @@ static int fn_love_audio_pause(struct fh_program *prog,
 
 static int fn_love_audio_resume(struct fh_program *prog,
                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_resume(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
         audio_StaticSource_play(source);
@@ -150,6 +168,9 @@ static int fn_love_audio_resume(struct fh_program *prog,
 
 static int fn_love_audio_isStopped(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_isStopped(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
         *ret = fh_new_bool(audio_SourceCommon_isStopped(&source->common));
@@ -164,6 +185,9 @@ static int fn_love_audio_isStopped(struct fh_program *prog,
 
 static int fn_love_audio_isPlaying(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_isPlaying(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
         *ret = fh_new_bool(audio_SourceCommon_isPlaying(&source->common));
@@ -179,6 +203,9 @@ static int fn_love_audio_isPlaying(struct fh_program *prog,
 
 static int fn_love_audio_isPaused(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_isPaused(): expected 1 argument, got %d", n_args);
+
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
         *ret = fh_new_bool(audio_SourceCommon_isPaused(&source->common));
@@ -217,6 +244,8 @@ static int fn_love_audio_setVolume(struct fh_program *prog,
 
 static int fn_love_audio_getVolume(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_getVolume(): expected 1 argument, got %d", n_args);
 
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
@@ -256,6 +285,8 @@ static int fn_love_audio_setPitch(struct fh_program *prog,
 
 static int fn_love_audio_getPitch(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_getPitch(): expected 1 argument, got %d", n_args);
 
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
@@ -295,6 +326,8 @@ static int fn_love_audio_setLooping(struct fh_program *prog,
 
 static int fn_love_audio_isLooping(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_isLooping(): expected 1 argument, got %d", n_args);
 
     if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
         audio_StaticSource *source = fh_get_c_obj_value(&args[0]);
@@ -361,10 +394,17 @@ static int fn_love_audio_setPosition(struct fh_program *prog,
 
 static int fn_love_audio_setGlobalVolume(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (!fh_is_number(&args[1]))
-        return fh_set_error(prog, "Expected volume:bool for the seecond argument");
+    // This sets the engine-wide volume, not a per-source one - there's no
+    // source object to skip past, so the single argument is args[0], not
+    // args[1] (which previously made a correct 1-argument call fail with
+    // "expected 2 arguments" and required a bogus leading argument).
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_setGlobalVolume(): expected 1 argument, got %d", n_args);
 
-    float volume = (float)fh_get_number(&args[1]);
+    if (!fh_is_number(&args[0]))
+        return fh_set_error(prog, "Expected volume:number");
+
+    float volume = (float)fh_get_number(&args[0]);
 
     audio_setVolume(CLAMP(volume, 0.0f, 1.0f));
     *ret = fh_new_null();

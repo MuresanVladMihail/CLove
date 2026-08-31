@@ -37,6 +37,7 @@
 #include "fhapi/graphics_canvas.h"
 #include "fhapi/config.h"
 
+#include "include/batch.h"
 #include "include/geometry.h"
 #include "include/ui.h"
 
@@ -97,6 +98,7 @@ static int clove_finish(int exit_code) {
     joystick_close();
     ui_deinit();
     graphics_geometry_free();
+    graphics_Batch_shutdown();
     audio_close();
     graphics_shutdown();
     filesystem_free();

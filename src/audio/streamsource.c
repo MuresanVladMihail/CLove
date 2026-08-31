@@ -210,8 +210,26 @@ void audio_StreamSource_setPosition(audio_StreamSource *source, float x, float y
 }
 
 void audio_StreamSource_free(audio_StreamSource* source) {
+    // If this source is still in the playing-streams list (e.g. the script
+    // dropped its last reference while the sound was still playing),
+    // audio_updateStreams() would dereference it next frame after we free
+    // it below - remove it first.
+    for (int i = 0; i < moduleData.playingStreamCount; ++i) {
+        if (moduleData.playingStreams[i] == source) {
+            moduleData.playingStreams[i] = moduleData.playingStreams[moduleData.playingStreamCount - 1];
+            moduleData.playingStreamCount--;
+            break;
+        }
+    }
+
     alSourcei(source->source, AL_BUFFER, AL_NONE);
     alDeleteSources(1, &source->source);
     alDeleteBuffers(6, source->buffers);
+
+    if (source->decoderData) {
+        audio_vorbis_closeStream(source->decoderData);
+        free(source->decoderData);
+        source->decoderData = NULL;
+    }
 }
 

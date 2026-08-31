@@ -66,8 +66,10 @@ src/
   image/               CPU-side image data (pixel get/set, load/save)
   math/                vectors, matrices, random, noise, triangulation
   filesystem/, timer/, net/, tools/, ui/   supporting modules
+  include/             CLove's own headers, plus vendored stb_image.c,
+                       stb_image_write.h and stb_vorbis.c/.h
   3rdparty/            vendored deps: FH, SDL2, mojoAL, microtar, slre, microui,
-                       physfs, glew, noise, CMath, stb
+                       physfs, glew, noise, CMath
 ```
 
 Engine functions are plain C (`graphics_*`, `audio_*`, ...). Each `fhapi/<m>.c`
@@ -112,12 +114,12 @@ A binding has the signature
 
 ## Platform gotchas
 
-- **macOS shutdown:** the bundled SDL 2.0.8 CoreAudio backend blocks ~15s
-  closing the audio device at exit (`mojoAL alcCloseDevice` → SDL, and via
-  `SDL_Quit`). `clove_finish()` in `fh_mainactivity.c` therefore `_exit()`s on
-  `__APPLE__` after the cheap teardown and lets the OS reclaim audio/SDL.
-  Other platforms keep the full clean teardown. Upgrading the vendored SDL2 is
-  the real fix.
+- **macOS shutdown (fixed):** the bundled SDL 2.0.8 CoreAudio backend used to
+  block ~15s closing the audio device at exit (`mojoAL alcCloseDevice` → SDL,
+  and via `SDL_Quit`). This was fixed by upgrading the vendored SDL to
+  2.32.10 (see `CHANGELOG.md`); `clove_finish()` in `fh_mainactivity.c` now
+  runs the same full teardown (`audio_close()` before `graphics_shutdown()`'s
+  `SDL_Quit()`) on every platform, with no `__APPLE__`-specific early exit.
 - Build artifacts (`build/`, `cmake-build-debug/`) and the local `glew-old/`
   backup are gitignored; don't commit them.
 ```
