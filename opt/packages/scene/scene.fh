@@ -1,0 +1,294 @@
+# ============================================================================
+#  scene.fh -- read and query a scene authored in the CLove 2D editor
+# ----------------------------------------------------------------------------
+#  include "path/to/scene.fh"
+#
+#  fn love_load() {
+#      let scene = Scene("levels/forest.json");
+#
+#      let player = scene.find("Player");
+#      let pos = scene.position(player);
+#
+#      let pickups = scene.in_group("pickups");
+#      let speed = scene.prop(player, "speed", 60);
+#      let under_cursor = scene.at_point(mx, my);
+#  }
+#
+#  The editor writes a document; this package is the read side of it, so game
+#  code never has to know the JSON layout. Entities are addressed by their
+#  stable `id` or looked up by name or group -- the same way you would reach
+#  for a node in Godot, minus anything to do with scripts attached to them.
+#
+#  Everything here is pure data: no engine calls, so it runs headless and is
+#  cheap to test. Turning a scene into live images and Box2D bodies is a
+#  separate concern and stays in the caller.
+#
+#  A scene is read once and not watched: reload it yourself if the file
+#  changes underneath you.
+# ============================================================================
+
+let SCENE_SUPPORTED_VERSION = 1;
+
+# ---------------------------------------------------------------------------
+#  Scene(source)
+#
+#  `source` is either a path to a .json file the editor saved, or a document
+#  map you already parsed. Raises on a missing file or a document this package
+#  is too old to read -- a level that will not load is a bug, not a state the
+#  caller should have to poll for.
+# ---------------------------------------------------------------------------
+fn Scene(source) {
+	let doc = source;
+
+	if (type(source) == "string") {
+		if (io_filetype(source) != "file") {
+			error("Scene(): no such scene file: " + source);
+		}
+		let file = io_open(source, "r");
+		let text = io_read(file);
+		io_close(file);
+		doc = json_parse(text);
+	}
+
+	if (type(doc) != "map") {
+		error("Scene(): expected a file path or a document map");
+	}
+	if (!contains_key(doc, "version")) {
+		error("Scene(): this is not a scene document (no version field)");
+	}
+	if (doc.version > SCENE_SUPPORTED_VERSION) {
+		error("Scene(): document version " + doc.version +
+			" is newer than this package understands (" + SCENE_SUPPORTED_VERSION + ")");
+	}
+	if (!contains_key(doc, "entities")) {
+		doc.entities = [];
+	}
+
+	let scene = {};
+
+	# --- the document itself ------------------------------------------
+
+	scene.raw = fn() { return doc; };
+	scene.version = fn() { return doc.version; };
+
+	# Pixels per Box2D metre the level was authored at. Feed it to
+	# love_physics_setMeter() before building a world, or distances come out
+	# wrong by exactly this ratio.
+	scene.meter = fn() {
+		if (contains_key(doc, "meter")) { return doc.meter; }
+		return 30;
+	};
+
+	scene.gravity = fn() {
+		if (contains_key(doc, "gravity")) { return doc.gravity; }
+		return [0, 900];
+	};
+
+	# --- reading one entity -------------------------------------------
+	#
+	#  Accessors rather than raw field access, so a later change to the
+	#  document layout does not reach into every game that reads a level.
+
+	scene.id = fn(e) { return e.id; };
+	scene.name = fn(e) { return e.name; };
+	scene.is_visible = fn(e) { return e.visible; };
+	scene.position = fn(e) { return [e.transform.x, e.transform.y]; };
+	scene.angle = fn(e) { return e.transform.angle; };
+	scene.color = fn(e) { return e.color; };
+
+	scene.fixture = fn(e) { return e.fixtures[0]; };
+	scene.size = fn(e) { return [e.fixtures[0].w, e.fixtures[0].h]; };
+
+	scene.center = fn(e) {
+		return [e.transform.x + e.fixtures[0].w * 0.5,
+		        e.transform.y + e.fixtures[0].h * 0.5];
+	};
+
+	# [min_x, min_y, max_x, max_y], ignoring rotation
+	scene.rect = fn(e) {
+		return [e.transform.x, e.transform.y,
+		        e.transform.x + e.fixtures[0].w,
+		        e.transform.y + e.fixtures[0].h];
+	};
+
+	scene.body_type = fn(e) { return e.body.type; };
+
+	# The path the artwork was authored with, or null. Load it with
+	# love_graphics_newImage(): it takes .svg and .png through the same call,
+	# and love_image_isVector() tells them apart afterwards.
+	scene.sprite_path = fn(e) {
+		if (e.sprite == null) { return null; }
+		if (!contains_key(e.sprite, "path")) { return null; }
+		if (len(e.sprite.path) == 0) { return null; }
+		return e.sprite.path;
+	};
+
+	scene.groups = fn(e) {
+		if (!contains_key(e, "groups")) { return []; }
+		return e.groups;
+	};
+
+	scene.has_group = fn(e, group) {
+		let gs = scene.groups(e);
+		for (let i = 0; i < len(gs); i = i + 1) {
+			if (gs[i] == group) { return true; }
+		}
+		return false;
+	};
+
+	# Whatever the level author put on this entity that the editor has no
+	# field for: a patrol radius, a door's target level, what a pickup is
+	# worth. Values keep the type they were authored with, so `p.speed * dt`
+	# works without converting anything.
+	#
+	#     let p = scene.props(e);
+	#     let speed = scene.prop(e, "speed", 60);
+	#
+	# Groups say what a thing is, props say with what parameters. Between them
+	# a game keeps its behaviour in code and the level stays data.
+	scene.props = fn(e) {
+		if (!contains_key(e, "props")) { return {}; }
+		return e.props;
+	};
+
+	# One property, with a fallback -- a level authored before the property
+	# existed should not be a crash.
+	scene.prop = fn(e, key, fallback) {
+		let p = scene.props(e);
+		if (!contains_key(p, key)) { return fallback; }
+		return p[key];
+	};
+
+	scene.has_prop = fn(e, key) {
+		return contains_key(scene.props(e), key);
+	};
+
+	# --- looking entities up ------------------------------------------
+
+	scene.all = fn() { return doc.entities; };
+	scene.count = fn() { return len(doc.entities); };
+
+	scene.get = fn(id) {
+		for (let i = 0; i < len(doc.entities); i = i + 1) {
+			if (doc.entities[i].id == id) { return doc.entities[i]; }
+		}
+		return null;
+	};
+
+	# First match, or null. Names are not unique -- use find_all() when that
+	# matters, or an id when you need to be certain.
+	scene.find = fn(name) {
+		for (let i = 0; i < len(doc.entities); i = i + 1) {
+			if (doc.entities[i].name == name) { return doc.entities[i]; }
+		}
+		return null;
+	};
+
+	scene.find_all = fn(name) {
+		let out = [];
+		for (let i = 0; i < len(doc.entities); i = i + 1) {
+			if (doc.entities[i].name == name) { append(out, doc.entities[i]); }
+		}
+		return out;
+	};
+
+	# Everything tagged with a group, in document order.
+	scene.in_group = fn(group) {
+		let out = [];
+		for (let i = 0; i < len(doc.entities); i = i + 1) {
+			if (scene.has_group(doc.entities[i], group)) {
+				append(out, doc.entities[i]);
+			}
+		}
+		return out;
+	};
+
+	# Every group name used anywhere in the scene, without duplicates.
+	scene.group_names = fn() {
+		let out = [];
+		for (let i = 0; i < len(doc.entities); i = i + 1) {
+			let gs = scene.groups(doc.entities[i]);
+			for (let g = 0; g < len(gs); g = g + 1) {
+				let seen = false;
+				for (let k = 0; k < len(out); k = k + 1) {
+					if (out[k] == gs[g]) { seen = true; }
+				}
+				if (!seen) { append(out, gs[g]); }
+			}
+		}
+		return out;
+	};
+
+	scene.filter = fn(predicate) {
+		let out = [];
+		for (let i = 0; i < len(doc.entities); i = i + 1) {
+			if (predicate(doc.entities[i])) { append(out, doc.entities[i]); }
+		}
+		return out;
+	};
+
+	# --- spatial queries ----------------------------------------------
+	#
+	#  Axis-aligned and rotation-agnostic: they test the fixture box as the
+	#  editor lays it out. Good enough to pick a spawn point or find what is
+	#  near something; use the physics world for anything exact.
+
+	# Topmost first, matching what a click in the editor would select.
+	scene.at_point = fn(x, y) {
+		let out = [];
+		for (let i = len(doc.entities) - 1; i >= 0; i = i - 1) {
+			let r = scene.rect(doc.entities[i]);
+			if (x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3]) {
+				append(out, doc.entities[i]);
+			}
+		}
+		return out;
+	};
+
+	scene.in_rect = fn(x, y, w, h) {
+		let out = [];
+		for (let i = 0; i < len(doc.entities); i = i + 1) {
+			let r = scene.rect(doc.entities[i]);
+			if (r[0] < x + w && r[2] > x && r[1] < y + h && r[3] > y) {
+				append(out, doc.entities[i]);
+			}
+		}
+		return out;
+	};
+
+	scene.nearest = fn(x, y) {
+		let best = null;
+		let best_d = -1.0;
+		for (let i = 0; i < len(doc.entities); i = i + 1) {
+			let c = scene.center(doc.entities[i]);
+			let dx = c[0] - x;
+			let dy = c[1] - y;
+			let d = dx * dx + dy * dy;
+			if (best_d < 0.0 || d < best_d) {
+				best_d = d;
+				best = doc.entities[i];
+			}
+		}
+		return best;
+	};
+
+	# [min_x, min_y, max_x, max_y] over the whole scene, or null when empty.
+	scene.bounds = fn() {
+		if (len(doc.entities) == 0) { return null; }
+		let r = scene.rect(doc.entities[0]);
+		let minx = r[0];
+		let miny = r[1];
+		let maxx = r[2];
+		let maxy = r[3];
+		for (let i = 1; i < len(doc.entities); i = i + 1) {
+			let b = scene.rect(doc.entities[i]);
+			if (b[0] < minx) { minx = b[0]; }
+			if (b[1] < miny) { miny = b[1]; }
+			if (b[2] > maxx) { maxx = b[2]; }
+			if (b[3] > maxy) { maxy = b[3]; }
+		}
+		return [minx, miny, maxx, maxy];
+	};
+
+	return scene;
+}

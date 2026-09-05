@@ -1,0 +1,195 @@
+# ============================================================================
+#  const.fh -- shared constants
+# ----------------------------------------------------------------------------
+#  include "include" is textual, so this file has to come first: FH resolves a
+#  global where it is declared, and every other module reads these.
+# ============================================================================
+
+# --- microui flags ----------------------------------------------------------
+# love_ui_opt() and love_ui_align() name some of microui's MU_OPT_* flags; the
+# rest are plain bit values from src/3rdparty/microui/src/microui.h, and they
+# combine by addition.
+let ALIGN_LEFT   = 0;
+let ALIGN_CENTER = 1;      # MU_OPT_ALIGNCENTER
+let OPT_EXPANDED = 4096;   # MU_OPT_EXPANDED -- headers and trees start open
+
+# --- layout -----------------------------------------------------------------
+# FH global initializers must be constant expressions, so the viewport numbers
+# are spelled out: VP_W = SCREEN_W - 2*PANEL_W, VP_H = SCREEN_H - TOOLBAR_H -
+# STATUS_H.
+let PANEL_W   = 250;
+let TOOLBAR_H = 76;
+let STATUS_H  = 30;
+let SCREEN_W  = 1280;
+let SCREEN_H  = 760;
+
+let VP_X = 250;
+let VP_Y = 76;
+let VP_W = 780;
+let VP_H = 654;
+
+let HIER_H = 400;
+
+# --- toolbar metrics --------------------------------------------------------
+# Both toolbar rows share these so their groups line up: one action button is
+# always TB_BTN wide, a menu button TB_MENU, and TB_GAP separates two groups.
+let TB_BTN  = 84;
+let TB_MENU = 170;
+let TB_GAP  = 14;
+
+# The level opened when there is nothing remembered in editor.json. Every
+# other level is discovered from the game directory -- see scenes.fh.
+let SCENE_PATH  = "scene.json";
+let PREFS_PATH  = "editor.json";
+let DOC_VERSION = 1;
+let UNDO_LIMIT  = 40;
+
+# --- grid -------------------------------------------------------------------
+# The grid step is in world units and is what Snap rounds to, so it has to stay
+# a positive number: snap_value() divides by it.
+let GRID_DEFAULT = 20;
+let GRID_MIN     = 1;
+let GRID_MAX     = 512;
+
+# --- widget ids -------------------------------------------------------------
+# microui derives a widget's id from its label, and for sliders, number fields
+# and text boxes from the address it is handed -- which is the same stack slot
+# on every call. Every one of those therefore needs an id of its own here, or
+# they collide and none of them respond.
+let NAME_BOX      = 1;
+let SPRITE_BOX    = 2;
+let GROUP_BOX     = 3;
+let NEW_SCENE_BOX = 4;
+let PROP_KEY_BOX  = 5;
+let PROP_VAL_BOX  = 6;
+
+let ID_NUM_X       = 10;
+let ID_NUM_Y       = 11;
+let ID_NUM_W       = 12;
+let ID_NUM_H       = 13;
+let ID_NUM_ANGLE   = 14;
+let ID_NUM_DENSITY = 15;
+let ID_NUM_FRICTION = 16;
+let ID_NUM_BOUNCE  = 17;
+let ID_NUM_GRAVITY = 18;
+
+let ID_NUM_GRID    = 19;
+
+let ID_COL_R = 20;
+let ID_COL_G = 21;
+let ID_COL_B = 22;
+
+let ID_STYLE_BASE = 40;   # the theme editor uses 40..59
+
+# --- gizmo ------------------------------------------------------------------
+let HANDLE_HALF = 5;    # grip half-size, screen pixels
+let ARROW_LEN   = 52;   # axis arrow length, screen pixels
+let ROT_OFFSET  = 30;   # rotate knob, screen pixels above the top edge
+let ROT_SNAP    = 15;   # degrees, when Snap is on
+
+let MAX_HULL_POINTS = 8;   # Box2D's polygon vertex limit
+
+# Mouse wheel arrives through a callback that is not handed the state map, so
+# the delta parks here until the camera consumes it.
+let g_wheel = 0;
+
+fn love_wheelmoved(y) {
+	g_wheel = g_wheel + y;
+}
+
+# microui works in `float` (mu_Real), so a value that has been through a slider
+# or a number field comes back as 0.40000000596046448 rather than 0.4.
+# Quantising on the way into the document keeps the saved JSON clean and its
+# diffs readable.
+fn round_to(v, places) {
+	let m = math_pow(10, places);
+	return math_floor(v * m + 0.5) / m;
+}
+
+fn point_in(x, y, rx, ry, rw, rh) {
+	return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
+}
+
+fn drop_first(arr) {
+	let out = [];
+	for (let i = 1; i < len(arr); i = i + 1) { append(out, arr[i]); }
+	return out;
+}
+
+fn drop_last(arr) {
+	let out = [];
+	for (let i = 0; i < len(arr) - 1; i = i + 1) { append(out, arr[i]); }
+	return out;
+}
+
+# --- paths ------------------------------------------------------------------
+#
+# Written against the string, not string_split(): split runs on strtok, which
+# collapses runs of the delimiter, so "/a//b" and a leading "/" do not survive
+# a round trip.
+
+fn path_is_sep(c) {
+	return c == "/" || c == "\\";
+}
+
+fn path_join(dir, name) {
+	if (len(dir) == 0) { return name; }
+	if (path_is_sep(string_substr(dir, len(dir) - 1, 1))) { return dir + name; }
+	return dir + "/" + name;
+}
+
+# the directory holding `path`, or `path` itself once it is the root
+fn path_parent(path) {
+	let cut = -1;
+	for (let i = 0; i < len(path); i = i + 1) {
+		if (path_is_sep(string_substr(path, i, 1))) { cut = i; }
+	}
+	if (cut < 0) { return path; }
+	if (cut == 0) { return "/"; }          # "/usr" -> "/"
+	return string_substr(path, 0, cut);
+}
+
+fn path_name(path) {
+	let cut = -1;
+	for (let i = 0; i < len(path); i = i + 1) {
+		if (path_is_sep(string_substr(path, i, 1))) { cut = i; }
+	}
+	if (cut < 0) { return path; }
+	return string_substr(path, cut + 1, len(path) - cut - 1);
+}
+
+fn path_is_root(path) {
+	return path == "/" || len(path) == 0 || path_parent(path) == path;
+}
+
+fn path_has_suffix(name, suffix) {
+	if (len(name) < len(suffix)) { return false; }
+	let tail = string_substr(name, len(name) - len(suffix), len(suffix));
+	return string_lower(tail) == string_lower(suffix);
+}
+
+# `path` expressed relative to `base`, or null when it is not inside it
+fn path_relative_to(path, base) {
+	if (len(base) == 0 || len(path) <= len(base)) { return null; }
+	if (string_substr(path, 0, len(base)) != base) { return null; }
+
+	let rest = string_substr(path, len(base), len(path) - len(base));
+	while (len(rest) > 0 && path_is_sep(string_substr(rest, 0, 1))) {
+		rest = string_substr(rest, 1, len(rest) - 1);
+	}
+	if (len(rest) == 0) { return null; }
+	return rest;
+}
+
+
+# The console lives on the shared app map, so every module can report without
+# being handed the panel that renders it.
+fn log_line(app, msg) {
+	append(app.log, msg);
+	if (len(app.log) > 80) {
+		let trimmed = [];
+		for (let i = 20; i < len(app.log); i = i + 1) { append(trimmed, app.log[i]); }
+		app.log = trimmed;
+	}
+	return 0;
+}

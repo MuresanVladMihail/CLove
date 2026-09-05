@@ -1,0 +1,641 @@
+# ============================================================================
+#  panels.fh -- the microui panels
+# ----------------------------------------------------------------------------
+#  A docked panel passes notitle + noresize + noclose, which is what makes it
+#  fixed; the Theme editor deliberately omits them to show an ordinary microui
+#  window.
+#
+#  Two microui rules the code here has to respect:
+#
+#   * A slider, number field or text box takes its widget id from the address
+#     it is handed, which is the same stack slot on every call -- so each one
+#     needs an explicit id, or they collide and none of them respond.
+#   * mu_get_container() hashes a popup's name together with the top of the id
+#     stack, so love_ui_open_popup() and love_ui_begin_popup() must be called
+#     from the same enclosing window. Opening inside a panel and beginning
+#     outside it silently addresses two different containers.
+# ============================================================================
+
+
+fn panels_dock_opts(app) {
+	return love_ui_opt("notitle") + love_ui_opt("noresize") + love_ui_opt("noclose");
+}
+
+# --- toolbar --------------------------------------------------------
+
+fn panels_primitives_menu(app) {
+	# opened and begun inside the same window, see the note above
+	let label = "Primitives";
+	if (app.tool != "select") {
+		label = "Primitive: " + app.tool;
+	}
+	if (love_ui_button(label, ALIGN_CENTER)) {
+		love_ui_open_popup("primitives");
+	}
+
+	# closed from out here rather than from inside the body: the popup's own
+	# container is on top of the id stack in there, so the name would hash to
+	# something else -- same note as in scenes_menu()
+	let close_menu = false;
+
+	if (love_ui_begin_popup("primitives")) {
+		love_ui_layout_row(1, [110], 0);
+		if (love_ui_button("Rect", ALIGN_LEFT)) {
+			app.tool = "rect";
+			log_line(app, "tool: rect");
+			close_menu = true;
+		}
+		if (love_ui_button("Circle", ALIGN_LEFT)) {
+			app.tool = "circle";
+			log_line(app, "tool: circle");
+			close_menu = true;
+		}
+		love_ui_end_popup();
+	}
+
+	if (close_menu) { love_ui_setWindowOpen("primitives", false); }
+
+	# asked after the fact, and from the window that opened it: begin_popup()
+	# still answers true on the frame the popup is being dismissed
+	if (love_ui_popup_open("primitives")) { app.popup_open = true; }
+	return 0;
+}
+
+fn panels_toolbar(app) {
+	if (love_ui_begin_window("Toolbar", 0, 0, SCREEN_W, TOOLBAR_H, panels_dock_opts(app))) {
+
+		# Both rows use the same column widths for their first ten cells, so
+		# the groups line up vertically: one action button is always TB_BTN
+		# wide, one menu button TB_MENU, and TB_GAP separates groups. The rows
+		# only diverge past the last gap, where row 2 keeps the toggles.
+		#
+		#   | one    | menu          | pair          | pair          | rest
+		#   | Play   | scene.json    | Save   Load   | Undo   Redo   | 3 undo
+		#   | Select | Primitives    | Dup    Delete | Frame  Reset  | toggles
+
+		# --- row 1: run, level, file, history ---
+		love_ui_layout_row(11,
+			[TB_BTN, TB_GAP, TB_MENU, TB_GAP, TB_BTN, TB_BTN, TB_GAP,
+			 TB_BTN, TB_BTN, TB_GAP, -1], 0);
+
+		if (app.mode == "edit") {
+			if (love_ui_button("Play", ALIGN_CENTER)) { sim_play(app); }
+		} else {
+			if (love_ui_button("Stop", ALIGN_CENTER)) { sim_stop(app); }
+		}
+		love_ui_label("");
+
+		scenes_menu(app);
+		love_ui_label("");
+
+		if (love_ui_button("Save", ALIGN_CENTER)) { doc_save(app, app.scene_path); }
+		if (love_ui_button("Load", ALIGN_CENTER)) { doc_load(app, app.scene_path); }
+		love_ui_label("");
+
+		if (love_ui_button("Undo", ALIGN_CENTER)) { doc_undo(app); }
+		if (love_ui_button("Redo", ALIGN_CENTER)) { doc_redo(app); }
+		love_ui_label("");
+
+		# the scene name and its unsaved mark live on the menu button, so this
+		# is left for what the buttons beside it cannot show
+		let state = "";
+		if (app.mode == "play") { state = "[playing]   "; }
+		love_ui_label(state + len(app.undo) + " undo");
+
+		# --- row 2: tools, editing, view, toggles ---
+		love_ui_layout_row(15,
+			[TB_BTN, TB_GAP, TB_MENU, TB_GAP, TB_BTN, TB_BTN, TB_GAP,
+			 TB_BTN, TB_BTN, TB_GAP, 76, 70, 56, 92, -1], 0);
+
+		let select_label = "  Select";
+		if (app.tool == "select") { select_label = "> Select"; }
+		if (love_ui_button(select_label, ALIGN_CENTER)) {
+			app.tool = "select";
+			log_line(app, "tool: select");
+		}
+		love_ui_label("");
+
+		panels_primitives_menu(app);
+		love_ui_label("");
+
+		if (love_ui_button("Duplicate", ALIGN_CENTER)) { doc_duplicate(app); }
+		if (love_ui_button("Delete", ALIGN_CENTER)) {
+			if (doc_selected(app) != null) { app.confirm = true; }
+		}
+		love_ui_label("");
+
+		if (love_ui_button("Frame all", ALIGN_CENTER)) { cam_frame_all(app); }
+		if (love_ui_button("Reset view", ALIGN_CENTER)) { cam_reset(app); }
+		love_ui_label("");
+
+		if (love_ui_checkbox("Snap", app.snap, 1)) {
+			app.snap = !app.snap;
+			prefs_touch(app);
+		}
+		if (love_ui_checkbox("Grid", app.show_grid, 2)) {
+			app.show_grid = !app.show_grid;
+			prefs_touch(app);
+		}
+
+		# The grid step, in world units: what the viewport rules and what Snap
+		# rounds to. Drag it or click to type; prefs.fh clamps and persists it.
+		prefs_set_grid(app,
+			love_ui_number(app.grid, 1, ID_NUM_GRID, ALIGN_CENTER, 0));
+
+		if (love_ui_checkbox("Fixtures", app.show_fixtures, 3)) {
+			app.show_fixtures = !app.show_fixtures;
+			prefs_touch(app);
+		}
+		love_ui_label("");
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+fn panels_hierarchy(app) {
+	if (love_ui_begin_window("Hierarchy", 0, TOOLBAR_H, PANEL_W, HIER_H, panels_dock_opts(app))) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_label("HIERARCHY");
+
+		if (love_ui_header("Scene", OPT_EXPANDED)) {
+			# negative height = "fill the rest of the panel, minus 30px"
+			love_ui_layout_row(1, [-1], -30);
+			love_ui_begin_panel(app.hierarchy_panel, "scene_list", 0);
+			love_ui_layout_row(1, [-1], 0);
+
+			let entities = doc_entities(app);
+			for (let i = 0; i < len(entities); i = i + 1) {
+				let e = entities[i];
+
+				# microui derives a widget id from its label, so two
+				# entities with the same name would be the same button.
+				# Mixing the entity id into the id stack keeps them apart.
+				love_ui_pushId(e.id);
+
+				let mark = "   ";
+				if (e.id == app.selected_id) { mark = ">  "; }
+				let suffix = "";
+				if (!e.visible) { suffix = "   (hidden)"; }
+				if (love_ui_button(mark + e.name + suffix, ALIGN_LEFT)) {
+					app.selected_id = e.id;
+					log_line(app, "selected " + e.name);
+				}
+
+				love_ui_popId();
+			}
+
+			love_ui_end_panel();
+		}
+
+		love_ui_layout_row(2, [-80, -1], 0);
+		love_ui_label(doc_count(app) + " entities");
+		if (love_ui_button("Help", ALIGN_CENTER)) {
+			love_ui_open_popup("Shortcuts");
+		}
+
+		# begun in the same window that opened it
+		if (love_ui_begin_popup("Shortcuts")) {
+			love_ui_layout_row(1, [330], 0);
+			love_ui_text("Select tool: click to pick, drag to move. The gizmo " +
+				"gives you X and Y arrows, a rotate knob and eight resize grips.");
+			love_ui_text("Primitives: pick Rect or Circle, then click in the viewport.");
+			love_ui_text("Pan: drag with the right or middle button, space + left, " +
+				"or the arrow keys while the cursor is over the viewport.");
+			love_ui_text("Wheel zooms around the cursor. F frames the whole scene.");
+			love_ui_text("Properties: free-form data on an entity -- a patrol " +
+				"radius, a door's target level. true/false and numbers are " +
+				"stored typed. A game reads them with scene.props(); groups " +
+				"say what a thing is, properties say with what parameters.");
+			love_ui_text("Appearance: the colour modulates -- it fills a shape " +
+				"that has no artwork and tints one that does, so white means " +
+				"untinted.");
+			love_ui_text("Grid: the number beside the Grid box is the step in " +
+				"world units -- drag it or click to type. It is what Snap " +
+				"rounds to, and it is remembered in " + PREFS_PATH + ".");
+			love_ui_text("Inspector numbers: drag left and right, or click to type.");
+			love_ui_text("Sprite: Browse... opens a file picker over the whole " +
+				"machine. Art inside the game folder is stored relative to it, " +
+				"anything else absolutely; only the path is saved, never the image.");
+			love_ui_text("Play builds a Box2D world; Stop throws it away and the " +
+				"document is exactly as you left it.");
+			love_ui_text("Levels: the button beside Play names the level you are " +
+				"editing; click it to switch, or to start a new one. Every " +
+				"*.json beside the game is a level, editor.json excepted.");
+			love_ui_text("Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save. Esc closes a " +
+				"dialog, or quits when none is open.");
+			love_ui_end_popup();
+		}
+		if (love_ui_popup_open("Shortcuts")) { app.popup_open = true; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+# --- inspector ------------------------------------------------------
+
+fn panels_groups_to_text(app, e) {
+	let out = "";
+	for (let i = 0; i < len(e.groups); i = i + 1) {
+		if (i > 0) { out = out + ", "; }
+		out = out + e.groups[i];
+	}
+	return out;
+}
+
+fn panels_text_to_groups(app, text) {
+	let out = [];
+	let parts = string_split(text, ",");
+	for (let i = 0; i < len(parts); i = i + 1) {
+		let g = string_trim(parts[i]);
+		if (len(g) > 0) { append(out, g); }
+	}
+	return out;
+}
+
+fn panels_shape_button(app, f, label) {
+	let caption = "  " + label;
+	if (f.shape == label) { caption = "> " + label; }
+	if (love_ui_button(caption, ALIGN_CENTER)) {
+		doc_begin_edit(app);
+		f.shape = label;
+	}
+	return 0;
+}
+
+fn panels_body_type_button(app, e, label) {
+	let caption = "  " + label;
+	if (e.body.type == label) { caption = "> " + label; }
+	if (love_ui_button(caption, ALIGN_CENTER)) {
+		doc_begin_edit(app);
+		e.body.type = label;
+	}
+	return 0;
+}
+
+fn panels_inspector(app) {
+	if (love_ui_begin_window("Inspector", SCREEN_W - PANEL_W, TOOLBAR_H,
+	                         PANEL_W, SCREEN_H - TOOLBAR_H, panels_dock_opts(app))) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_label("INSPECTOR");
+
+		let e = doc_selected(app);
+		if (e == null) {
+			love_ui_text("Nothing selected. Pick an entity in the viewport or in the hierarchy.");
+			love_ui_end_window();
+			return 0;
+		}
+
+		let f = doc_shape(app, e);
+
+		if (app.mode == "play") {
+			love_ui_text("Playing. Edits apply to the document, not to the running simulation.");
+		}
+
+		if (love_ui_header("Identity", OPT_EXPANDED)) {
+			love_ui_layout_row(2, [56, -1], 0);
+			love_ui_label("Id:");
+			love_ui_label("" + e.id);
+			love_ui_label("Name:");
+
+			let box = love_ui_textbox(NAME_BOX, e.name);
+			# box[0] is a MU_RES_* bitmask, box[1] the current text
+			if (box[0] != 0 && len(box[1]) > 0 && box[1] != e.name) {
+				doc_begin_edit(app);
+				e.name = box[1];
+			}
+		}
+
+		if (love_ui_header("Groups", OPT_EXPANDED)) {
+			love_ui_layout_row(1, [-1], 0);
+			let current = panels_groups_to_text(app, e);
+			let box = love_ui_textbox(GROUP_BOX, current);
+			if (box[0] != 0 && box[1] != current) {
+				doc_begin_edit(app);
+				e.groups = panels_text_to_groups(app, box[1]);
+			}
+			love_ui_label("comma separated, queried by the scene package");
+		}
+
+		# groups say what a thing is, props say with what parameters -- between
+		# them a game keeps its behaviour in code and the level stays data
+		props_panel(app, e);
+
+		if (love_ui_header("Collision", OPT_EXPANDED)) {
+			love_ui_layout_row(3, [62, 72, -1], 0);
+			panels_shape_button(app, f, "rect");
+			panels_shape_button(app, f, "circle");
+			panels_shape_button(app, f, "traced");
+
+			love_ui_layout_row(1, [-1], 0);
+			if (f.shape == "traced") {
+				let poly = trace_points(app, e);
+				if (poly == null) {
+					love_ui_text("Nothing to trace: give it vector art first.");
+				} else {
+					love_ui_label((len(poly) / 2) + " vertices, hulled");
+				}
+			}
+		}
+
+		if (love_ui_header("Sprite", OPT_EXPANDED)) {
+			# Only the path is stored. love_graphics_newImage() takes .svg
+			# and .png alike, so the format never has to be recorded.
+			love_ui_layout_row(1, [-1], 0);
+			let current = "";
+			if (e.sprite != null) { current = e.sprite.path; }
+
+			let box = love_ui_textbox(SPRITE_BOX, current);
+			if (box[0] != 0 && box[1] != current) {
+				doc_begin_edit(app);
+				if (len(box[1]) == 0) {
+					e.sprite = null;
+				} else {
+					e.sprite = { "path": box[1] };
+				}
+			}
+
+			# typing a path works, but browsing for one is the usual way in
+			love_ui_layout_row(2, [-90, -1], 0);
+			if (love_ui_button("Browse...", ALIGN_CENTER)) { browser_open(app, e); }
+			if (love_ui_button("Clear", ALIGN_CENTER)) {
+				if (e.sprite != null) {
+					doc_begin_edit(app);
+					e.sprite = null;
+					love_ui_clear_textbox(SPRITE_BOX);
+				}
+			}
+
+			love_ui_layout_row(1, [-1], 0);
+
+			let img = sprite_of(app, e);
+			if (img == null) {
+				love_ui_label("no sprite -- drawing the fixture");
+			} else if (love_image_isVector(img)) {
+				love_ui_label("vector, rasterised at " +
+					love_image_getVectorScale(img) + "x");
+			} else {
+				love_ui_label("bitmap " + love_image_getWidth(img) +
+					"x" + love_image_getHeight(img));
+			}
+		}
+
+		if (love_ui_header("Transform", OPT_EXPANDED)) {
+			# love_ui_number() is a drag-to-edit field: no fixed range,
+			# which is what coordinates and sizes want.
+			love_ui_layout_row(2, [56, -1], 0);
+			love_ui_label("X:");
+			let x = love_ui_number(e.transform.x, 1, ID_NUM_X);
+			love_ui_label("Y:");
+			let y = love_ui_number(e.transform.y, 1, ID_NUM_Y);
+			love_ui_label("W:");
+			let w = love_ui_number(f.w, 1, ID_NUM_W);
+			love_ui_label("H:");
+			let h = love_ui_number(f.h, 1, ID_NUM_H);
+			love_ui_label("Angle:");
+			let a = love_ui_number(e.transform.angle, 0.01, ID_NUM_ANGLE);
+
+			x = round_to(x, 2);
+			y = round_to(y, 2);
+			w = round_to(math_max(w, 4), 2);
+			h = round_to(math_max(h, 4), 2);
+			a = round_to(a, 4);
+
+			if (x != e.transform.x || y != e.transform.y ||
+			    w != f.w || h != f.h || a != e.transform.angle) {
+				doc_begin_edit(app);
+				e.transform.x = x;
+				e.transform.y = y;
+				e.transform.angle = a;
+				f.w = w;
+				f.h = h;
+			}
+		}
+
+		if (love_ui_header("Body", OPT_EXPANDED)) {
+			# microui reads a negative width as "container width + w", so a
+			# row of them makes the first cell swallow the whole line.
+			love_ui_layout_row(3, [62, 72, -1], 0);
+			panels_body_type_button(app, e, "static");
+			panels_body_type_button(app, e, "dynamic");
+			panels_body_type_button(app, e, "kinematic");
+
+			love_ui_layout_row(2, [86, -1], 0);
+			love_ui_label("Density:");
+			let d = love_ui_number(f.density, 0.05, ID_NUM_DENSITY);
+			love_ui_label("Friction:");
+			let fr = love_ui_number(f.friction, 0.02, ID_NUM_FRICTION);
+			love_ui_label("Bounce:");
+			let re = love_ui_number(f.restitution, 0.02, ID_NUM_BOUNCE);
+			love_ui_label("Gravity:");
+			let gs = love_ui_number(e.body.gravity_scale, 0.05, ID_NUM_GRAVITY);
+
+			d  = round_to(math_max(d, 0), 3);
+			fr = round_to(math_max(fr, 0), 3);
+			re = round_to(math_max(re, 0), 3);
+			gs = round_to(gs, 3);
+
+			if (d != f.density || fr != f.friction || re != f.restitution ||
+			    gs != e.body.gravity_scale) {
+				doc_begin_edit(app);
+				f.density = d;
+				f.friction = fr;
+				f.restitution = re;
+				e.body.gravity_scale = gs;
+			}
+
+			love_ui_layout_row(1, [-1], 0);
+			if (love_ui_checkbox("Sensor", f.sensor, 4)) {
+				doc_begin_edit(app);
+				f.sensor = !f.sensor;
+			}
+			if (love_ui_checkbox("Fixed rotation", e.body.fixed_rotation, 5)) {
+				doc_begin_edit(app);
+				e.body.fixed_rotation = !e.body.fixed_rotation;
+			}
+		}
+
+		if (love_ui_header("Appearance", OPT_EXPANDED)) {
+			love_ui_layout_row(2, [56, -1], 0);
+			love_ui_label("R:");
+			let r = love_ui_slider(e.color[0], 0, 255, 1, ID_COL_R, ALIGN_CENTER);
+			love_ui_label("G:");
+			let g = love_ui_slider(e.color[1], 0, 255, 1, ID_COL_G, ALIGN_CENTER);
+			love_ui_label("B:");
+			let b = love_ui_slider(e.color[2], 0, 255, 1, ID_COL_B, ALIGN_CENTER);
+
+			r = round_to(r, 0);
+			g = round_to(g, 0);
+			b = round_to(b, 0);
+
+			if (r != e.color[0] || g != e.color[1] || b != e.color[2]) {
+				doc_begin_edit(app);
+				e.color[0] = r;
+				e.color[1] = g;
+				e.color[2] = b;
+			}
+
+			# a swatch painted straight into the next layout cell
+			love_ui_layout_row(1, [-1], 28);
+			let sw = love_ui_layout_next();
+			love_ui_rect(sw[0], sw[1], sw[2], sw[3], e.color[0], e.color[1], e.color[2], 255);
+			love_ui_control_text(tointeger(e.color[0]) + ", " +
+				tointeger(e.color[1]) + ", " + tointeger(e.color[2]),
+				sw[0], sw[1], sw[2], sw[3], 0, love_ui_align("center"));
+
+			# The colour modulates the sprite as well as the plain shape, so
+			# getting back to "untinted" wants to be one click, not three
+			# sliders dragged to the end.
+			love_ui_layout_row(2, [-90, -1], 0);
+			if (e.sprite == null) {
+				love_ui_label("fill colour");
+			} else {
+				love_ui_label("tints the sprite");
+			}
+			if (love_ui_button("White", ALIGN_CENTER)) {
+				if (e.color[0] != 255 || e.color[1] != 255 || e.color[2] != 255) {
+					doc_begin_edit(app);
+					e.color[0] = 255;
+					e.color[1] = 255;
+					e.color[2] = 255;
+				}
+			}
+
+			love_ui_layout_row(1, [-1], 0);
+			if (love_ui_checkbox("Visible", e.visible, 6)) {
+				doc_begin_edit(app);
+				e.visible = !e.visible;
+			}
+		}
+
+		love_ui_layout_row(1, [-1], 0);
+		if (love_ui_button("Delete entity", ALIGN_CENTER)) { app.confirm = true; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+# --- console, status, theme, confirm --------------------------------
+
+fn panels_console(app) {
+	if (love_ui_begin_window("Console", 0, TOOLBAR_H + HIER_H,
+	                         PANEL_W, SCREEN_H - TOOLBAR_H - HIER_H, panels_dock_opts(app))) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_label("CONSOLE");
+
+		love_ui_layout_row(1, [-1], -30);
+		love_ui_begin_panel(app.console_panel, "log", 0);
+		love_ui_layout_row(1, [-1], 0);
+		for (let i = 0; i < len(app.log); i = i + 1) { love_ui_text(app.log[i]); }
+		love_ui_end_panel();
+
+		love_ui_layout_row(2, [-80, -1], 0);
+		if (love_ui_checkbox("Theme", app.show_style, 7)) { app.show_style = !app.show_style; }
+		if (love_ui_button("Clear", ALIGN_CENTER)) { app.log = []; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+fn panels_statusbar(app) {
+	if (love_ui_begin_window("Status", VP_X, SCREEN_H - STATUS_H,
+	                         VP_W, STATUS_H, panels_dock_opts(app))) {
+		love_ui_layout_row(6, [90, 150, 170, 110, 100, -1], 0);
+
+		love_ui_label("mode: " + app.mode);
+		love_ui_label("world: " + tointeger(app.wx) + ", " + tointeger(app.wy));
+
+		let name = "none";
+		let e = doc_selected(app);
+		if (e != null) { name = e.name + " (#" + e.id + ")"; }
+		love_ui_label("selected: " + name);
+		love_ui_label("zoom: " + app.cam.zoom + "x");
+		love_ui_label("meter: " + app.doc_data.meter);
+		love_ui_label("fps: " + tointeger(love_timer_getFPS()));
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+fn panels_style_row(app, name, id) {
+	let c = love_ui_getColor(name);
+	love_ui_label(name);
+	let r = love_ui_slider(c[0], 0, 255, 1, id, ALIGN_CENTER);
+	let g = love_ui_slider(c[1], 0, 255, 1, id + 1, ALIGN_CENTER);
+	let b = love_ui_slider(c[2], 0, 255, 1, id + 2, ALIGN_CENTER);
+	# c[4] is the MU_COLOR_* id love_ui_getColor() resolved the name to
+	love_ui_setColor(c[4], r, g, b, c[3]);
+	let sw = love_ui_layout_next();
+	love_ui_rect(sw[0], sw[1], sw[2], sw[3], r, g, b, 255);
+	return 0;
+}
+
+fn panels_theme(app) {
+	if (!app.show_style) {
+		app.style_open = false;
+		return 0;
+	}
+
+	# microui latches a window shut once its own close button is used -- the
+	# container's open flag goes to 0 and begin_window answers false for good.
+	# Re-open it by hand on the frame the check box turns back on. This has to
+	# happen out here, at the same scope the window is begun in: the name is
+	# hashed against the top of the id stack, so asking from inside the console
+	# panel would address a different container.
+	if (!app.style_open) {
+		love_ui_setWindowOpen("Theme editor", true);
+		app.style_open = true;
+	}
+	# No panels_dock_opts(app) here on purpose: this one has a title bar you can drag
+	# and a grip you can resize, which is a plain microui window.
+	if (love_ui_begin_window("Theme editor", 330, 160, 470, 300, 0)) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_text("Live microui style colours. This window is draggable and " +
+		             "resizable; the editor panels pass notitle + noresize so " +
+		             "they stay docked.");
+
+		love_ui_layout_row(5, [110, 70, 70, 70, -1], 0);
+		panels_style_row(app, "windowBg", ID_STYLE_BASE);
+		panels_style_row(app, "button", ID_STYLE_BASE + 3);
+		panels_style_row(app, "buttonHover", ID_STYLE_BASE + 6);
+		panels_style_row(app, "text", ID_STYLE_BASE + 9);
+		panels_style_row(app, "border", ID_STYLE_BASE + 12);
+
+		love_ui_end_window();
+	} else {
+		# microui returns 0 once its own title-bar close button has been
+		# pressed, so this is where the check box in the console panel finds
+		# out the window is gone
+		app.show_style = false;
+		app.style_open = false;
+	}
+	return 0;
+}
+
+fn panels_confirm(app) {
+	if (!app.confirm) { return 0; }
+	# A self-managed modal rather than a microui popup, because a popup can
+	# only be closed by clicking outside it.
+	if (love_ui_begin_window("Confirm", 470, 320, 340, 120,
+	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
+		love_ui_layout_row(1, [-1], 0);
+		let e = doc_selected(app);
+		let name = "the selection";
+		if (e != null) { name = e.name; }
+		love_ui_text("Delete " + name + "?");
+
+		love_ui_layout_row(2, [-90, -1], 0);
+		if (love_ui_button("Delete", ALIGN_CENTER)) {
+			doc_delete_selected(app);
+			app.confirm = false;
+		}
+		if (love_ui_button("Cancel", ALIGN_CENTER)) { app.confirm = false; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}

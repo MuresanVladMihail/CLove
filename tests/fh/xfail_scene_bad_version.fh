@@ -1,0 +1,19 @@
+# A document written by a newer editor must be refused rather than partly
+# understood. Runner expects a non-zero exit.
+
+include "packages/scene.fh"
+
+fn run() {
+    let doc = {};
+    doc.version = 999;
+    doc.entities = [];
+    let scene = Scene(doc);
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}

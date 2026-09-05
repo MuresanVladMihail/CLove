@@ -1,0 +1,40 @@
+# ============================================================================
+#  sprites.fh -- the image cache
+# ----------------------------------------------------------------------------
+#  Vector art needs no help with its rasterisation scale:
+#  graphics_Image_updateVectorScale() picks it from the draw scale *and* the
+#  matrix stack, so the camera's love_graphics_scale() is already part of it.
+#  Calling love_image_setVectorScale() would pin the scale and switch that off
+#  (pass 0 to hand it back if you ever do pin one).
+# ============================================================================
+
+
+# A failed load is cached as `false`, so a bad path is reported once
+# instead of retried every frame.
+fn sprite_image(app, path) {
+	if (contains_key(app.sprite_cache, path)) {
+		let cached = app.sprite_cache[path];
+		if (cached == false) { return null; }
+		return cached;
+	}
+
+	if (io_filetype(path) != "file") {
+		app.sprite_cache[path] = false;
+		log_line(app, "sprite not found: " + path);
+		return null;
+	}
+
+	let img = love_graphics_newImage(path);
+	app.sprite_cache[path] = img;
+	let kind = "bitmap";
+	if (love_image_isVector(img)) { kind = "vector"; }
+	log_line(app, "loaded " + path + " (" + kind + ")");
+	return img;
+}
+
+fn sprite_of(app, e) {
+	if (e.sprite == null) { return null; }
+	if (!contains_key(e.sprite, "path")) { return null; }
+	if (len(e.sprite.path) == 0) { return null; }
+	return sprite_image(app, e.sprite.path);
+}

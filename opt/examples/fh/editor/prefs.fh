@@ -1,0 +1,95 @@
+# ============================================================================
+#  prefs.fh -- the editor's own settings
+# ----------------------------------------------------------------------------
+#  Grid step, snapping, what the viewport draws, and which level is open are
+#  *editor* state, not scene data: two people opening the same level should not
+#  have to agree on a grid, and a game reading the scene has no use for one. So
+#  they live in their own little file beside the levels rather than inside one.
+#
+#  config.fh cannot hold them either -- the engine runs that file in a separate
+#  program instance to configure the window (see fh_main_activity_load in
+#  src/fh_mainactivity.c), so main.fh never sees what it set.
+#
+#  Writing happens on release rather than on change: a number field being
+#  dragged fires every frame, and that is not worth a file write each time.
+# ============================================================================
+
+
+fn prefs_defaults(app) {
+	app.grid           = GRID_DEFAULT;
+	app.snap           = true;
+	app.show_grid      = true;
+	app.show_fixtures  = true;
+	app.scene_path     = SCENE_PATH;   # which level is open; see scenes.fh
+	app.prefs_dirty    = false;
+	return 0;
+}
+
+fn prefs_clamp_grid(v) {
+	let n = math_floor(v + 0.5);
+	if (n < GRID_MIN) { return GRID_MIN; }
+	if (n > GRID_MAX) { return GRID_MAX; }
+	return n;
+}
+
+fn prefs_set_grid(app, v) {
+	let n = prefs_clamp_grid(v);
+	if (n == app.grid) { return 0; }
+	app.grid = n;
+	app.prefs_dirty = true;
+	return 0;
+}
+
+fn prefs_touch(app) {
+	app.prefs_dirty = true;
+	return 0;
+}
+
+fn prefs_load(app) {
+	if (io_filetype(PREFS_PATH) != "file") { return false; }
+
+	let file = io_open(PREFS_PATH, "r");
+	let text = io_read(file);
+	io_close(file);
+
+	let parsed = json_parse(text);
+	if (parsed == null || type(parsed) != "map") { return false; }
+
+	# every key is optional: a file written by an older editor still loads
+	if (contains_key(parsed, "grid")) { app.grid = prefs_clamp_grid(parsed.grid); }
+	if (contains_key(parsed, "snap")) { app.snap = parsed.snap; }
+	if (contains_key(parsed, "show_grid")) { app.show_grid = parsed.show_grid; }
+	if (contains_key(parsed, "show_fixtures")) { app.show_fixtures = parsed.show_fixtures; }
+	# the level to reopen. A name only, no directory: levels live next to the
+	# game, and a path out of it would make editor.json machine-specific.
+	if (contains_key(parsed, "scene") && type(parsed.scene) == "string" &&
+	    len(parsed.scene) > 0) {
+		app.scene_path = path_name(parsed.scene);
+	}
+
+	app.prefs_dirty = false;
+	return true;
+}
+
+fn prefs_save(app) {
+	let file = io_open(PREFS_PATH, "w");
+	io_write(file, json_stringify({
+		"grid": app.grid,
+		"snap": app.snap,
+		"show_grid": app.show_grid,
+		"show_fixtures": app.show_fixtures,
+		"scene": app.scene_path
+	}, true));
+	io_close(file);
+	app.prefs_dirty = false;
+	return 0;
+}
+
+# Called once a frame. Held off while the button is down so that dragging the
+# grid field writes the file once, at the end, instead of sixty times a second.
+fn prefs_flush(app) {
+	if (!app.prefs_dirty) { return 0; }
+	if (love_mouse_isDown("l")) { return 0; }
+	prefs_save(app);
+	return 0;
+}

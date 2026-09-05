@@ -1,0 +1,129 @@
+# ============================================================================
+#  camera.fh -- pan, zoom and the world/screen mapping
+# ============================================================================
+
+
+fn cam_to_screen(app, wx, wy) {
+	return [VP_X + (wx - app.cam.x) * app.cam.zoom,
+	        VP_Y + (wy - app.cam.y) * app.cam.zoom];
+}
+
+fn cam_to_world(app, sx, sy) {
+	return [app.cam.x + (sx - VP_X) / app.cam.zoom,
+	        app.cam.y + (sy - VP_Y) / app.cam.zoom];
+}
+
+fn cam_reset(app) {
+	app.cam.x = 0;
+	app.cam.y = 0;
+	app.cam.zoom = 1;
+	return 0;
+}
+
+fn cam_zoom_by(app, factor, anchor_x, anchor_y) {
+	# keep the world point under the cursor pinned while zooming
+	let before = cam_to_world(app, anchor_x, anchor_y);
+	let z = math_min(math_max(app.cam.zoom * factor, 0.2), 5);
+	app.cam.zoom = round_to(z, 3);
+	let after = cam_to_world(app, anchor_x, anchor_y);
+	app.cam.x = app.cam.x + (before[0] - after[0]);
+	app.cam.y = app.cam.y + (before[1] - after[1]);
+	return 0;
+}
+
+# Put the whole scene on screen, the way F does in most editors.
+fn cam_frame_all(app) {
+	let entities = doc_entities(app);
+	if (len(entities) == 0) {
+		cam_reset(app);
+		return 0;
+	}
+
+	let first = doc_bounds(app, entities[0]);
+	let b = [first[0], first[1], first[0] + first[2], first[1] + first[3]];
+	for (let i = 1; i < len(entities); i = i + 1) {
+		let e = doc_bounds(app, entities[i]);
+		if (e[0] < b[0]) { b[0] = e[0]; }
+		if (e[1] < b[1]) { b[1] = e[1]; }
+		if (e[0] + e[2] > b[2]) { b[2] = e[0] + e[2]; }
+		if (e[1] + e[3] > b[3]) { b[3] = e[1] + e[3]; }
+	}
+
+	let pad = 40;
+	let w = math_max(b[2] - b[0] + pad * 2, 1);
+	let h = math_max(b[3] - b[1] + pad * 2, 1);
+	let zoom = math_min(VP_W / w, VP_H / h);
+	app.cam.zoom = round_to(math_min(math_max(zoom, 0.2), 5), 3);
+
+	app.cam.x = (b[0] + b[2]) * 0.5 - (VP_W * 0.5) / app.cam.zoom;
+	app.cam.y = (b[1] + b[3]) * 0.5 - (VP_H * 0.5) / app.cam.zoom;
+	log_line(app, "framed the scene");
+	return 0;
+}
+
+# Returns true while the view is being dragged, so the caller knows to
+# leave the scene alone.
+fn cam_input(app, dt, inside) {
+	# wheel zooms around the cursor
+	if (g_wheel != 0 && inside) {
+		let factor = 1.1;
+		if (g_wheel < 0) { factor = 1.0 / 1.1; }
+		cam_zoom_by(app, factor, app.mx, app.my);
+	}
+	g_wheel = 0;
+
+	# Keyboard panning, so the view is reachable without a three-button
+	# mouse. Speed is in screen pixels, so it feels the same at any zoom.
+	# Only while the cursor is over the viewport: the panels have text
+	# boxes, and a letter key must go to what is being typed.
+	if (inside) {
+		let speed = 600 * dt / app.cam.zoom;
+		if (love_keyboard_isDown("left"))  { app.cam.x = app.cam.x - speed; }
+		if (love_keyboard_isDown("right")) { app.cam.x = app.cam.x + speed; }
+		if (love_keyboard_isDown("up"))    { app.cam.y = app.cam.y - speed; }
+		if (love_keyboard_isDown("down"))  { app.cam.y = app.cam.y + speed; }
+
+		let f_now = love_keyboard_isDown("f");
+		if (f_now && !app.key_f) { cam_frame_all(app); }
+		app.key_f = f_now;
+	} else {
+		app.key_f = false;
+	}
+
+	# Drag to pan: right button, middle button, or space with the left
+	# one. Three ways in because the first thing anyone tries differs.
+	let want_pan = love_mouse_isDown("r") || love_mouse_isDown("m") ||
+		(love_keyboard_isDown("space") && love_mouse_isDown("l"));
+
+	if (want_pan && inside) {
+		if (!app.panning) {
+			app.panning = true;
+		} else {
+			app.cam.x = app.cam.x - (app.mx - app.pan_x) / app.cam.zoom;
+			app.cam.y = app.cam.y - (app.my - app.pan_y) / app.cam.zoom;
+		}
+	} else {
+		app.panning = false;
+	}
+	app.pan_x = app.mx;
+	app.pan_y = app.my;
+	return app.panning;
+}
+
+# Applies the camera to the matrix stack. Order matters:
+# matrixstack_scale() rebuilds the head matrix from scratch (see
+# src/graphics/matrixstack.c), so a translate done before it is thrown
+# away. Scaling first and translating after composes correctly, which is
+# why the offsets are divided by the zoom.
+fn cam_push(app) {
+	love_graphics_push();
+	love_graphics_scale(app.cam.zoom, app.cam.zoom);
+	love_graphics_translate((VP_X - app.cam.x * app.cam.zoom) / app.cam.zoom,
+	                        (VP_Y - app.cam.y * app.cam.zoom) / app.cam.zoom);
+	return 0;
+}
+
+fn cam_pop(app) {
+	love_graphics_pop();
+	return 0;
+}

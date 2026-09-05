@@ -1,0 +1,225 @@
+# ============================================================================
+#  scenes.fh -- levels
+# ----------------------------------------------------------------------------
+#  A scene file is a level. The editor works on one at a time and switches
+#  between them from the Scene menu in the toolbar.
+#
+#  The list is not stored anywhere: it is every *.json in the game directory
+#  that is not the preferences file, read fresh each time the menu opens. Drop
+#  a level in the folder and it is there; delete one and it is gone. What *is*
+#  remembered, in editor.json, is which level you were on -- so reopening the
+#  editor puts you back where you left off.
+#
+#  Switching with unsaved work goes through a modal first. Losing an hour of
+#  level building to a menu click is not a trade anyone wants.
+#
+#  Functions are ordered callee-first: FH resolves a name where it is used, so
+#  a function has to be defined above the one that calls it.
+# ============================================================================
+
+
+fn scenes_is_scene_file(name) {
+	if (!path_has_suffix(name, ".json")) { return false; }
+	return name != PREFS_PATH;
+}
+
+fn scenes_list(app) {
+	let entries = love_filesystem_list(app.game_dir);
+	if (entries == null) { return []; }
+
+	let out = [];
+	for (let i = 0; i < len(entries); i = i + 1) {
+		let entry = entries[i];
+		if (!entry.dir && scenes_is_scene_file(entry.name)) { append(out, entry.name); }
+	}
+	return out;
+}
+
+fn scenes_refresh(app) {
+	let files = scenes_list(app);
+
+	# A level created but not yet written has no file to be found, and leaving
+	# it out of its own menu reads as if it were gone.
+	let seen = false;
+	for (let i = 0; i < len(files); i = i + 1) {
+		if (files[i] == app.scene_path) { seen = true; }
+	}
+	if (!seen) { append(files, app.scene_path); }
+
+	app.scene_files = files;
+	return 0;
+}
+
+# level2.json, level3.json, ... -- the first name not already taken
+fn scenes_suggest_name(app) {
+	let taken = scenes_list(app);
+	for (let n = 2; n < 100; n = n + 1) {
+		let candidate = "level" + n + ".json";
+		let free = true;
+		for (let i = 0; i < len(taken); i = i + 1) {
+			if (taken[i] == candidate) { free = false; }
+		}
+		if (free) { return candidate; }
+	}
+	return "level.json";
+}
+
+
+# --- switching --------------------------------------------------------------
+
+fn scenes_open(app, path) {
+	if (io_filetype(path) == "file") {
+		if (!doc_load(app, path)) { return false; }
+	} else {
+		# a level that has not been written yet: start it empty
+		app.doc_data = doc_empty(app);
+		app.selected_id = -1;
+		app.undo = [];
+		app.redo = [];
+		app.dirty = true;
+		log_line(app, "new level " + path);
+	}
+
+	app.scene_path = path;
+
+	# the caches are keyed by path, and a level has its own art
+	app.sprite_cache = {};
+	app.trace_cache = {};
+
+	prefs_touch(app);          # editor.json remembers the level you are on
+	cam_frame_all(app);
+	return true;
+}
+
+# Asks first when there is unsaved work; scenes_dialogs() finishes the job.
+fn scenes_request(app, path) {
+	if (path == app.scene_path) { return 0; }
+	if (app.dirty) {
+		app.scene_pending = path;
+		return 0;
+	}
+	scenes_open(app, path);
+	return 0;
+}
+
+
+# --- the toolbar menu -------------------------------------------------------
+
+fn scenes_menu(app) {
+	let label = app.scene_path;
+	if (app.dirty) { label = app.scene_path + " *"; }
+
+	if (love_ui_button(label, ALIGN_CENTER)) {
+		scenes_refresh(app);
+		love_ui_open_popup("scenes");
+	}
+
+	# microui leaves a popup open until something outside it is clicked, so a
+	# menu that ought to close on a pick has to be closed by hand -- and from
+	# out here, not from inside the body: love_ui_setWindowOpen() hashes the
+	# name against the top of the id stack, which inside a popup is the popup's
+	# own container rather than the window that opened it.
+	let close_menu = false;
+
+	if (love_ui_begin_popup("scenes")) {
+		love_ui_layout_row(1, [200], 0);
+
+		for (let i = 0; i < len(app.scene_files); i = i + 1) {
+			let name = app.scene_files[i];
+			let row = "  " + name;
+			if (name == app.scene_path) { row = "> " + name; }
+
+			# two levels never share a name, but the id stack costs nothing and
+			# keeps this honest if one ever does
+			love_ui_pushId(i);
+			if (love_ui_button(row, ALIGN_LEFT)) {
+				scenes_request(app, name);
+				close_menu = true;
+			}
+			love_ui_popId();
+		}
+
+		if (len(app.scene_files) == 0) { love_ui_label("no levels yet"); }
+
+		love_ui_label("");
+		if (love_ui_button("New level...", ALIGN_LEFT)) {
+			love_ui_clear_textbox(NEW_SCENE_BOX);
+			app.new_scene = scenes_suggest_name(app);
+			close_menu = true;
+		}
+		love_ui_end_popup();
+	}
+
+	if (close_menu) { love_ui_setWindowOpen("scenes", false); }
+
+	# the click that dismisses this menu must not also land in the viewport
+	if (love_ui_popup_open("scenes")) { app.popup_open = true; }
+	return 0;
+}
+
+
+# --- the two modals ---------------------------------------------------------
+
+fn scenes_unsaved_dialog(app) {
+	if (app.scene_pending == null) { return 0; }
+
+	if (love_ui_begin_window("Unsaved changes", 440, 300, 400, 130,
+	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_text(app.scene_path + " has unsaved changes. Opening " +
+			app.scene_pending + " will drop them.");
+
+		love_ui_layout_row(3, [-190, -95, -1], 0);
+		if (love_ui_button("Save first", ALIGN_CENTER)) {
+			doc_save(app, app.scene_path);
+			let next = app.scene_pending;
+			app.scene_pending = null;
+			scenes_open(app, next);
+		}
+		if (love_ui_button("Discard", ALIGN_CENTER)) {
+			let next = app.scene_pending;
+			app.scene_pending = null;
+			scenes_open(app, next);
+		}
+		if (love_ui_button("Cancel", ALIGN_CENTER)) { app.scene_pending = null; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+fn scenes_new_dialog(app) {
+	if (app.new_scene == null) { return 0; }
+
+	if (love_ui_begin_window("New level", 440, 300, 400, 130,
+	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_label("File name, next to " + PREFS_PATH + ":");
+
+		let box = love_ui_textbox(NEW_SCENE_BOX, app.new_scene);
+		let name = box[1];
+
+		love_ui_layout_row(2, [-95, -1], 0);
+		if (love_ui_button("Create", ALIGN_CENTER)) {
+			if (len(name) > 0) {
+				if (!path_has_suffix(name, ".json")) { name = name + ".json"; }
+				if (io_filetype(name) == "file") {
+					log_line(app, name + " already exists");
+				} else {
+					app.new_scene = null;
+					scenes_request(app, name);
+				}
+			}
+		}
+		if (love_ui_button("Cancel", ALIGN_CENTER)) { app.new_scene = null; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+fn scenes_dialogs(app) {
+	scenes_unsaved_dialog(app);
+	scenes_new_dialog(app);
+	return 0;
+}

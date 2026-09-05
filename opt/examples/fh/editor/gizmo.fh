@@ -1,0 +1,242 @@
+# ============================================================================
+#  gizmo.fh -- the transform handles
+# ----------------------------------------------------------------------------
+#  The handles live in screen space and keep a constant pixel size, which is
+#  what makes a gizmo usable at any zoom: the box they hang off shrinks as you
+#  zoom out, the grips do not.
+#
+#     rotate knob        o
+#                        |
+#            [ ]--------[ ]--------[ ]      corner / edge grips resize
+#             |                     |
+#            [ ]    +--> X (red)   [ ]      arrows move along one axis
+#             |     |               |
+#            [ ]---[v]-------------[ ]      centre square moves freely
+#                   Y (green)
+#
+#  A drag is applied against the transform as it was when the mouse went down,
+#  not incrementally, so a slow drag cannot accumulate rounding drift.
+# ============================================================================
+
+
+# a point given in the entity's own frame (origin at its centre, unrotated)
+fn gizmo_local_to_world(app, e, lx, ly) {
+	let c = doc_center(app, e);
+	let ca = math_cos(e.transform.angle);
+	let sa = math_sin(e.transform.angle);
+	return [c[0] + lx * ca - ly * sa, c[1] + lx * sa + ly * ca];
+}
+
+fn gizmo_handle_screen(app, e, hx, hy) {
+	let f = doc_shape(app, e);
+	let w = gizmo_local_to_world(app, e, hx * f.w * 0.5, hy * f.h * 0.5);
+	return cam_to_screen(app, w[0], w[1]);
+}
+
+# every grip, in the order they are hit-tested: small and specific first
+fn gizmo_handles(app, e) {
+	let f = doc_shape(app, e);
+	let out = [];
+
+	# rotate knob, pushed away from the top edge in screen pixels
+	let top = gizmo_handle_screen(app, e, 0, -1);
+	let ca = math_cos(e.transform.angle);
+	let sa = math_sin(e.transform.angle);
+	append(out, { "id": "rotate", "hx": 0.0, "hy": 0.0,
+	              "x": top[0] + sa * ROT_OFFSET,
+	              "y": top[1] - ca * ROT_OFFSET,
+	              "r": HANDLE_HALF + 2 });
+
+	# Eight resize grips. The directions are floats on purpose: they end up in
+	# math_atan2() when the cursor picks a glyph for the grip, and FH's math_*
+	# functions reject integers rather than promoting them.
+	let dirs = [[-1.0,-1.0], [1.0,-1.0], [1.0,1.0], [-1.0,1.0],
+	            [0.0,-1.0], [1.0,0.0], [0.0,1.0], [-1.0,0.0]];
+	for (let i = 0; i < len(dirs); i = i + 1) {
+		let p = gizmo_handle_screen(app, e, dirs[i][0], dirs[i][1]);
+		append(out, { "id": "scale", "hx": dirs[i][0], "hy": dirs[i][1],
+		              "x": p[0], "y": p[1], "r": HANDLE_HALF });
+	}
+
+	# axis arrows and the free-move square
+	let cw = doc_center(app, e);
+	let c = cam_to_screen(app, cw[0], cw[1]);
+	append(out, { "id": "move_x", "hx": 0.0, "hy": 0.0,
+	              "x": c[0] + ca * ARROW_LEN, "y": c[1] + sa * ARROW_LEN,
+	              "r": HANDLE_HALF + 2 });
+	append(out, { "id": "move_y", "hx": 0.0, "hy": 0.0,
+	              "x": c[0] - sa * ARROW_LEN, "y": c[1] + ca * ARROW_LEN,
+	              "r": HANDLE_HALF + 2 });
+	append(out, { "id": "move", "hx": 0.0, "hy": 0.0,
+	              "x": c[0], "y": c[1], "r": HANDLE_HALF + 3 });
+
+	return out;
+}
+
+fn gizmo_hit(app, e, sx, sy) {
+	let handles = gizmo_handles(app, e);
+	for (let i = 0; i < len(handles); i = i + 1) {
+		let h = handles[i];
+		if (math_abs(sx - h.x) <= h.r && math_abs(sy - h.y) <= h.r) { return h; }
+	}
+	return null;
+}
+
+fn gizmo_snap_angle(app, radians) {
+	if (!app.snap) { return radians; }
+	let step = ROT_SNAP * math_pi() / 180.0;
+	return math_floor(radians / step + 0.5) * step;
+}
+
+# wx/wy is where the button went down, which is not necessarily where the
+# pointer is by the time this runs -- see the note on love_mousepressed().
+fn gizmo_begin(app, e, handle, wx, wy) {
+	let f = doc_shape(app, e);
+	let c = doc_center(app, e);
+	app.gizmo = handle;
+	app.grab = {
+		"wx": wx, "wy": wy,
+		"x": e.transform.x, "y": e.transform.y,
+		"w": f.w, "h": f.h,
+		"angle": e.transform.angle,
+		"cx": c[0], "cy": c[1],
+		"a0": math_atan2(wy - c[1], wx - c[0])
+	};
+	return 0;
+}
+
+fn gizmo_apply(app, e) {
+	let f = doc_shape(app, e);
+	let g = app.grab;
+	let id = app.gizmo.id;
+
+	if (id == "rotate") {
+		let now = math_atan2(app.wy - g.cy, app.wx - g.cx);
+		let angle = round_to(gizmo_snap_angle(app, g.angle + now - g.a0), 4);
+		if (angle != e.transform.angle) {
+			doc_begin_edit(app);
+			e.transform.angle = angle;
+		}
+		return 0;
+	}
+
+	if (id == "move" || id == "move_x" || id == "move_y") {
+		let dx = app.wx - g.wx;
+		let dy = app.wy - g.wy;
+
+		# an axis arrow constrains the motion to that axis of the entity
+		if (id != "move") {
+			let ca = math_cos(g.angle);
+			let sa = math_sin(g.angle);
+			let ax = ca;
+			let ay = sa;
+			if (id == "move_y") {
+				ax = 0.0 - sa;
+				ay = ca;
+			}
+			let along = dx * ax + dy * ay;
+			dx = along * ax;
+			dy = along * ay;
+		}
+
+		let nx = snap_value(app, g.x + dx);
+		let ny = snap_value(app, g.y + dy);
+		if (nx != e.transform.x || ny != e.transform.y) {
+			doc_begin_edit(app);
+			e.transform.x = nx;
+			e.transform.y = ny;
+		}
+		return 0;
+	}
+
+	# --- resize -------------------------------------------------------
+	# Work in the entity's own frame so a rotated box resizes along its own
+	# edges, and keep the grip opposite the one being dragged pinned.
+	let hx = app.gizmo.hx;
+	let hy = app.gizmo.hy;
+
+	let ca = math_cos(g.angle);
+	let sa = math_sin(g.angle);
+	let dxw = app.wx - g.cx;
+	let dyw = app.wy - g.cy;
+	let mx = dxw * ca + dyw * sa;
+	let my = dyw * ca - dxw * sa;
+
+	# the pinned grip, in that same frame
+	let fx = 0.0 - hx * g.w * 0.5;
+	let fy = 0.0 - hy * g.h * 0.5;
+
+	let nw = g.w;
+	let nh = g.h;
+	if (hx != 0) { nw = math_abs(mx - fx); }
+	if (hy != 0) { nh = math_abs(my - fy); }
+
+	if (app.snap) {
+		if (hx != 0) { nw = math_max(math_floor(nw / app.grid + 0.5) * app.grid, app.grid); }
+		if (hy != 0) { nh = math_max(math_floor(nh / app.grid + 0.5) * app.grid, app.grid); }
+	}
+	nw = round_to(math_max(nw, 4), 2);
+	nh = round_to(math_max(nh, 4), 2);
+
+	# the centre slides so that the pinned grip stays where it was
+	let lcx = fx + hx * nw * 0.5;
+	let lcy = fy + hy * nh * 0.5;
+	let ncx = g.cx + lcx * ca - lcy * sa;
+	let ncy = g.cy + lcx * sa + lcy * ca;
+
+	let nx = round_to(ncx - nw * 0.5, 2);
+	let ny = round_to(ncy - nh * 0.5, 2);
+
+	if (nw != f.w || nh != f.h || nx != e.transform.x || ny != e.transform.y) {
+		doc_begin_edit(app);
+		f.w = nw;
+		f.h = nh;
+		e.transform.x = nx;
+		e.transform.y = ny;
+	}
+	return 0;
+}
+
+# screen space: the camera transform has already been popped, so the grips
+# keep the same size no matter how far you have zoomed out
+fn gizmo_draw(app, e) {
+	let cw = doc_center(app, e);
+	let c = cam_to_screen(app, cw[0], cw[1]);
+	let ca = math_cos(e.transform.angle);
+	let sa = math_sin(e.transform.angle);
+
+	# X axis, red
+	love_graphics_setColor(230, 90, 80, 255);
+	love_geometry_line([c[0], c[1], c[0] + ca * ARROW_LEN, c[1] + sa * ARROW_LEN]);
+	love_geometry_circle("fill", c[0] + ca * ARROW_LEN, c[1] + sa * ARROW_LEN, 4, 10);
+
+	# Y axis, green
+	love_graphics_setColor(120, 210, 110, 255);
+	love_geometry_line([c[0], c[1], c[0] - sa * ARROW_LEN, c[1] + ca * ARROW_LEN]);
+	love_geometry_circle("fill", c[0] - sa * ARROW_LEN, c[1] + ca * ARROW_LEN, 4, 10);
+
+	let handles = gizmo_handles(app, e);
+	for (let i = 0; i < len(handles); i = i + 1) {
+		let h = handles[i];
+		if (h.id == "scale") {
+			love_graphics_setColor(235, 235, 240, 255);
+			love_geometry_rectangle("fill", h.x - HANDLE_HALF, h.y - HANDLE_HALF,
+				HANDLE_HALF * 2, HANDLE_HALF * 2);
+			love_graphics_setColor(40, 44, 54, 255);
+			love_geometry_rectangle("line", h.x - HANDLE_HALF, h.y - HANDLE_HALF,
+				HANDLE_HALF * 2, HANDLE_HALF * 2);
+		} else if (h.id == "rotate") {
+			let top = gizmo_handle_screen(app, e, 0, -1);
+			love_graphics_setColor(120, 190, 255, 255);
+			love_geometry_line([top[0], top[1], h.x, h.y]);
+			love_geometry_circle("fill", h.x, h.y, 5, 14);
+		}
+	}
+
+	# free-move square in the middle
+	love_graphics_setColor(255, 214, 90, 255);
+	love_geometry_rectangle("fill", c[0] - 4, c[1] - 4, 8, 8);
+
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
