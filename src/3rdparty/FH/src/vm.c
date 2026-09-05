@@ -378,11 +378,15 @@ int fh_call_vm_function(struct fh_vm *vm, struct fh_closure *closure,
     if (n_args > fh_func_def->n_params)
         n_args = fh_func_def->n_params;
 
+    /*
+     * Place the call above everything the frame we are nested inside uses.
+     * stack_top is that bound for both frame kinds; reading n_regs off the
+     * closure instead left ret_reg at 0 when the top frame was a C call --
+     * a script function called from a C function (an engine callback, say)
+     * then scribbled over the outermost function's registers.
+     */
     struct fh_vm_call_frame *prev_frame = call_frame_stack_top(&vm->call_stack);
-    int ret_reg = 0;
-    if (prev_frame && prev_frame->closure) {
-        ret_reg = prev_frame->base + prev_frame->closure->func_def->n_regs;
-    }
+    int ret_reg = prev_frame ? prev_frame->stack_top : 0;
 
     ensure_stack_size(vm, ret_reg + n_args + 1);
 

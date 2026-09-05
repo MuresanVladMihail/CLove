@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <time.h>
 
 #include "program.h"
@@ -291,8 +292,7 @@ void fh_restore_pin_state(struct fh_program *prog, int state) {
 }
 
 int fh_add_c_func(struct fh_program *prog, const char *name, fh_c_func func) {
-    struct named_c_func **cfn = (struct named_c_func **) map_get(&prog->c_funcs_map, name);
-    if (cfn) {
+    if (map_get(&prog->c_funcs_map, name)) {
         fprintf(stderr, "Error: duplicating C function '%s'!\n", name);
         return -1;
     }
@@ -301,7 +301,14 @@ int fh_add_c_func(struct fh_program *prog, const char *name, fh_c_func func) {
         return fh_set_error(prog, "out of memory");
     cf->name = name;
     cf->func = func;
-    map_set(&prog->c_funcs_map, name, cf);
+    /*
+     * The map holds a 1-based index into the stack, not a pointer into it.
+     * The stack is one contiguous array that is realloc'd as it grows, so
+     * every pointer handed out before a growth would dangle afterwards --
+     * which silently broke name lookup for the functions registered first
+     * once the table grew past whatever realloc could extend in place.
+     */
+    map_set(&prog->c_funcs_map, name, (void *) (intptr_t) named_c_func_stack_size(&prog->c_funcs));
     return 0;
 }
 
@@ -321,11 +328,12 @@ const char *fh_get_c_func_name(struct fh_program *prog, fh_c_func func) {
 }
 
 fh_c_func fh_get_c_func_by_name(struct fh_program *prog, const char *name) {
-    struct named_c_func **func = (struct named_c_func **) map_get(&prog->c_funcs_map, name);
-    if (func) {
-        return (*func)->func;
-    }
-    return NULL;
+    void **slot = map_get(&prog->c_funcs_map, name);
+    if (!slot)
+        return NULL;
+    struct named_c_func *cf = named_c_func_stack_item(&prog->c_funcs,
+                                                      (int) (intptr_t) *slot - 1);
+    return cf ? cf->func : NULL;
 }
 
 int fh_add_global_func(struct fh_program *prog, struct fh_closure *closure) {
@@ -442,7 +450,7 @@ int fh_compile_pack(struct fh_program *prog, const char *path, bool is_mandatory
         if (is_mandatory) {
             fh_set_error(prog, "can't open '%s' from pack", path);
         } else {
-            fprintf(stderr, "warning: can't open '%s' from pack", path);
+            fprintf(stderr, "warning: can't open '%s' from pack\n", path);
         }
         return -1;
     }
@@ -455,7 +463,7 @@ int fh_compile_file(struct fh_program *prog, const char *filename, bool is_manda
         if (is_mandatory) {
             fh_set_error(prog, "can't open '%s'", filename);
         } else {
-            fprintf(stderr, "warning: can't open '%s'", filename);
+            fprintf(stderr, "warning: can't open '%s'\n", filename);
         }
         return -1;
     }
