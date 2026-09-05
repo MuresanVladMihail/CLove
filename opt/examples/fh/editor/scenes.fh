@@ -218,6 +218,35 @@ fn scenes_new_dialog(app) {
 	return 0;
 }
 
+# Closing with unsaved work. Reached from Esc and, thanks to love_quit()
+# answering true, from the window's close button too.
+fn scenes_quit_dialog(app) {
+	if (!app.quitting) { return 0; }
+
+	if (love_ui_begin_window("Quit", 440, 300, 400, 130,
+	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_text(app.scene_path + " has unsaved changes.");
+
+		love_ui_layout_row(3, [-190, -95, -1], 0);
+		if (love_ui_button("Save and quit", ALIGN_CENTER)) {
+			doc_save(app, app.scene_path);
+			app.force_quit = true;
+			love_mouse_setVisible(true);
+			love_event_quit();
+		}
+		if (love_ui_button("Quit anyway", ALIGN_CENTER)) {
+			app.force_quit = true;
+			love_mouse_setVisible(true);
+			love_event_quit();
+		}
+		if (love_ui_button("Cancel", ALIGN_CENTER)) { app.quitting = false; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
 fn scenes_dialogs(app) {
 	scenes_unsaved_dialog(app);
 	scenes_new_dialog(app);

@@ -20,6 +20,20 @@ fn run() {
     check(b.version == 1, "pretty should round-trip");
     check(b.entities[0].name == "Crate", "nested values should survive");
     check(b.entities[0].id == 2, "ids should survive");
+
+    # A round trip is also the only deep copy FH has: arrays and maps are
+    # references, so `copy.groups = original.groups` shares one array and
+    # editing either edits both. The editor's doc_clone_entity() is built on
+    # this, after copying an entity field by field went wrong exactly that way.
+    let original = { "groups": ["props"], "nested": { "n": 1 } };
+    let copy = json_parse(json_stringify(original));
+
+    append(copy.groups, "breakable");
+    copy.nested.n = 2;
+
+    check(len(original.groups) == 1, "the original's array must not be shared");
+    check(len(copy.groups) == 2, "the copy's array is its own");
+    check(original.nested.n == 1, "the original's nested map must not be shared");
 }
 
 fn love_load() {

@@ -137,12 +137,22 @@ fn doc_begin_edit(app) {
 	return 0;
 }
 
+# Undo used to clear the selection outright, which made a run of undos mean
+# reselecting between every step. The document is replaced wholesale, so the
+# entity object is gone either way -- but the id is stable, so the selection can
+# survive whenever the step did not remove the thing that was selected.
+fn doc_keep_selection(app) {
+	if (app.selected_id < 0) { return 0; }
+	if (doc_find(app, app.selected_id) == null) { app.selected_id = -1; }
+	return 0;
+}
+
 fn doc_undo(app) {
 	if (len(app.undo) == 0) { log_line(app, "nothing to undo"); return 0; }
 	append(app.redo, json_stringify(app.doc_data));
 	app.doc_data = json_parse(app.undo[len(app.undo) - 1]);
 	app.undo = drop_last(app.undo);
-	app.selected_id = -1;
+	doc_keep_selection(app);
 	app.dirty = true;
 	log_line(app, "undo");
 	return 0;
@@ -153,7 +163,7 @@ fn doc_redo(app) {
 	append(app.undo, json_stringify(app.doc_data));
 	app.doc_data = json_parse(app.redo[len(app.redo) - 1]);
 	app.redo = drop_last(app.redo);
-	app.selected_id = -1;
+	doc_keep_selection(app);
 	app.dirty = true;
 	log_line(app, "redo");
 	return 0;
@@ -161,18 +171,32 @@ fn doc_redo(app) {
 
 # --- editing commands ----------------------------------------------
 
+# A copy of an entity that shares nothing with it.
+#
+# Field-by-field copying went wrong twice over: it quietly dropped everything
+# nobody remembered to list -- the angle, fixed rotation, gravity scale, the
+# fixture's density, friction, restitution and sensor flag, and later the whole
+# props map -- and `copy.groups = e.groups` handed over the *same* array, so
+# editing the copy's groups edited the original's too. Arrays and maps are
+# references in FH; a round trip through JSON is the deep copy, and it cannot
+# forget a field because it never enumerates them.
+fn doc_clone_entity(app, e) {
+	return json_parse(json_stringify(e));
+}
+
 fn doc_duplicate(app) {
 	let e = doc_selected(app);
 	if (e == null) { return 0; }
 	doc_begin_edit(app);
-	let f = doc_shape(app, e);
-	let copy = doc_add(app, e.name + " copy", f.shape,
-		e.transform.x + app.grid, e.transform.y + app.grid,
-		f.w, f.h, e.color[0], e.color[1], e.color[2]);
-	copy.body.type = e.body.type;
-	copy.visible = e.visible;
-	copy.groups = e.groups;
-	if (e.sprite != null) { copy.sprite = { "path": e.sprite.path }; }
+
+	let copy = doc_clone_entity(app, e);
+	copy.id = app.doc_data.next_id;
+	app.doc_data.next_id = copy.id + 1;
+	copy.name = e.name + " copy";
+	copy.transform.x = e.transform.x + app.grid;
+	copy.transform.y = e.transform.y + app.grid;
+
+	append(app.doc_data.entities, copy);
 	app.selected_id = copy.id;
 	log_line(app, "duplicated " + e.name);
 	return 0;
