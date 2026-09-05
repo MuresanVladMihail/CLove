@@ -1,0 +1,18 @@
+# A binding must reject a bad argument rather than read past args[].
+# love_physics_newFixture needs a Body and a Shape; passing them the wrong way
+# round has to be an error, not a reinterpreted pointer.
+
+fn run() {
+    let world = love_physics_newWorld(0, 100);
+    let body = love_physics_newBody(world, 0, 0, "dynamic");
+    let shape = love_physics_newCircleShape(10);
+    love_physics_newFixture(shape, body, 1);
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}

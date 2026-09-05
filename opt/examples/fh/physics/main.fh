@@ -1,0 +1,181 @@
+# love.physics example: Box2D through CLove's LOVE-shaped bindings.
+#
+# A world with a static floor and two walls, a heap of falling boxes and
+# circles, and a mouse joint you can drag them around with.
+#
+#   LEFT MOUSE   grab a body, or drop a new one on empty space
+#   SPACE        drop a fresh batch
+#   ESC          quit
+#
+# Everything here is in pixels: love.physics converts to and from Box2D's
+# metres using love_physics_setMeter() (30 pixels to the metre by default).
+
+let W = 800;
+let H = 600;
+
+let g_world = null;
+let g_bodies = [];      # [body, kind, size] for drawing
+let g_grab = null;      # the mouse joint while dragging
+let g_contacts = 0;
+
+# --- collision callbacks ------------------------------------------------
+#
+# world:setCallbacks() takes the *names* of global functions: FH can only call
+# a global function by name from C.
+
+fn on_begin_contact(a, b, contact) {
+    g_contacts = g_contacts + 1;
+}
+
+fn on_end_contact(a, b, contact) {
+}
+
+# --- world building -----------------------------------------------------
+
+fn add_wall(x, y, w, h) {
+    let body = love_physics_newBody(g_world, x, y, "static");
+    let shape = love_physics_newRectangleShape(w, h);
+    let fixture = love_physics_newFixture(body, shape, 1);
+    love_fixture_setFriction(fixture, 0.6);
+    append(g_bodies, [body, "box", [w, h]]);
+}
+
+fn add_box(x, y, size) {
+    let body = love_physics_newBody(g_world, x, y, "dynamic");
+    let shape = love_physics_newRectangleShape(size, size);
+    let fixture = love_physics_newFixture(body, shape, 1);
+    love_fixture_setFriction(fixture, 0.4);
+    love_fixture_setRestitution(fixture, 0.15);
+    append(g_bodies, [body, "box", [size, size]]);
+}
+
+fn add_ball(x, y, radius) {
+    let body = love_physics_newBody(g_world, x, y, "dynamic");
+    let shape = love_physics_newCircleShape(radius);
+    let fixture = love_physics_newFixture(body, shape, 1);
+    love_fixture_setFriction(fixture, 0.3);
+    love_fixture_setRestitution(fixture, 0.45);
+    append(g_bodies, [body, "ball", [radius, radius]]);
+}
+
+fn drop_batch() {
+    let i = 0;
+    while (i < 8) {
+        let x = 120 + math_random(0, 560);
+        let y = 0 - math_random(0, 200);
+        if (math_random(0, 1) > 0.5) {
+            add_box(x, y, 20 + math_random(0, 24));
+        } else {
+            add_ball(x, y, 10 + math_random(0, 14));
+        }
+        i = i + 1;
+    }
+}
+
+# --- lifecycle ----------------------------------------------------------
+
+fn love_load() {
+    love_window_setTitle("CLove — love.physics (Box2D)");
+    love_graphics_setBackgroundColor(24, 26, 32);
+    love_graphics_setFont(love_graphics_newFont(14));
+
+    # Gravity is in pixels per second squared, like every other length here.
+    g_world = love_physics_newWorld(0, 900);
+    love_world_setCallbacks(g_world, "on_begin_contact", "on_end_contact");
+
+    add_wall(W / 2, H - 20, W, 40);      # floor
+    add_wall(20, H / 2, 40, H);          # left wall
+    add_wall(W - 20, H / 2, 40, H);      # right wall
+
+    drop_batch();
+    return {};
+}
+
+fn love_update(dt, self) {
+    # A fixed step keeps the simulation stable when a frame runs long.
+    love_world_update(g_world, 1.0 / 60.0);
+
+    if (g_grab != null) {
+        love_mousejoint_setTarget(g_grab, love_mouse_getX(), love_mouse_getY());
+    }
+}
+
+fn love_mousepressed(x, y, button) {
+    # Anything under the cursor gets grabbed; empty space gets a new ball.
+    let found = love_world_queryBoundingBox(g_world, x - 2, y - 2, x + 2, y + 2);
+    let i = 0;
+    while (i < len(found)) {
+        let fixture = found[i];
+        if (love_fixture_testPoint(fixture, x, y)) {
+            let body = love_fixture_getBody(fixture);
+            if (love_body_getType(body) == "dynamic") {
+                g_grab = love_physics_newMouseJoint(body, x, y);
+                return;
+            }
+        }
+        i = i + 1;
+    }
+    add_ball(x, y, 14);
+}
+
+fn love_mousereleased(x, y, button) {
+    if (g_grab != null) {
+        love_joint_destroy(g_grab);
+        g_grab = null;
+    }
+}
+
+fn love_keypressed(key) {
+    if (key == "escape") { love_event_quit(); }
+    if (key == "space")  { drop_batch(); }
+}
+
+fn draw_body(entry) {
+    let body = entry[0];
+    let kind = entry[1];
+    let size = entry[2];
+
+    let x = love_body_getX(body);
+    let y = love_body_getY(body);
+
+    if (kind == "ball") {
+        love_geometry_circle("fill", x, y, size[0], 24);
+        # A spoke, so the rotation is visible.
+        let angle = love_body_getAngle(body);
+        love_graphics_setColor(24, 26, 32);
+        love_geometry_line([x, y, x + math_cos(angle) * size[0], y + math_sin(angle) * size[0]]);
+        return;
+    }
+
+    love_graphics_push();
+    love_graphics_translate(x, y);
+    love_graphics_rotate(love_body_getAngle(body));
+    love_geometry_rectangle("fill", 0 - size[0] / 2, 0 - size[1] / 2, size[0], size[1]);
+    love_graphics_pop();
+}
+
+fn love_draw(self) {
+    let i = 0;
+    while (i < len(g_bodies)) {
+        let entry = g_bodies[i];
+        if (love_body_getType(entry[0]) == "static") {
+            love_graphics_setColor(70, 76, 92);
+        } else {
+            if (entry[1] == "ball") {
+                love_graphics_setColor(232, 168, 96);
+            } else {
+                love_graphics_setColor(120, 190, 220);
+            }
+        }
+        draw_body(entry);
+        i = i + 1;
+    }
+
+    love_graphics_setColor(220, 224, 230);
+    love_graphics_print("bodies: " + love_world_getBodyCount(g_world) +
+                        "   contacts so far: " + g_contacts +
+                        "   fps: " + love_timer_getFPS(), 50, 50);
+    love_graphics_print("left mouse: grab or drop    space: more    esc: quit", 50, 70);
+}
+
+fn main() {}

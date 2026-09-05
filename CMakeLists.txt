@@ -185,8 +185,37 @@ if(USE_LUA)
     set(LUA_LIBRARIES lua)
 endif()
 
+# Box2D 3.1.1 (physics) — vendored as plain sources, like the other 3rdparty
+# libraries, but built as its own target rather than compiled into the engine
+# glob: Box2D needs C17 (_Static_assert, anonymous unions) and the Linux build
+# puts -std=c99 in CMAKE_C_FLAGS, which would reject it.
+file(GLOB SOURCE_BOX2D_FILES CONFIGURE_DEPENDS
+    src/3rdparty/box2d/src/*.c
+    src/3rdparty/box2d/src/*.h)
+add_library(box2d STATIC ${SOURCE_BOX2D_FILES})
+target_include_directories(box2d
+    PUBLIC  src/3rdparty/box2d/include
+    PRIVATE src/3rdparty/box2d/src)
+set_target_properties(box2d PROPERTIES
+    C_STANDARD 17
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS YES
+    POSITION_INDEPENDENT_CODE ON)
+if(NOT MSVC)
+    # Belt and braces: CMAKE_C_FLAGS already carries -std=c99 on Linux and the
+    # order in which CMake appends the C_STANDARD flag is not guaranteed.
+    target_compile_options(box2d PRIVATE -std=gnu17)
+endif()
+if(EMSCRIPTEN)
+    target_compile_options(box2d PRIVATE -msimd128 -msse2)
+endif()
+# The engine's physics module includes <box2d/box2d.h>; the static `love`
+# library compiles it without linking Box2D, so the include has to be global.
+include_directories(src/3rdparty/box2d/include)
+set(BOX2D_LIBRARIES box2d)
+
 # Currently unused vendored libraries, kept for reference:
-#   add_subdirectory(src/3rdparty/Chipmunk2D)   # physics
+#   add_subdirectory(src/3rdparty/Chipmunk2D)   # physics (superseded by box2d)
 #   add_subdirectory(src/3rdparty/zlib)          # compression
 
 # ----------------------------------------------------------------------------
@@ -197,6 +226,7 @@ set(CLOVE_LINK_LIBRARIES
     ${GLEW_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${FREETYPE_LIBRARIES}
+    ${BOX2D_LIBRARIES}
     ${OS_SPECIFIC_LIBRARIES})
 if(USE_LUA)
     list(APPEND CLOVE_LINK_LIBRARIES ${LUA_LIBRARIES})

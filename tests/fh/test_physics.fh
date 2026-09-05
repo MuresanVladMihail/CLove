@@ -1,0 +1,236 @@
+# love.physics on Box2D: object model, unit conversion and simulation.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn near(a, b, tolerance) {
+    let d = a - b;
+    if (d < 0) { d = 0 - d; }
+    return d <= tolerance;
+}
+
+# Set by the collision callbacks below.
+let hits = 0;
+let separations = 0;
+
+fn on_begin(a, b, contact) {
+    hits = hits + 1;
+    let n = love_contact_getNormal(contact);
+    check(near(n[0]*n[0] + n[1]*n[1], 1.0, 0.01), "contact normal must be a unit vector");
+}
+
+fn on_end(a, b, contact) {
+    separations = separations + 1;
+}
+
+fn test_meter() {
+    check(love_physics_getMeter() == 30, "the default meter is LOVE's 30 pixels");
+    love_physics_setMeter(64);
+    check(love_physics_getMeter() == 64, "setMeter should stick");
+    love_physics_setMeter(30);
+}
+
+fn test_world() {
+    let world = love_physics_newWorld(0, 100);
+    let g = love_world_getGravity(world);
+    check(near(g[0], 0, 0.001) && near(g[1], 100, 0.001), "gravity must round-trip in pixels");
+
+    love_world_setGravity(world, 10, 20);
+    let g2 = love_world_getGravity(world);
+    check(near(g2[0], 10, 0.001) && near(g2[1], 20, 0.001), "setGravity should stick");
+
+    check(love_world_getBodyCount(world) == 0, "a new world has no bodies");
+    let body = love_physics_newBody(world, 5, 6, "dynamic");
+    check(love_world_getBodyCount(world) == 1, "the new body should be counted");
+    check(love_world_getBodies(world)[0] != null, "getBodies should list it");
+
+    check(love_world_isDestroyed(world) == false, "a live world is not destroyed");
+    love_world_destroy(world);
+    check(love_world_isDestroyed(world), "destroy() should mark the world destroyed");
+    check(love_body_isDestroyed(body), "destroying a world destroys its bodies");
+}
+
+fn test_body() {
+    let world = love_physics_newWorld(0, 0);
+    let body = love_physics_newBody(world, 100, 200, "dynamic");
+
+    check(near(love_body_getX(body), 100, 0.01), "x must come back in pixels");
+    check(near(love_body_getY(body), 200, 0.01), "y must come back in pixels");
+    check(love_body_getType(body) == "dynamic", "the body type should round-trip");
+
+    love_body_setPosition(body, 10, 20);
+    let p = love_body_getPosition(body);
+    check(near(p[0], 10, 0.01) && near(p[1], 20, 0.01), "setPosition should stick");
+
+    # Box2D 3 builds and reads rotations with approximate trigonometry, so an
+    # angle comes back close rather than exact.
+    love_body_setAngle(body, 1.5);
+    check(near(love_body_getAngle(body), 1.5, 0.01), "setAngle should stick");
+
+    love_body_setLinearVelocity(body, 30, -60);
+    let v = love_body_getLinearVelocity(body);
+    check(near(v[0], 30, 0.01) && near(v[1], -60, 0.01), "velocity must round-trip in pixels");
+
+    love_body_setType(body, "static");
+    check(love_body_getType(body) == "static", "setType should stick");
+
+    love_body_setUserData(body, "player");
+    check(love_body_getUserData(body) == "player", "string user data should round-trip");
+    love_body_setUserData(body, 42);
+    check(love_body_getUserData(body) == 42, "number user data should round-trip");
+
+    check(love_body_getFixtures(body) != null, "a fixture-less body still returns a list");
+    love_world_destroy(world);
+}
+
+fn test_shapes_and_fixtures() {
+    let world = love_physics_newWorld(0, 0);
+    let body = love_physics_newBody(world, 0, 0, "dynamic");
+
+    let circle = love_physics_newCircleShape(12);
+    check(love_shape_getType(circle) == "circle", "circle shape type");
+    check(near(love_shape_getRadius(circle), 12, 0.01), "the radius must come back in pixels");
+
+    let box = love_physics_newRectangleShape(40, 20);
+    check(love_shape_getType(box) == "polygon", "a rectangle is a polygon shape");
+    let pts = love_shape_getPoints(box);
+    check(pts[0] != null, "a polygon shape has points");
+
+    let edge = love_physics_newEdgeShape(0, 0, 50, 0);
+    check(love_shape_getType(edge) == "edge", "edge shape type");
+    check(love_shape_getPoints(edge)[2] == 50, "the edge keeps its second point");
+
+    let chain = love_physics_newChainShape(false, 0, 0, 10, 0, 20, 5);
+    check(love_shape_getType(chain) == "chain", "chain shape type");
+    check(love_shape_getChildCount(chain) == 2, "an open 3-point chain has 2 segments");
+
+    let fixture = love_physics_newFixture(body, circle, 2);
+    check(near(love_fixture_getDensity(fixture), 2, 0.01), "density should round-trip");
+
+    love_fixture_setFriction(fixture, 0.25);
+    check(near(love_fixture_getFriction(fixture), 0.25, 0.001), "friction should round-trip");
+    love_fixture_setRestitution(fixture, 0.5);
+    check(near(love_fixture_getRestitution(fixture), 0.5, 0.001), "restitution should round-trip");
+
+    check(love_fixture_testPoint(fixture, 0, 0), "the body centre is inside its circle");
+    check(love_fixture_testPoint(fixture, 500, 500) == false, "a far point is outside");
+
+    love_fixture_setCategory(fixture, 3);
+    check(love_fixture_getCategory(fixture)[0] == 3, "the category should round-trip");
+
+    love_fixture_setUserData(fixture, "ground");
+    check(love_fixture_getUserData(fixture) == "ground", "fixture user data should round-trip");
+
+    check(love_body_getFixtures(body)[0] != null, "the body should list its fixture");
+    check(love_fixture_getBody(fixture) != null, "the fixture should point back at the body");
+
+    love_fixture_destroy(fixture);
+    check(love_fixture_isDestroyed(fixture), "destroy() should mark the fixture destroyed");
+    love_world_destroy(world);
+}
+
+fn test_simulation() {
+    let world = love_physics_newWorld(0, 1000);
+    love_world_setCallbacks(world, "on_begin", "on_end");
+
+    let ground = love_physics_newBody(world, 0, 300, "static");
+    love_physics_newFixture(ground, love_physics_newRectangleShape(0, 0, 400, 20, 0), 1);
+
+    let ball = love_physics_newBody(world, 0, 0, "dynamic");
+    love_physics_newFixture(ball, love_physics_newCircleShape(10), 1);
+
+    let start = love_body_getY(ball);
+    let i = 0;
+    while (i < 120) {
+        love_world_update(world, 1.0 / 60.0);
+        i = i + 1;
+    }
+
+    check(love_body_getY(ball) > start, "gravity should pull the ball down");
+    check(love_body_getY(ball) < 300, "the ground should stop the ball falling through");
+    check(hits > 0, "the begin-contact callback should have fired");
+
+    love_world_destroy(world);
+}
+
+fn test_joints() {
+    let world = love_physics_newWorld(0, 0);
+    let a = love_physics_newBody(world, 0, 0, "dynamic");
+    let b = love_physics_newBody(world, 60, 0, "dynamic");
+    love_physics_newFixture(a, love_physics_newCircleShape(5), 1);
+    love_physics_newFixture(b, love_physics_newCircleShape(5), 1);
+
+    let distance = love_physics_newDistanceJoint(a, b, 0, 0, 60, 0);
+    check(love_joint_getType(distance) == "distance", "distance joint type");
+    check(near(love_distancejoint_getLength(distance), 60, 0.1),
+          "the rest length must come back in pixels");
+
+    let anchors = love_joint_getAnchors(distance);
+    check(near(anchors[0], 0, 0.1) && near(anchors[2], 60, 0.1), "the anchors are world points");
+    check(love_joint_getBodies(distance)[0] != null, "getBodies should list both bodies");
+
+    let revolute = love_physics_newRevoluteJoint(a, b, 30, 0);
+    check(love_joint_getType(revolute) == "revolute", "revolute joint type");
+    love_revolutejoint_setLimits(revolute, -1, 1);
+    let limits = love_revolutejoint_getLimits(revolute);
+    check(near(limits[0], -1, 0.001) && near(limits[1], 1, 0.001), "limits should round-trip");
+    love_revolutejoint_setMotorEnabled(revolute, true);
+    check(love_revolutejoint_isMotorEnabled(revolute), "the motor should be on");
+
+    # Box2D 3 has no rope or friction joint; CLove builds both from the joints
+    # it does have, and joint:getType() still reports LOVE's name.
+    let rope = love_physics_newRopeJoint(a, b, 0, 0, 60, 0, 90);
+    check(love_joint_getType(rope) == "rope", "rope joint type");
+    check(near(love_ropejoint_getMaxLength(rope), 90, 0.1), "the rope length is in pixels");
+
+    let friction = love_physics_newFrictionJoint(a, b, 30, 0);
+    check(love_joint_getType(friction) == "friction", "friction joint type");
+    love_frictionjoint_setMaxForce(friction, 250);
+    check(near(love_frictionjoint_getMaxForce(friction), 250, 1), "max force should round-trip");
+
+    let mouse = love_physics_newMouseJoint(b, 10, 10);
+    check(love_joint_getType(mouse) == "mouse", "mouse joint type");
+    love_mousejoint_setTarget(mouse, 20, 30);
+    let target = love_mousejoint_getTarget(mouse);
+    check(near(target[0], 20, 0.1) && near(target[1], 30, 0.1), "the target is in pixels");
+
+    check(love_world_getJointCount(world) == 5, "the world should count all five joints");
+
+    love_joint_destroy(distance);
+    check(love_joint_isDestroyed(distance), "destroy() should mark the joint destroyed");
+    check(love_world_getJointCount(world) == 4, "a destroyed joint leaves the world");
+
+    love_world_destroy(world);
+}
+
+fn test_queries() {
+    let world = love_physics_newWorld(0, 0);
+    let body = love_physics_newBody(world, 100, 100, "static");
+    love_physics_newFixture(body, love_physics_newCircleShape(20), 1);
+
+    let found = love_world_queryBoundingBox(world, 50, 50, 150, 150);
+    check(found[0] != null, "queryBoundingBox should find the circle");
+
+    let hit = love_world_rayCastClosest(world, 0, 100, 300, 100);
+    check(hit != null, "the ray should hit the circle");
+    check(near(hit[1], 80, 1), "the ray hits the circle's left edge at x = 80");
+
+    love_world_destroy(world);
+}
+
+fn run() {
+    test_meter();
+    test_world();
+    test_body();
+    test_shapes_and_fixtures();
+    test_simulation();
+    test_joints();
+    test_queries();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}
