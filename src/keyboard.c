@@ -259,12 +259,20 @@ char const * keyboard_getKeyName(SDL_Keycode key) {
 }
 
 SDL_Keycode keyboard_getKeycode(char const* name) {
-    for(int i = 0; i < moduleData.numKeys; ++i) {
+    /*
+     * Walk the name table, NOT moduleData.numKeys: that one counts key *codes*
+     * (the highest normalized keycode + 1, in the hundreds), while this array
+     * only has one entry per name. Using it here read hundreds of entries past
+     * the end of the array and strcmp'd whatever pointers it found there, so
+     * love_keyboard_isDown("...") with a name that isn't in the table (or that
+     * only matches late) crashed the engine.
+     */
+    for(size_t i = 0; i < sizeof(keynames) / sizeof(KeyName); ++i) {
         if(!strcmp(name, keynames[i].name))
             return keynames[i].keycode;
 
     }
-    return 0;
+    return SDLK_UNKNOWN;
 }
 
 void keyboard_keypressed(SDL_Keycode key) {

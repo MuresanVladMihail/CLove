@@ -34,6 +34,13 @@ version 0.8.0 not yet released
 	argument to love_graphics_newImage (FH only; Lua gets the loading and the
 	automatic re-rasterization, without the new getters).
 
+* fixed: love_keyboard_isDown("...") crashed the engine for any key name the
+	engine doesn't know (a typo, or a key with no name in the table): the lookup
+	walked the name table using the *keycode* count as its bound and strcmp'd
+	hundreds of entries past its end. Unknown names now simply answer false.
+* fixed: love_keyboard_setKeyRepeat() and love_keyboard_setTextInput() called
+	with no argument read args[0] out of bounds while formatting their error
+	message (FH only).
 * fixed: the OpenGL attributes (4x multisampling, colour/depth/stencil sizes)
 	were set *after* SDL_CreateWindow, so SDL threw them away - the window never
 	actually got the requested pixel format. They are now set before the window is

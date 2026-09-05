@@ -98,7 +98,7 @@ static int fn_love_keyboard_isDown(struct fh_program *prog, struct fh_value *ret
 
 int fn_love_keyboard_setKeyRepeat(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 1) {
-        return fh_set_error(prog, "Expected one argument of type boolean, got %s", fh_type_to_str(prog, args[0].type));
+        return fh_set_error(prog, "Expected one argument of type boolean, got %d arguments", n_args);
     }
     moduleData.keyRepeat = fh_get_bool(&args[0]);
     return 0;
@@ -112,7 +112,7 @@ int fn_love_keyboard_hasKeyRepeat(struct fh_program *prog, struct fh_value *ret,
 
 int fn_love_keyboard_setTextInput(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 1) {
-        return fh_set_error(prog, "Expected one argument of type boolean, got %s", fh_type_to_str(prog, args[0].type));
+        return fh_set_error(prog, "Expected one argument of type boolean, got %d arguments", n_args);
     }
     if(fh_get_bool(&args[0])) {
         keyboard_startText();

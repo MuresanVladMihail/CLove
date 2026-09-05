@@ -46,10 +46,12 @@ The runner copies each test to a scratch dir as `main.fh` (CLove loads
 | `test_version` | `love_getVersion()` shape |
 | `test_svg` | vector art: `.svg` loads through `newImage`, reports its authored size, pins/reads its rasterization scale, and re-rasterizes when drawn 8x |
 | `test_optional_callbacks` | a game that defines neither `love_load` nor `love_update` still runs its frame instead of erroring out on the missing callback |
+| `test_keyboard_isdown` | `love_keyboard_isDown()` answers false for key names the engine doesn't know instead of reading past the end of the key-name table |
 | `xfail_setpixel_argcount` | `setPixel` with missing channels must error |
 | `xfail_getpixel_argcount` | `getPixel` without coords must error |
 | `xfail_setviewport_argcount` | `setViewport` with a missing component must error |
 | `xfail_setvectorscale_argcount` | `setVectorScale` without a scale must error |
+| `xfail_setkeyrepeat_argcount` | `setKeyRepeat` with no argument must error instead of formatting `args[0]` |
 
 ## Adding a test
 

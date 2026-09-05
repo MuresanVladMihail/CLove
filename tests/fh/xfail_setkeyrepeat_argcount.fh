@@ -1,0 +1,10 @@
+# love_keyboard_setKeyRepeat() with no argument must error, not read args[0]
+# out of bounds while formatting the error message.
+
+fn love_load() {
+    love_keyboard_setKeyRepeat();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}
