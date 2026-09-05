@@ -52,6 +52,13 @@ void graphics_Canvas_new(graphics_Canvas *c, int width, int height) {
 
 	c->image.width = width;
 	c->image.height = height;
+	c->image.texWidth = width;
+	c->image.texHeight = height;
+	/* A canvas is always plain pixels; graphics_Image_draw() and
+	 * graphics_Image_free() both look at these. */
+	c->image.svg = NULL;
+	c->image.vectorScale = 1.0f;
+	c->image.vectorPinScale = 0.0f;
 }
 
 void graphics_Canvas_free(graphics_Canvas *canvas) {

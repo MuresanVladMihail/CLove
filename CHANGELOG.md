@@ -25,7 +25,18 @@ version 0.8.0 not yet released
 * added: end-to-end FH test suite under tests/ with a runner; the process exit code now reflects script errors (FH only).
 * added: optional callbacks (love_focus, love_quit) no longer raise an error every frame when left undefined (FH only).
 * added: CLAUDE.md and SKILLS.md documentation.
+* added: vector art (SVG) support. love_graphics_newImage("art.svg") loads and
+	love_graphics_draw() draws it like any other image; the drawing is kept and
+	re-rasterized as the image is scaled up, so it stays sharp instead of turning
+	into magnified pixels. Files exported from Inkscape load as they are (text
+	has to be converted to paths). New: love_image_isVector,
+	love_image_getVectorScale, love_image_setVectorScale and an optional scale
+	argument to love_graphics_newImage (FH only; Lua gets the loading and the
+	automatic re-rasterization, without the new getters).
 
+* fixed: love_image_getWidth/getHeight on an image now report the size the image
+	is drawn at, like love_image_getDimensions already did (they used to read the
+	backing image data, which for vector art is a different size).
 * fixed: graphics#setFullscreen.
 * fixed: newImageFont is not broken anymore.
 * fixed: ~15s freeze on macOS when closing the window (SDL 2.0.8 CoreAudio device close); resolved by updating SDL.

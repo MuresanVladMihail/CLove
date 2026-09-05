@@ -75,6 +75,8 @@ Features
 - Powerful Batch system.
 - Powerful Particle system.
 - Image loading and drawing.
+- Vector art (SVG, e.g. straight out of Inkscape) loaded and drawn like any
+  other image, re-rasterized as it is scaled up so it stays sharp.
 - Image creation from scratch or from a template & save (png, bmp, tga).
 - Meshes.
 - Render To Texture (canvas) system.

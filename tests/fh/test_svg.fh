@@ -1,0 +1,75 @@
+# Vector art (SVG) loading and display.
+#
+# Guards that .svg files load through love_graphics_newImage() like any other
+# image, that the image keeps reporting the size the drawing was authored at
+# (and not the size of whatever rasterization it currently holds), and that
+# drawing it big re-rasterizes it instead of magnifying pixels.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+let img = null;
+let pinned = null;
+
+fn run() {
+    img = love_graphics_newImage("assets/vector.svg");
+
+    check(love_image_isVector(img), "an .svg image should be vector art");
+
+    # The asset is authored 80x40, so that is the size it draws at.
+    check(love_image_getWidth(img) == 80, "vector image width should be the authored width");
+    check(love_image_getHeight(img) == 40, "vector image height should be the authored height");
+
+    let dim = love_image_getDimensions(img);
+    check(dim[0] == 80 && dim[1] == 40, "getDimensions should agree with getWidth/getHeight");
+
+    # Loaded at its authored size, and RGBA like every rasterization.
+    check(love_image_getVectorScale(img) == 1, "should load at scale 1");
+    check(love_image_getChannels(img) == 4, "should be rasterized as RGBA");
+
+    # Pinning a scale re-rasterizes but must not change the drawn size.
+    check(love_image_setVectorScale(img, 4), "should be able to pin the rasterization scale");
+    check(love_image_getVectorScale(img) == 4, "scale should be pinned to 4");
+    check(love_image_getWidth(img) == 80, "pinning should not change the drawn width");
+    check(love_image_getHeight(img) == 40, "pinning should not change the drawn height");
+
+    # A scale of 0 hands the image back to automatic rasterization.
+    check(love_image_setVectorScale(img, 0), "should be able to go back to automatic");
+    check(love_image_isVector(img), "should still be vector art when automatic");
+
+    # The scale can also be given straight to newImage().
+    pinned = love_graphics_newImage("assets/vector.svg", 2);
+    check(love_image_isVector(pinned), "newImage(path, scale) should still load vector art");
+    check(love_image_getVectorScale(pinned) == 2, "newImage(path, scale) should rasterize at that scale");
+    check(love_image_getWidth(pinned) == 80, "newImage(path, scale) should keep the authored width");
+
+    # Raster images are unaffected by any of this.
+    let data = love_graphics_newImageData(8, 8);
+    check(!love_image_isVector(data), "image data should not be vector art");
+    let raster = love_graphics_newImage(data);
+    check(!love_image_isVector(raster), "an ordinary image should not be vector art");
+    check(!love_image_setVectorScale(raster, 2), "setVectorScale should do nothing to raster images");
+    check(love_image_getWidth(raster) == 8, "raster image should keep its own width");
+}
+
+fn love_load() {
+    run();
+}
+
+fn love_draw() {
+    # Same call as for any other image - no separate vector API.
+    love_graphics_draw(img, 0, 0);
+
+    # Drawn 8x bigger, the drawing must be re-rasterized instead of stretched.
+    love_graphics_draw(img, 0, 0, 0, 8, 8);
+    check(love_image_getVectorScale(img) >= 8, "drawing at 8x should re-rasterize at >= 8");
+    check(love_image_getWidth(img) == 80, "re-rasterizing should not change the drawn width");
+
+    # A pinned image keeps its scale no matter how it is drawn.
+    love_graphics_draw(pinned, 10, 10, 0, 8, 8);
+    check(love_image_getVectorScale(pinned) == 2, "a pinned image should keep its scale");
+
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

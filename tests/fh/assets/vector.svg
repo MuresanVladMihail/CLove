@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Trimmed-down Inkscape export: kept its namespaces, layer group and
+     style="..." attributes so the test exercises what a real .svg from
+     Inkscape looks like. Authored size is 80x40 px on purpose, so the test
+     can assert on exact dimensions. -->
+<svg
+   width="80"
+   height="40"
+   viewBox="0 0 80 40"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   sodipodi:docname="vector.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg">
+  <sodipodi:namedview id="namedview7" pagecolor="#ffffff" inkscape:pageopacity="0.0" />
+  <g inkscape:label="Layer 1" inkscape:groupmode="layer" id="layer1">
+    <rect style="fill:#2266cc;stroke:#113355;stroke-width:2" id="rect1"
+          width="72" height="32" x="4" y="4" ry="6" />
+    <circle style="fill:#ffcc00" id="circle1" cx="20" cy="20" r="9" />
+    <path style="fill:none;stroke:#ffffff;stroke-width:3;stroke-linecap:round"
+          d="M 40,10 C 52,10 56,30 68,30" id="path1" />
+  </g>
+</svg>

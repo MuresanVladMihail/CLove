@@ -10,6 +10,8 @@
 
 #include <stdlib.h>
 
+#include "../include/svg.h"
+
 #include "../3rdparty/FH/src/value.h"
 
 static fh_c_obj_gc_callback onFreeCallback(fh_image_t *data) {
@@ -57,6 +59,17 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
     if (n_args == 0)
         return fh_set_error(prog, "Expected path");
 
+    // Optional rasterization scale, only meaningful for vector art (.svg):
+    // 1.0 is the size the drawing was authored at. Left out, vector art starts
+    // at its authored size and is re-rasterized on its own as it is drawn
+    // bigger; given here, it stays pinned at that scale.
+    double scale = 0.0;
+    if (n_args > 1) {
+        if (!fh_is_number(&args[1]))
+            return fh_set_error(prog, "love_graphics_newImage(): expected a number as second argument (vector scale)");
+        scale = fh_get_number(&args[1]);
+    }
+
     fh_image_t *img = malloc(sizeof(fh_image_t));
     img->img = malloc(sizeof(graphics_Image));
 
@@ -64,7 +77,10 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
         const char *path = fh_get_string(&args[0]);
 
         img->data = malloc(sizeof(image_ImageData));
-        image_ImageData_new_with_filename(img->data, path);
+        if (svg_isVectorPath(path) && scale > 0.0)
+            image_ImageData_new_with_svg(img->data, path, (float) scale);
+        else
+            image_ImageData_new_with_filename(img->data, path);
         if (!img->data->surface) {
             // Load failed (missing/corrupt file) - img->data->pixels is
             // NULL at this point; proceeding into
@@ -75,6 +91,11 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
             return fh_set_error(prog, "Could not load image: %s", path);
         }
         graphics_Image_new_with_ImageData(img->img, img->data);
+
+        // Pins the scale so the image keeps the resolution that was asked for
+        // instead of following what it is drawn at.
+        if (scale > 0.0 && graphics_Image_isVector(img->img))
+            graphics_Image_setVectorScale(img->img, (float) scale);
     } else if(fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE)) {
         image_ImageData *data = fh_get_c_obj_value(&args[0]);
         img->data = data;
@@ -103,8 +124,10 @@ static int fn_love_image_getWidth(struct fh_program *prog,
         return fh_set_error(prog, "love_image_getWidth(): expected 1 argument, got %d", n_args);
 
     if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
+        // img->img->width, not img->data->w: for vector art the two differ,
+        // the texture being whatever resolution it was last rasterized at.
         fh_image_t *img = fh_get_c_obj_value(&args[0]);
-        *ret = fh_new_number(image_ImageData_getWidth(img->data));
+        *ret = fh_new_number(img->img->width);
     } else if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE)) {
         image_ImageData *data = fh_get_c_obj_value(&args[0]);
         *ret = fh_new_number(image_ImageData_getWidth(data));
@@ -121,7 +144,7 @@ static int fn_love_image_getHeight(struct fh_program *prog,
 
     if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
         fh_image_t *img = fh_get_c_obj_value(&args[0]);
-        *ret = fh_new_number(image_ImageData_getHeight(img->data));
+        *ret = fh_new_number(img->img->height);
     } else if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE)) {
         image_ImageData *data = fh_get_c_obj_value(&args[0]);
         *ret = fh_new_number(image_ImageData_getHeight(data));
@@ -555,6 +578,58 @@ static int fn_love_image_getMipmapFilter(struct fh_program *prog,
     return 0;
 }
 
+static int fn_love_image_isVector(struct fh_program *prog,
+                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_isVector(): expected 1 argument, got %d", n_args);
+
+    if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
+        fh_image_t *img = fh_get_c_obj_value(&args[0]);
+        *ret = fh_new_bool(graphics_Image_isVector(img->img));
+    } else if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE)) {
+        image_ImageData *data = fh_get_c_obj_value(&args[0]);
+        *ret = fh_new_bool(image_ImageData_isVector(data));
+    } else
+        return fh_set_error(prog, "Expected image");
+
+    return 0;
+}
+
+static int fn_love_image_getVectorScale(struct fh_program *prog,
+                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_image_getVectorScale(): expected 1 argument, got %d", n_args);
+
+    if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
+        fh_image_t *img = fh_get_c_obj_value(&args[0]);
+        *ret = fh_new_number(graphics_Image_getVectorScale(img->img));
+    } else if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE)) {
+        image_ImageData *data = fh_get_c_obj_value(&args[0]);
+        *ret = fh_new_number(image_ImageData_getVectorScale(data));
+    } else
+        return fh_set_error(prog, "Expected image");
+
+    return 0;
+}
+
+static int fn_love_image_setVectorScale(struct fh_program *prog,
+                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_image_setVectorScale(): expected 2 arguments, got %d", n_args);
+
+    if (!fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE))
+        return fh_set_error(prog, "Expected image");
+    if (!fh_is_number(&args[1]))
+        return fh_set_error(prog, "Expected a number as second argument (vector scale)");
+
+    fh_image_t *img = fh_get_c_obj_value(&args[0]);
+
+    // false for raster images (nothing to rasterize) and when the
+    // rasterization itself failed; the image is left as it was either way.
+    *ret = fh_new_bool(graphics_Image_setVectorScale(img->img, (float) fh_get_number(&args[1])));
+    return 0;
+}
+
 #define DEF_FN(name) { #name, fn_##name }
 static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_graphics_newImageData),
@@ -573,6 +648,9 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_image_getMipmapFilter),
     DEF_FN(love_image_getPixel),
     DEF_FN(love_image_setPixel),
+    DEF_FN(love_image_isVector),
+    DEF_FN(love_image_getVectorScale),
+    DEF_FN(love_image_setVectorScale),
 };
 
 void fh_image_register(struct fh_program *prog) {

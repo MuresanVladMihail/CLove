@@ -1,0 +1,15 @@
+# setVectorScale without a scale must raise a clean error, not read past the
+# argument array. Runner expects a non-zero exit (the error aborts the script).
+
+fn run() {
+    let img = love_graphics_newImage("assets/vector.svg");
+    love_image_setVectorScale(img); # missing scale
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}
