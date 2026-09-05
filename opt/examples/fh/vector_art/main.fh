@@ -1,0 +1,68 @@
+# Vector art (SVG) example.
+#
+# badge.svg is a plain Inkscape export. It is loaded with the same
+# love_graphics_newImage() as a .png and drawn with the same
+# love_graphics_draw(); the only difference is that scaling it up re-rasterizes
+# the drawing, so it stays sharp instead of turning into big pixels.
+#
+# SPACE pauses the zoom, LEFT/RIGHT zoom by hand, ESC quits.
+
+fn love_load() {
+    let self = {};
+
+    # Vector art: re-rasterized on demand as it is drawn.
+    self.badge = love_graphics_newImage("badge.svg");
+
+    # The same drawing, pinned at its authored size: never re-rasterized, so it
+    # blurs when magnified exactly like a .png would.
+    self.pinned = love_graphics_newImage("badge.svg", 1);
+
+    self.font = love_graphics_newFont(14);
+    love_graphics_setFont(self.font);
+    love_graphics_setBackgroundColor(30, 32, 38);
+
+    self.scale = 1.0;
+    self.dir = 1.0;
+    self.running = true;
+
+    return self;
+}
+
+fn love_update(dt, self) {
+    if (love_keyboard_isDown("esc")) {
+        love_event_quit();
+    }
+
+    if (love_keyboard_isDown("right")) {
+        self.running = false;
+        self.scale = self.scale + dt * 3.0;
+    } elif (love_keyboard_isDown("left")) {
+        self.running = false;
+        self.scale = self.scale - dt * 3.0;
+    } elif (love_keyboard_isDown("space")) {
+        self.running = false;
+    } elif (self.running) {
+        self.scale = self.scale + self.dir * dt * 1.5;
+        if (self.scale > 6.0) { self.dir = -1.0; }
+        if (self.scale < 0.5) { self.dir = 1.0; }
+    }
+
+    if (self.scale > 6.0) { self.scale = 6.0; }
+    if (self.scale < 0.5) { self.scale = 0.5; }
+}
+
+fn love_draw(self) {
+    love_graphics_clear();
+
+    love_graphics_draw(self.pinned, 40, 90, 0, self.scale, self.scale);
+    love_graphics_draw(self.badge, 420, 90, 0, self.scale, self.scale);
+
+    love_graphics_print("pinned at scale 1 - blurs when magnified", 40, 20);
+    love_graphics_print("vector - re-rasterized, stays sharp", 420, 20);
+    love_graphics_print("drawn at x" + self.scale, 40, 45);
+    love_graphics_print("texture rasterized at x" + love_image_getVectorScale(self.badge), 420, 45);
+    love_graphics_print("SPACE: pause   LEFT/RIGHT: zoom   ESC: quit", 40, 65);
+}
+
+fn main() {
+}

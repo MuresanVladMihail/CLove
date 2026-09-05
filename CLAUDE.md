@@ -61,7 +61,7 @@ src/
                        image, filesystem, timer, math, keyboard, mouse,
                        joystick, ui, event, love, config). Lua mirror: luaapi/
   graphics/            OpenGL rendering: window/context, batch, font, canvas,
-                       shader, mesh, quad, particlesystem, geometry, image
+                       shader, mesh, quad, particlesystem, geometry, image, svg
   audio/               OpenAL (via mojoAL/SDL) static + streaming sources
   image/               CPU-side image data (pixel get/set, load/save)
   math/                vectors, matrices, random, noise, triangulation
@@ -111,6 +111,23 @@ A binding has the signature
   is absent.
 - Register new functions in the module's `c_funcs[]` table and, if it's a new
   module, call its `fh_*_register` from `fh_mainactivity.c`.
+
+## Vector art
+
+`.svg` files load through the ordinary image path: `image_ImageData` keeps the
+parsed drawing (`src/graphics/svg.c`, nanosvg + nanosvgrast from
+`src/include/`), `graphics_Image` takes it over in
+`graphics_Image_new_with_ImageData()` and re-rasterizes it in
+`graphics_Image_draw()` when the image is drawn bigger than its current
+texture. Two invariants to keep in mind when touching that code:
+
+- `graphics_Image.width/height` is the size the drawing was **authored** at and
+  must not follow the texture; `texWidth/texHeight` is the texture.
+- The `svg_Document` has exactly one owner. `image_ImageData_releaseVector()`
+  hands it from the image data to the image, which frees it in
+  `graphics_Image_free()`.
+
+Scripting side and the Inkscape caveats: see SKILLS.md.
 
 ## Platform gotchas
 

@@ -59,9 +59,12 @@ fn love_config(c) {
   `love_graphics_translate` / `rotate` / `scale` / `shear` / `origin` / `reset`.
 - **Primitives** (`graphics_geometry.c`): `love_geometry_rectangle`, `circle`,
   `line`, `polygon`, `points`.
-- **Images** (`image.c`): `love_graphics_newImage(path | imagedata)`,
+- **Images** (`image.c`): `love_graphics_newImage(path | imagedata [, scale])`,
   `love_graphics_newImageData(w, h)`, `love_image_setPixel(d,x,y,r,g,b,a)`,
   `love_image_getPixel(d,x,y) -> [r,g,b,a]`, width/height/filter/wrap getters.
+- **Vector art** (`image.c`, `graphics/svg.c`): a `.svg` path given to
+  `love_graphics_newImage()` is loaded as vector art - same function, same
+  `love_graphics_draw()`, see the section below.
 - **Quads** (`graphics_quad.c`): `love_graphics_newQuad(x,y,w,h,sw,sh)` (stores
   normalised coords), `love_quad_setViewport(q,x,y,w,h)`,
   `love_quad_getViewport(q) -> [x,y,w,h]`.
@@ -80,6 +83,59 @@ fn love_config(c) {
 
 All of the above need the GL context (i.e. a window) and so only run inside a
 real game, not headless.
+
+## Vector art (SVG) — `src/graphics/svg.c`
+
+```fh
+self.logo = love_graphics_newImage("logo.svg");   # nothing special
+love_graphics_draw(self.logo, 100, 100, 0, 8, 8); # still sharp at 8x
+```
+
+`love_graphics_newImage()` recognises `.svg` files and loads them as vector
+art: the drawing is kept around and rasterized on demand, so drawing the image
+bigger (through `sx`/`sy`, or through `love_graphics_scale()`) re-rasterizes it
+instead of magnifying pixels. Everything else — quads, filters, wrap, batches,
+`love_image_getPixel` — keeps working on the pixels as usual.
+
+- The image reports the size the drawing was **authored** at
+  (`love_image_getWidth/getHeight/getDimensions`), not the size of the current
+  rasterization, so layout code does not change when the resolution does.
+- Re-rasterization is quantised to powers of two and capped at 4096 px on the
+  longest side, so a growing sprite re-rasterizes a handful of times, not every
+  frame.
+- `love_graphics_newImage(path, scale)` pins the scale instead (`1` = the
+  authored size, `2` = twice the resolution, ...): no automatic work at all.
+- `love_image_setVectorScale(img, scale)` pins it later, `scale = 0` hands the
+  image back to automatic; `love_image_getVectorScale(img)` reads it back and
+  `love_image_isVector(img)` says whether the image is vector art at all.
+- Sprite batches, meshes and particle systems draw the texture the image
+  currently holds — pin a scale with `newImage(path, scale)` when a vector
+  image feeds one of those.
+- `love_image_getPixel` reads the rasterization made when the image was loaded,
+  not the one currently on the GPU.
+- Editing the pixels of a vector image (`love_image_refresh` with plain image
+  data) turns it into an ordinary raster image, as you would expect.
+
+### Inkscape
+
+Save as **Plain SVG** or **Inkscape SVG** — both load; Inkscape's extra
+attributes are ignored. The renderer is nanosvg, which covers paths, shapes,
+groups, transforms, strokes (dashes, caps, joins), solid fills, gradients and
+opacity, but **not**:
+
+- `<text>` — pick the text and use *Path → Object to Path* before saving.
+- clip paths, masks, filters (blur, drop shadow) — flatten them in Inkscape
+  (*Object → Clip → Release* / *Filters → ... → apply*, or *Edit → Make a
+  Bitmap Copy* for effects you cannot flatten).
+- embedded or linked bitmaps (`<image>`) — export those as PNG and draw them
+  as a separate image.
+
+Sizes are read as CSS pixels at 96 dpi, which is exactly Inkscape's user unit,
+so a document sized in mm (Inkscape's default) comes out at the size the
+document properties show.
+
+Runnable example: `opt/examples/fh/vector_art` (the same drawing pinned at 1x
+next to the automatic one, zooming in and out).
 
 ## Audio — `src/fhapi/audio.c`
 

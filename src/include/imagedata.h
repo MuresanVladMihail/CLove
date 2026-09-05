@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#include "svg.h"
+
 typedef struct {
     unsigned char r, g, b, a;
 } pixel;
@@ -23,6 +25,12 @@ typedef struct {
     const char *path;
     unsigned char *surface;
     pixel *pixels;
+    /* Vector art only (see image_ImageData_new_with_svg): the drawing the
+     * pixels above were rasterized from, and the scale used for it. `svg` is
+     * NULL for ordinary raster images, and also once a graphics_Image has
+     * taken the document over (image_ImageData_releaseVector). */
+    svg_Document *svg;
+    float svg_scale;
 } image_ImageData;
 
 char const *image_error(void);
@@ -34,6 +42,23 @@ void image_ImageData_new_with_surface(image_ImageData *dst, unsigned char *surfa
                                       unsigned int width, unsigned int height, unsigned int num_channels);
 
 void image_ImageData_new_with_filename(image_ImageData *dst, char const *filename);
+
+/* Loads vector art and rasterizes it at `scale` (1.0 = the size the drawing
+ * was authored at). image_ImageData_new_with_filename() calls this by itself
+ * for ".svg" files, so scripts never have to care. */
+void image_ImageData_new_with_svg(image_ImageData *dst, char const *filename, float scale);
+
+int image_ImageData_isVector(image_ImageData *dst);
+
+float image_ImageData_getVectorScale(image_ImageData *dst);
+
+/* Re-rasterizes vector art at a new scale, replacing the pixels. Returns 0 for
+ * raster images or when the rasterization failed (the old pixels are kept). */
+int image_ImageData_setVectorScale(image_ImageData *dst, float scale);
+
+/* Hands the vector document over to the caller, who is then responsible for
+ * freeing it. The pixels stay behind untouched. */
+svg_Document *image_ImageData_releaseVector(image_ImageData *dst);
 
 int image_ImageData_getWidth(image_ImageData *dst);
 

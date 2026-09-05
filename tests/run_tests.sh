@@ -3,6 +3,7 @@
 #
 # Each tests/fh/test_*.fh is a self-contained CLove program: its love_load()
 # runs assertions (failing via FH's error()), prints CLOVE_TEST_OK and quits.
+# tests/fh/assets/ is copied next to it, for tests that load real files.
 # Each tests/fh/xfail_*.fh is expected to fail (exit non-zero) — these lock in
 # the argument-validation guards in the bindings.
 #
@@ -48,6 +49,13 @@ run_one() {
 
     rm -f "$scratch/main.fh"
     cp "$test_file" "$scratch/main.fh"
+
+    # Tests that need real files on disk (e.g. an .svg to load) reach for them
+    # under assets/, so that directory travels with them into the scratch dir.
+    if [ -d "$here/fh/assets" ]; then
+        rm -rf "$scratch/assets"
+        cp -R "$here/fh/assets" "$scratch/assets"
+    fi
 
     out=$( cd "$scratch" && "$clove" 2>&1 )
     code=$?

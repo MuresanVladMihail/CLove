@@ -19,6 +19,7 @@
 #include "../include/quad.h"
 #include "../include/shader.h"
 #include "../include/geometry.h"
+#include "../include/svg.h"
 
 #ifndef SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG
 #define SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG 0x0002
@@ -186,6 +187,9 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
 }
 
 void graphics_shutdown() {
+    /* Drops the shared SVG rasterizer's scratch buffers. */
+    svg_shutdown();
+
     if (moduleData.hasWindow) {
         if (moduleData.defaultVao) {
             glDeleteVertexArrays(1, &moduleData.defaultVao);

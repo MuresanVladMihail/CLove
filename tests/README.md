@@ -29,6 +29,9 @@ dummy video driver.
   the argument-validation guards in the bindings (e.g. `setPixel` with too few
   arguments must error instead of reading past the argument array).
 
+- `fh/assets/` — files the tests load from disk (an `.svg` for the vector art
+  test, ...). The runner copies the whole directory next to each test.
+
 The runner copies each test to a scratch dir as `main.fh` (CLove loads
 `main.fh` from the current directory) and runs the engine there.
 
@@ -41,9 +44,11 @@ The runner copies each test to a scratch dir as `main.fh` (CLove loads
 | `test_math_noise` | simplex noise is deterministic, bounded to [-1,1], works in 1..4 D |
 | `test_window` | window getters are self-consistent |
 | `test_version` | `love_getVersion()` shape |
+| `test_svg` | vector art: `.svg` loads through `newImage`, reports its authored size, pins/reads its rasterization scale, and re-rasterizes when drawn 8x |
 | `xfail_setpixel_argcount` | `setPixel` with missing channels must error |
 | `xfail_getpixel_argcount` | `getPixel` without coords must error |
 | `xfail_setviewport_argcount` | `setViewport` with a missing component must error |
+| `xfail_setvectorscale_argcount` | `setVectorScale` without a scale must error |
 
 ## Adding a test
 

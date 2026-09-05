@@ -269,7 +269,9 @@ static void prepareBatches(graphics_Font *font, size_t chars) {
         }
         moduleData.batches = newData;
         for (int i = moduleData.batchcount; i < font->glyphs.numTextures; ++i) {
-            graphics_Image *img = malloc(sizeof(graphics_Image));
+            /* Only texID/width/height are filled in here, so the rest (the
+             * vector-art fields among them) has to start out zeroed. */
+            graphics_Image *img = calloc(1, sizeof(graphics_Image));
             img->texID = font->glyphs.textures[i];
             img->width = font->glyphs.textureWidth;
             img->height = font->glyphs.textureHeight;

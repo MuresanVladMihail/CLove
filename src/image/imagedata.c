@@ -16,8 +16,18 @@
 #include "../include/stb_image_write.h"
 
 #include "../include/imagedata.h"
+#include "../include/svg.h"
 
 void image_ImageData_new_with_filename(image_ImageData *dst, char const *filename) {
+  dst->svg = NULL;
+  dst->svg_scale = 1.0f;
+
+  /* Vector art goes through the SVG rasterizer; everything else through stb. */
+  if (svg_isVectorPath(filename)) {
+    image_ImageData_new_with_svg(dst, filename, 1.0f);
+    return;
+  }
+
   int n;
   dst->surface = stbi_load(filename, &dst->w, &dst->h, &n, STBI_default);
   dst->c = n;
@@ -31,12 +41,83 @@ void image_ImageData_new_with_filename(image_ImageData *dst, char const *filenam
   dst->pixels = (pixel *) dst->surface;
 }
 
+void image_ImageData_new_with_svg(image_ImageData *dst, char const *filename, float scale) {
+  dst->w = 0;
+  dst->h = 0;
+  dst->c = 4; /* the rasterizer always produces straight RGBA */
+  dst->path = filename;
+  dst->surface = NULL;
+  dst->pixels = NULL;
+  dst->svg = NULL;
+  dst->svg_scale = 1.0f;
+
+  svg_Document *doc = svg_Document_new_with_filename(filename);
+  if (!doc) {
+    clove_error("%s %s: %s\n", "Error: Could not open vector image: ", filename, svg_error());
+    return;
+  }
+
+  scale = svg_Document_clampScale(doc, scale, 0);
+
+  int w, h;
+  unsigned char *pixels = svg_Document_rasterize(doc, scale, &w, &h);
+  if (!pixels) {
+    clove_error("%s %s: %s\n", "Error: Could not rasterize vector image: ", filename, svg_error());
+    svg_Document_free(doc);
+    return;
+  }
+
+  dst->w = w;
+  dst->h = h;
+  dst->surface = pixels;
+  dst->pixels = (pixel *) pixels;
+  dst->svg = doc;
+  dst->svg_scale = scale;
+}
+
+int image_ImageData_isVector(image_ImageData *dst) {
+  return dst->svg != NULL;
+}
+
+float image_ImageData_getVectorScale(image_ImageData *dst) {
+  return dst->svg_scale;
+}
+
+int image_ImageData_setVectorScale(image_ImageData *dst, float scale) {
+  if (!dst->svg)
+    return 0;
+
+  scale = svg_Document_clampScale(dst->svg, scale, 0);
+
+  int w, h;
+  unsigned char *pixels = svg_Document_rasterize(dst->svg, scale, &w, &h);
+  if (!pixels) {
+    clove_error("%s %s\n", "Error: Could not rasterize vector image: ", svg_error());
+    return 0;
+  }
+
+  image_ImageData_setSurface(dst, pixels);
+  dst->w = w;
+  dst->h = h;
+  dst->c = 4;
+  dst->svg_scale = scale;
+  return 1;
+}
+
+svg_Document *image_ImageData_releaseVector(image_ImageData *dst) {
+  svg_Document *doc = dst->svg;
+  dst->svg = NULL;
+  return doc;
+}
+
 void image_ImageData_new_with_size(image_ImageData *dst, int width, int height, int num_channels) {
   dst->surface = malloc(sizeof(unsigned char) * width * height * num_channels);
   dst->w = width;
   dst->h = height;
   dst->c = num_channels;
   dst->path = "";
+  dst->svg = NULL;
+  dst->svg_scale = 1.0f;
   memset(dst->surface, 255, sizeof(unsigned char) * width * height * num_channels);
   dst->pixels = (pixel *) dst->surface;
 }
@@ -50,6 +131,8 @@ void image_ImageData_new_with_surface(image_ImageData *dst, unsigned char *surfa
   dst->h = height;
   dst->c = num_channels;
   dst->path = "";
+  dst->svg = NULL;
+  dst->svg_scale = 1.0f;
   dst->pixels = (pixel *) dst->surface;
 }
 
@@ -124,6 +207,13 @@ void image_ImageData_free(image_ImageData *data) {
   stbi_image_free(data->surface);
   data->surface = NULL;
   data->pixels = NULL;
+
+  /* NULL once a graphics_Image adopted the document (see
+   * image_ImageData_releaseVector), so this frees it at most once. */
+  if (data->svg) {
+    svg_Document_free(data->svg);
+    data->svg = NULL;
+  }
 }
 
 void image_init(void) {
