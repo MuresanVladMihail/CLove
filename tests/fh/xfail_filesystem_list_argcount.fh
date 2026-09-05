@@ -1,0 +1,7 @@
+# love_filesystem_list() must check its argument count before touching args[0]
+fn love_load() {
+    love_filesystem_list();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

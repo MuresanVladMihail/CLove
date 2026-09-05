@@ -282,20 +282,101 @@ static int fn_love_filesystem_enumerate(struct fh_program *prog,
     char **rez = filesystem_enumerate(path);
     if (rez == NULL)
         return fh_set_error(prog, "Couldn't get files in directory %s, perhaps you didn't call setIdentity first?\n", path);
-    size_t rez_size = strlen(*rez);
+
+    /* PhysFS hands back a NULL-terminated list of names. The count used to be
+     * taken as strlen() of the *first name*, which then indexed past the end
+     * of the list; and the list was never given back to PhysFS. */
+    int rez_size = 0;
+    while (rez[rez_size] != NULL) { rez_size++; }
 
     int pin_state = fh_get_pin_state(prog);
     struct fh_array *ret_arr = fh_make_array(prog, true);
     fh_grow_array_object(prog, ret_arr, rez_size);
 
     struct fh_value new_val = fh_new_array(prog);
-    for (size_t i = 0; i < rez_size-1; i++) {
-		ret_arr->items[i] = fh_new_string(prog, rez[i]);
+    for (int i = 0; i < rez_size; i++) {
+        ret_arr->items[i] = fh_new_string(prog, rez[i]);
     }
 
     new_val.data.obj = ret_arr;
     *ret = new_val;
     fh_restore_pin_state(prog, pin_state);
+    filesystem_freeEnumerate(rez);
+    return 0;
+}
+
+/* love_filesystem_list(path) -> [{ "name": string, "dir": bool }, ...]
+ *
+ * A listing of a real directory, sorted with the directories first. Unlike
+ * love_filesystem_enumerate() this does not go through PhysFS, so it sees the
+ * whole machine and takes absolute paths -- it is what a file picker needs.
+ * "." and ".." are left out. Errors (no such directory, no permission) come
+ * back as null rather than as a script error, so a browser can just show the
+ * folder as empty and let the user walk back out. */
+static int fn_love_filesystem_list(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_filesystem_list(): expected 1 argument, got %d", n_args);
+    if (!fh_is_string(&args[0]))
+        return fh_set_error(prog, "love_filesystem_list(): expected the directory path as a string");
+
+    int count = 0;
+    struct DirEntry *entries = filesystem_listDirectory(fh_get_string(&args[0]), &count);
+    if (entries == NULL && count == 0) {
+        *ret = fh_new_null();
+        return 0;
+    }
+
+    int pin_state = fh_get_pin_state(prog);
+    struct fh_array *arr = fh_make_array(prog, true);
+    fh_grow_array_object(prog, arr, count);
+
+    for (int i = 0; i < count; i++) {
+        struct fh_value entry = fh_new_map(prog);
+        struct fh_value key_name = fh_new_string(prog, "name");
+        struct fh_value key_dir = fh_new_string(prog, "dir");
+        struct fh_value name = fh_new_string(prog, entries[i].name);
+        struct fh_value is_dir = fh_new_bool(entries[i].is_dir);
+        fh_add_map_entry(prog, &entry, &key_name, &name);
+        fh_add_map_entry(prog, &entry, &key_dir, &is_dir);
+        arr->items[i] = entry;
+    }
+
+    struct fh_value out = fh_new_array(prog);
+    out.data.obj = arr;
+    *ret = out;
+    fh_restore_pin_state(prog, pin_state);
+
+    filesystem_freeDirectoryList(entries, count);
+    return 0;
+}
+
+/* love_filesystem_getWorkingDirectory() -> string or null
+ *
+ * The directory the process is running in, which for CLove is the one main.fh
+ * was loaded from -- the base a game's relative paths are resolved against.
+ * love_filesystem_getCurrentDirectory() is a different thing despite the name:
+ * it answers PhysFS's base directory, where the executable lives. */
+static int fn_love_filesystem_getWorkingDirectory(struct fh_program *prog,
+                                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    (void) args;
+    if (n_args != 0)
+        return fh_set_error(prog, "love_filesystem_getWorkingDirectory(): expected no arguments, got %d", n_args);
+
+    const char *cwd = filesystem_getWorkingDirectory();
+    *ret = cwd ? fh_new_string(prog, cwd) : fh_new_null();
+    return 0;
+}
+
+/* love_filesystem_getHomeDirectory() -> string or null */
+static int fn_love_filesystem_getHomeDirectory(struct fh_program *prog,
+                                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    (void) args;
+    if (n_args != 0)
+        return fh_set_error(prog, "love_filesystem_getHomeDirectory(): expected no arguments, got %d", n_args);
+
+    const char *home = filesystem_getHomeDirectory();
+    *ret = home ? fh_new_string(prog, home) : fh_new_null();
     return 0;
 }
 
@@ -318,6 +399,9 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_filesystem_getUsrDir),
     DEF_FN(love_filesystem_setIdentity),
     DEF_FN(love_filesystem_enumerate),
+    DEF_FN(love_filesystem_list),
+    DEF_FN(love_filesystem_getHomeDirectory),
+    DEF_FN(love_filesystem_getWorkingDirectory),
 	DEF_FN(love_filesystem_getCurrentDirectory),
 };
 

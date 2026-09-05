@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <ctype.h>
+
 #ifdef CLOVE_WINDOWS
 #include <direct.h>
 #define getcwd _getcwd // apparently getcwd is dreprecated on windows
@@ -22,6 +24,7 @@
 #include <windows.h>
 #else
 #include <unistd.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #endif
@@ -240,6 +243,17 @@ int filesystem_append(const char* name, const char* data) {
 
 }
 
+const char* filesystem_getWorkingDirectory(void) {
+    /* The process's own cwd -- which is where CLove loaded main.fh from, and
+     * so where a game's relative paths resolve. Note that this is *not* what
+     * filesystem_getCurrentDirectory() below returns: that one has always
+     * answered PhysFS's base directory, the directory the executable lives in,
+     * despite the name. */
+    static char buffer[4096];
+    if (getcwd(buffer, sizeof(buffer)) == NULL) { return NULL; }
+    return buffer;
+}
+
 const char* filesystem_getCurrentDirectory() {
 /*
 #ifndef CLOVE_WEB
@@ -443,6 +457,160 @@ char** filesystem_enumerate(const char* path)
 #else
     clove_error("enumerate feature is supported by enabling physfs.");
     return NULL;
+#endif
+}
+
+void filesystem_freeEnumerate(char** list)
+{
+    if (!list) { return; }
+#ifdef USE_PHYSFS
+    PHYSFS_freeList(list);
+#endif
+}
+
+/* --- real directory listing ------------------------------------------------
+ *
+ * PhysFS only enumerates what has been mounted, so a file picker that is meant
+ * to browse the machine cannot use filesystem_enumerate(). This walks the
+ * actual filesystem with readdir()/FindFirstFile().
+ */
+
+static int dir_entry_cmp(const void *a, const void *b) {
+    const struct DirEntry *x = a;
+    const struct DirEntry *y = b;
+    /* directories first, so a picker's list reads the way a file manager does */
+    if (x->is_dir != y->is_dir) { return x->is_dir ? -1 : 1; }
+    {
+        const char *p = x->name;
+        const char *q = y->name;
+        while (*p && *q) {
+            int cp = tolower((unsigned char) *p);
+            int cq = tolower((unsigned char) *q);
+            if (cp != cq) { return cp < cq ? -1 : 1; }
+            p++;
+            q++;
+        }
+        if (*p == *q) { return 0; }
+        return *p ? 1 : -1;
+    }
+}
+
+static bool dir_entry_push(struct DirEntry **list, int *count, int *cap,
+                           const char *name, bool is_dir) {
+    if (*count == *cap) {
+        int grown = *cap ? *cap * 2 : 32;
+        struct DirEntry *bigger = realloc(*list, (size_t) grown * sizeof(struct DirEntry));
+        if (!bigger) { return false; }
+        *list = bigger;
+        *cap = grown;
+    }
+
+    size_t len = strlen(name);
+    char *copy = malloc(len + 1);
+    if (!copy) { return false; }
+    memcpy(copy, name, len + 1);
+
+    (*list)[*count].name = copy;
+    (*list)[*count].is_dir = is_dir;
+    (*count)++;
+    return true;
+}
+
+void filesystem_freeDirectoryList(struct DirEntry* entries, int count) {
+    if (!entries) { return; }
+    for (int i = 0; i < count; i++) { free(entries[i].name); }
+    free(entries);
+}
+
+struct DirEntry* filesystem_listDirectory(const char* path, int* count) {
+    if (count) { *count = 0; }
+    if (!path || !count) { return NULL; }
+
+    struct DirEntry *list = NULL;
+    int n = 0;
+    int cap = 0;
+    bool ok = true;
+
+#ifdef CLOVE_WINDOWS
+    size_t len = strlen(path);
+    char *pattern = malloc(len + 3);
+    if (!pattern) { return NULL; }
+    memcpy(pattern, path, len);
+    /* "C:\\dir" -> "C:\\dir\\*", "C:\\" -> "C:\\*" */
+    if (len > 0 && path[len - 1] != '\\' && path[len - 1] != '/') {
+        pattern[len++] = '\\';
+    }
+    pattern[len++] = '*';
+    pattern[len] = '\0';
+
+    WIN32_FIND_DATAA found;
+    HANDLE handle = FindFirstFileA(pattern, &found);
+    free(pattern);
+    if (handle == INVALID_HANDLE_VALUE) { return NULL; }
+
+    do {
+        if (strcmp(found.cFileName, ".") == 0 || strcmp(found.cFileName, "..") == 0) {
+            continue;
+        }
+        bool is_dir = (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        if (!dir_entry_push(&list, &n, &cap, found.cFileName, is_dir)) {
+            ok = false;
+            break;
+        }
+    } while (FindNextFileA(handle, &found));
+    FindClose(handle);
+#else
+    DIR *dir = opendir(path);
+    if (!dir) { return NULL; }
+
+    size_t base_len = strlen(path);
+    bool needs_slash = base_len > 0 && path[base_len - 1] != '/';
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        /* d_type is not filled in on every filesystem, and it says "symlink"
+         * rather than what the link points at -- stat() settles both. */
+        bool is_dir = false;
+        size_t name_len = strlen(entry->d_name);
+        char *full = malloc(base_len + needs_slash + name_len + 1);
+        if (!full) { ok = false; break; }
+        memcpy(full, path, base_len);
+        if (needs_slash) { full[base_len] = '/'; }
+        memcpy(full + base_len + needs_slash, entry->d_name, name_len + 1);
+
+        struct stat st;
+        if (stat(full, &st) == 0) { is_dir = S_ISDIR(st.st_mode); }
+        free(full);
+
+        if (!dir_entry_push(&list, &n, &cap, entry->d_name, is_dir)) {
+            ok = false;
+            break;
+        }
+    }
+    closedir(dir);
+#endif
+
+    if (!ok) {
+        filesystem_freeDirectoryList(list, n);
+        return NULL;
+    }
+
+    if (n > 1) { qsort(list, (size_t) n, sizeof(struct DirEntry), dir_entry_cmp); }
+    *count = n;
+    return list;
+}
+
+const char* filesystem_getHomeDirectory(void) {
+#ifdef CLOVE_WINDOWS
+    const char *home = getenv("USERPROFILE");
+    if (home) { return home; }
+    return getenv("HOMEPATH");
+#else
+    return getenv("HOME");
 #endif
 }
 
