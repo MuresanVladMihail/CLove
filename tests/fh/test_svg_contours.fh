@@ -1,0 +1,44 @@
+# love_image_getVectorContours(): the drawing's paths, flattened to polylines
+# in document coordinates. This is derived data -- a level file stores the
+# sprite's path and recomputes the outline, so the collision follows the art.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    let img = love_graphics_newImage("assets/vector.svg");
+    check(love_image_isVector(img), "the asset should be vector art");
+
+    let cs = love_image_getVectorContours(img);
+    check(len(cs) > 0, "the drawing should have at least one contour");
+
+    let first = cs[0];
+    check(contains_key(first, "points"), "a contour should carry its points");
+    check(contains_key(first, "closed"), "a contour should say whether it closes");
+    check(len(first.points) >= 6, "a usable contour needs at least 3 points");
+    check(len(first.points) % 2 == 0, "points come in x,y pairs");
+
+    # Points are in document space, so they sit inside the authored 80x40 box.
+    let w = love_image_getWidth(img);
+    let h = love_image_getHeight(img);
+    for (let c = 0; c < len(cs); c = c + 1) {
+        let p = cs[c].points;
+        for (let i = 0; i + 1 < len(p); i = i + 2) {
+            check(p[i] >= -1.0 && p[i] <= w + 1.0, "x should lie inside the drawing");
+            check(p[i + 1] >= -1.0 && p[i + 1] <= h + 1.0, "y should lie inside the drawing");
+        }
+    }
+
+    # A looser tolerance spends fewer points on the same curve.
+    let coarse = love_image_getVectorContours(img, 8.0);
+    let fine = love_image_getVectorContours(img, 0.05);
+    check(len(fine[0].points) >= len(coarse[0].points),
+          "a tighter tolerance should not use fewer points");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

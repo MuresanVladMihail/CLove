@@ -64,7 +64,7 @@ static int graphics_Image_rasterizeVector(graphics_Image *img, float scale) {
     int w, h;
     unsigned char *pixels = svg_Document_rasterize(img->svg, scale, &w, &h);
     if (!pixels) {
-        clove_error("%s %s\n", "Error: Could not rasterize vector image: ", svg_error());
+        clove_error("Error: could not rasterize vector image: %s\n", svg_error());
         return 0;
     }
 

@@ -578,6 +578,74 @@ static int fn_love_image_getMipmapFilter(struct fh_program *prog,
     return 0;
 }
 
+/*
+ * love_image_getVectorContours(image, [tolerance]) -> [contour, ...]
+ *
+ * Each contour is { "points": [x0, y0, x1, y1, ...], "closed": bool }, in the
+ * drawing's own coordinates (0..width, 0..height), so the caller scales them
+ * onto whatever the sprite is drawn at.
+ *
+ * This is derived data: it comes from the artwork, so recompute it on load
+ * rather than storing it in a level file, and the collision follows the art
+ * when the art changes.
+ */
+static int fn_love_image_getVectorContours(struct fh_program *prog,
+                                           struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 1)
+        return fh_set_error(prog, "love_image_getVectorContours(): expected at least 1 argument, got %d",
+                            n_args);
+
+    svg_Document *doc = NULL;
+    if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
+        fh_image_t *img = fh_get_c_obj_value(&args[0]);
+        doc = img->img->svg;
+    } else if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE)) {
+        image_ImageData *data = fh_get_c_obj_value(&args[0]);
+        doc = data->svg;
+    } else {
+        return fh_set_error(prog, "Expected an image or image data as argument 0");
+    }
+
+    if (!doc)
+        return fh_set_error(prog, "love_image_getVectorContours(): this image is not vector art");
+
+    float tolerance = (float) fh_optnumber(args, n_args, 1, 0.0);
+
+    int count = 0;
+    svg_Contour *contours = svg_Document_getContours(doc, tolerance, &count);
+
+    int pin_state = fh_get_pin_state(prog);
+    struct fh_array *outer = fh_make_array(prog, true);
+    fh_grow_array_object(prog, outer, count);
+
+    for (int i = 0; i < count; i++) {
+        struct fh_array *pts = fh_make_array(prog, true);
+        fh_grow_array_object(prog, pts, contours[i].count * 2);
+        for (int p = 0; p < contours[i].count * 2; p++) {
+            pts->items[p] = fh_new_number(contours[i].points[p]);
+        }
+        struct fh_value pts_value = fh_new_array(prog);
+        pts_value.data.obj = pts;
+
+        struct fh_value entry = fh_new_map(prog);
+        struct fh_value key_points = fh_new_string(prog, "points");
+        struct fh_value key_closed = fh_new_string(prog, "closed");
+        struct fh_value closed = fh_new_bool(contours[i].closed != 0);
+        fh_add_map_entry(prog, &entry, &key_points, &pts_value);
+        fh_add_map_entry(prog, &entry, &key_closed, &closed);
+
+        outer->items[i] = entry;
+    }
+
+    svg_Contours_free(contours, count);
+
+    struct fh_value out = fh_new_array(prog);
+    out.data.obj = outer;
+    *ret = out;
+    fh_restore_pin_state(prog, pin_state);
+    return 0;
+}
+
 static int fn_love_image_isVector(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 1)
@@ -649,6 +717,7 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_image_getPixel),
     DEF_FN(love_image_setPixel),
     DEF_FN(love_image_isVector),
+    DEF_FN(love_image_getVectorContours),
     DEF_FN(love_image_getVectorScale),
     DEF_FN(love_image_setVectorScale),
 };

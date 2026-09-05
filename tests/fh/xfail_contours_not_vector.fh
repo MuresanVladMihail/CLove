@@ -1,0 +1,15 @@
+# love_image_getVectorContours() on a bitmap has no drawing to flatten and must
+# say so instead of handing back an empty result. Runner expects a non-zero exit.
+
+fn run() {
+    let data = love_graphics_newImageData(8, 8);
+    love_image_getVectorContours(data);
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}

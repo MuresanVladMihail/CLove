@@ -1,0 +1,60 @@
+# Clip paths in vector art.
+#
+# The vendored nanosvg is patched to support <clipPath>, which is not optional
+# polish: cairo - and so every .svg that came out of a PDF/EPS/AI conversion or
+# an Inkscape "Save a Copy" through cairo - never fills the real outline of a
+# gradient shape. It emits a rectangle covering the paint and puts the outline
+# in a clip path. Without clipping such a drawing renders as blocks of colour.
+#
+# assets/clip.svg is authored 40x60 and loads at scale 1, so pixel coordinates
+# here are the coordinates in the drawing.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn opaque(img, x, y, msg) {
+    let p = love_image_getPixel(img, x, y);
+    check(p[3] > 250, msg + ": expected an opaque pixel, got alpha " + p[3]);
+    return p;
+}
+
+fn clear(img, x, y, msg) {
+    let p = love_image_getPixel(img, x, y);
+    check(p[3] < 5, msg + ": expected a clipped-away pixel, got alpha " + p[3]);
+}
+
+fn love_load() {
+    let img = love_graphics_newImage("assets/clip.svg");
+
+    check(love_image_isVector(img), "clip.svg should load as vector art");
+    check(love_image_getWidth(img) == 40, "authored width should be 40");
+    check(love_image_getHeight(img) == 60, "authored height should be 60");
+
+    # Row 1: the red band is clipped to x < 20.
+    let red = opaque(img, 5, 10, "inside a userSpaceOnUse clip");
+    check(red[0] > 250 && red[1] < 5 && red[2] < 5, "the clipped fill should keep its own colour");
+    clear(img, 30, 10, "outside a userSpaceOnUse clip");
+
+    # Row 2: objectBoundingBox clip (x < 20 of the shape's own box) intersected
+    # with the outer <g clip-path> band (y 20..30).
+    let green = opaque(img, 5, 25, "inside both clips");
+    check(green[1] > 250 && green[0] < 5, "the doubly clipped fill should keep its own colour");
+    clear(img, 30, 25, "outside the objectBoundingBox clip");
+    clear(img, 5, 35, "outside the band clip");
+
+    # Row 3: the shape cairo writes for a clipped fill. The rectangle covers the
+    # whole row; only the clip path's 20x10 window may show.
+    let blue = opaque(img, 20, 50, "inside a cairo-style clip");
+    clear(img, 3, 50, "outside a cairo-style clip");
+    clear(img, 20, 42, "above a cairo-style clip");
+
+    # And the colour is a fractional percentage, which is the only way cairo
+    # writes colours: 20% / 40% / 60% of 255.
+    check(blue[0] == 51 && blue[1] == 102 && blue[2] == 153,
+          "fractional rgb(%) should parse exactly, got "
+          + blue[0] + "," + blue[1] + "," + blue[2]);
+
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}
