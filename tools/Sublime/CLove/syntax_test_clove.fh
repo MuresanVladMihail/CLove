@@ -1,0 +1,55 @@
+# SYNTAX TEST "Packages/CLove/CLove.sublime-syntax"
+
+fn love_config(c) {
+# <- keyword.declaration.function.fh
+#  ^^^^^^^^^^^ entity.name.function.fh - support
+#              ^ meta.function.parameters.fh variable.parameter.fh
+    c.window_title = "My Game";  # love_graphics_draw not in a comment
+#     ^^^^^^^^^^^^ variable.other.member.fh
+#                    ^^^^^^^^^ string.quoted.double.fh
+#                                  ^^^^^^^^^^^^^^^^^^ comment.line.number-sign.fh - support
+}
+
+fn love_load() {
+#  ^^^^^^^^^ entity.name.function.fh
+    let self = { "img": love_graphics_newImage("player.png") };
+#   ^^^ keyword.declaration.variable.fh
+#                ^^^^^ meta.mapping.key.fh string.quoted.double.fh
+#                       ^^^^^^^^^^^^^^^^^^^^^^ support.function.clove
+#                                              ^^^^^^^^^^^^ string.quoted.double.fh - support
+    return self;
+}
+
+fn love_update(dt, self) {
+#  ^^^^^^^^^^^ entity.name.function.fh
+#              ^^ variable.parameter.fh
+    if (love_keyboard_isDown("escape")) { love_event_quit(); }
+#   ^^ keyword.control.conditional.fh
+#       ^^^^^^^^^^^^^^^^^^^^ support.function.clove
+#                                         ^^^^^^^^^^^^^^^ support.function.clove
+    self.x = love_mouse_getX() + love_timer_getDelta();
+#            ^^^^^^^^^^^^^^^ support.function.clove
+#                              ^ keyword.operator.arithmetic.fh
+#                                ^^^^^^^^^^^^^^^^^^^ support.function.clove
+    love_udpate();
+#   ^^^^^^^^^^^ variable.function.fh - support
+    printf("%s\n", "love_ui_button");
+#   ^^^^^^ support.function.builtin.fh
+#                  ^^^^^^^^^^^^^^^^ string.quoted.double.fh - support.function.clove
+}
+
+fn love_draw(self) {
+#  ^^^^^^^^^ entity.name.function.fh
+    love_graphics_setColor(255, 255, 255, 255);
+#   ^^^^^^^^^^^^^^^^^^^^^^ support.function.clove
+#                          ^^^ constant.numeric.integer.fh
+    love_geometry_rectangle(true, 10, 10.5, 50, 50);
+#   ^^^^^^^^^^^^^^^^^^^^^^^ support.function.clove
+#                           ^^^^ constant.language.boolean.fh
+#                                     ^^^^ constant.numeric.float.fh
+    love_particleSystem_setEmissionRate(self.ps, 30);
+#   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ support.function.clove
+}
+
+fn main() {}
+#  ^^^^ entity.name.function.fh
