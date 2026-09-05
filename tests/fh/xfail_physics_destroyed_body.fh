@@ -1,0 +1,16 @@
+# Using a body after its world is gone must be a script error, not a crash.
+
+fn run() {
+    let world = love_physics_newWorld(0, 100);
+    let body = love_physics_newBody(world, 0, 0, "dynamic");
+    love_world_destroy(world);
+    love_body_getX(body);
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}

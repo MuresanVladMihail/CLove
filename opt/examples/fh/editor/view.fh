@@ -1,0 +1,155 @@
+# ============================================================================
+#  view.fh -- the viewport
+# ----------------------------------------------------------------------------
+#  love_draw() runs before ui_draw() in the frame (src/fh_mainactivity.c), so
+#  everything painted here sits underneath the panels.
+# ============================================================================
+
+
+fn view_draw_grid(app) {
+	love_graphics_setColor(46, 50, 60, 255);
+
+	# only the visible span, so zooming out does not draw thousands of lines
+	let tl = cam_to_world(app, VP_X, VP_Y);
+	let br = cam_to_world(app, VP_X + VP_W, VP_Y + VP_H);
+
+	let step = app.grid;
+	while ((br[0] - tl[0]) / step > 120) { step = step * 2; }
+
+	# one step past the edge, so the last line is not clipped away
+	let x = math_floor(tl[0] / step) * step;
+	while (x <= br[0] + step) {
+		love_geometry_line([x, tl[1], x, br[1]]);
+		x = x + step;
+	}
+	let y = math_floor(tl[1] / step) * step;
+	while (y <= br[1] + step) {
+		love_geometry_line([tl[0], y, br[0], y]);
+		y = y + step;
+	}
+	return 0;
+}
+
+# The traced hull, rotated into place. Falls back to the fixture box when
+# the entity has no vector art to trace.
+fn view_draw_traced_outline(app, e, cx, cy, angle) {
+	let poly = trace_points(app, e);
+	let f = doc_shape(app, e);
+	if (poly == null) {
+		love_geometry_rectangle("line", cx, cy, f.w, f.h,
+			angle, 1, 1, f.w * 0.5, f.h * 0.5);
+		return 0;
+	}
+
+	let ca = math_cos(angle);
+	let sa = math_sin(angle);
+	let line = [];
+	for (let i = 0; i + 1 < len(poly); i = i + 2) {
+		append(line, cx + poly[i] * ca - poly[i + 1] * sa);
+		append(line, cy + poly[i] * sa + poly[i + 1] * ca);
+	}
+	# close the loop
+	append(line, cx + poly[0] * ca - poly[1] * sa);
+	append(line, cy + poly[0] * sa + poly[1] * ca);
+
+	love_geometry_line(line);
+	return 0;
+}
+
+fn view_draw_entity(app, e) {
+	let f = doc_shape(app, e);
+	let pose = sim_pose(app, e);
+	let cx = pose[0];
+	let cy = pose[1];
+	let angle = pose[2];
+
+	if (e.visible) {
+		# The colour is a modulate, the way LOVE's setColor and Godot's
+		# `modulate` are: it fills the shape when there is no artwork, and
+		# tints the artwork when there is. It used to be forced to white
+		# before drawing a sprite, so the Appearance sliders did nothing the
+		# moment an entity had a texture. White means untinted.
+		love_graphics_setColor(e.color[0], e.color[1], e.color[2], 255);
+
+		let img = sprite_of(app, e);
+		if (img == null) {
+			if (f.shape == "circle") {
+				love_geometry_circle("fill", cx, cy, f.w * 0.5, 32);
+			} else {
+				# x,y is the origin anchor, so the shape is centred on the
+				# body and rotates about its own middle
+				love_geometry_rectangle("fill", cx, cy, f.w, f.h,
+					angle, 1, 1, f.w * 0.5, f.h * 0.5);
+			}
+		} else {
+			# scale the artwork onto the fixture, and rotate about its centre
+			let iw = love_image_getWidth(img);
+			let ih = love_image_getHeight(img);
+			love_graphics_draw(img, cx, cy, angle,
+				f.w / iw, f.h / ih, iw * 0.5, ih * 0.5);
+		}
+	}
+
+	# the collision shape, colour-coded by body type -- the overlay every
+	# physics editor gives you so the artwork cannot hide a wrong fixture
+	if (app.show_fixtures) {
+		if (e.body.type == "dynamic") {
+			love_graphics_setColor(120, 190, 255, 150);
+		} else if (e.body.type == "kinematic") {
+			love_graphics_setColor(190, 140, 255, 150);
+		} else {
+			love_graphics_setColor(150, 155, 165, 130);
+		}
+		if (f.shape == "circle") {
+			love_geometry_circle("line", cx, cy, f.w * 0.5, 32);
+		} else if (f.shape == "traced") {
+			view_draw_traced_outline(app, e, cx, cy, angle);
+		} else {
+			love_geometry_rectangle("line", cx, cy, f.w, f.h,
+				angle, 1, 1, f.w * 0.5, f.h * 0.5);
+		}
+	}
+
+	if (e.id == app.selected_id) {
+		love_graphics_setColor(255, 214, 90, 255);
+		love_geometry_rectangle("line", cx, cy, f.w + 6, f.h + 6,
+			angle, 1, 1, f.w * 0.5 + 3, f.h * 0.5 + 3);
+	}
+	return 0;
+}
+
+fn view_draw(app) {
+	love_graphics_setColor(20, 22, 28, 255);
+	love_geometry_rectangle("fill", VP_X, VP_Y, VP_W, VP_H);
+
+	# Keep the scene inside the viewport while it pans. Note the Y: unlike
+	# every other drawing call, love_graphics_setScissor() hands its
+	# rectangle straight to glScissor(), whose origin is the *bottom* left.
+	love_graphics_setScissor(VP_X, SCREEN_H - VP_Y - VP_H, VP_W, VP_H);
+	cam_push(app);
+
+	if (app.show_grid) { view_draw_grid(app); }
+
+	let entities = doc_entities(app);
+	for (let i = 0; i < len(entities); i = i + 1) { view_draw_entity(app, entities[i]); }
+
+	cam_pop(app);
+
+	# the gizmo is screen space, but still clipped to the viewport
+	if (app.mode == "edit" && app.tool == "select") {
+		let sel = doc_selected(app);
+		if (sel != null) { gizmo_draw(app, sel); }
+	}
+
+	# last inside the viewport, so it sits over the scene and the gizmo
+	if (point_in(app.mx, app.my, VP_X, VP_Y, VP_W, VP_H)) {
+		cursor_draw(app);
+	}
+
+	love_graphics_setScissor();
+
+	love_graphics_setColor(70, 76, 90, 255);
+	love_geometry_rectangle("line", VP_X, VP_Y, VP_W, VP_H);
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}

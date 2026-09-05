@@ -1,0 +1,16 @@
+fn love_config(c) {
+	c.window_title = "CLove — 2D Editor Skeleton (microui)";
+	c.window_width = 1280;
+	c.window_height = 760;
+	c.window_x = -1;
+	c.window_y = -1;
+	c.window_vsync = true;
+
+	# The panels below are laid out as fixed "docks". microui only applies the
+	# rect you pass to love_ui_begin_window() the first time a window is seen
+	# (see mu_begin_window_ex: `if (cnt->rect.w == 0) cnt->rect = rect;`), and
+	# CLove does not expose ui_get_container()/mu_Container for a *live* window,
+	# so a panel cannot be repositioned afterwards from script. Keeping the
+	# window unresizable is what makes the fixed layout honest.
+	c.window_resizable = false;
+}

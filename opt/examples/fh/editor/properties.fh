@@ -1,0 +1,172 @@
+# ============================================================================
+#  properties.fh -- free-form data on an entity
+# ----------------------------------------------------------------------------
+#  An entity's fields are what every entity has: a transform, a fixture, a
+#  sprite. Everything a *particular* game needs -- how fast this enemy patrols,
+#  which level this door leads to, what this pickup is worth -- goes in the
+#  props map instead, authored here and read back by the scene package.
+#
+#  This is the whole reason there is no per-entity scripting: with groups
+#  saying what a thing is and props saying with what parameters, game code can
+#  keep the behaviour and the level can stay data.
+#
+#  Values are typed on the way in, because a game wants `p.speed * dt` rather
+#  than a string it has to convert: "12" becomes a number, "true" a bool,
+#  anything else stays text. Each row shows the type it landed on, so the guess
+#  is never a surprise.
+#
+#  One key/value pair of text boxes edits whichever row you click, rather than
+#  a box per row: microui keys a text box's buffer to the id it is given, so a
+#  box per row would hand row 0's buffer to a different property the moment a
+#  row above it was removed.
+# ============================================================================
+
+
+fn props_of(app, e) {
+	# an entity loaded from an older file has no props map yet
+	if (!contains_key(e, "props")) { e.props = {}; }
+	return e.props;
+}
+
+# text -> a typed value
+fn props_parse(text) {
+	let trimmed = string_trim(text);
+	if (string_lower(trimmed) == "true") { return true; }
+	if (string_lower(trimmed) == "false") { return false; }
+
+	# tonumber() answers null unless the whole string is a number, which is
+	# exactly the test wanted here -- "12abc" stays text
+	let n = tonumber(trimmed);
+	if (n != null) { return n; }
+
+	return text;
+}
+
+# a typed value -> text. tostring() only takes numbers, hence the switch.
+fn props_to_text(v) {
+	let t = type(v);
+	if (t == "string") { return v; }
+	if (t == "bool") {
+		if (v) { return "true"; }
+		return "false";
+	}
+	if (t == "number" || t == "integer") { return "" + v; }
+	return "";
+}
+
+fn props_type_name(v) {
+	let t = type(v);
+	if (t == "integer") { return "number"; }
+	return t;
+}
+
+# The keys, in the order they were first shown. A map has no order of its own
+# and FH cannot sort strings (it has no comparison operator for them), so the
+# order is carried on the app: rows already known keep their place and anything
+# new is appended. That is authoring order, and it does not jump about.
+fn props_keys(app, e) {
+	let props = props_of(app, e);
+	let out = [];
+
+	for (let i = 0; i < len(app.prop_order); i = i + 1) {
+		let k = app.prop_order[i];
+		if (contains_key(props, k)) { append(out, k); }
+	}
+
+	let k = next_key(props, null);
+	while (k != null) {
+		let seen = false;
+		for (let i = 0; i < len(out); i = i + 1) {
+			if (out[i] == k) { seen = true; }
+		}
+		if (!seen) { append(out, k); }
+		k = next_key(props, k);
+	}
+
+	app.prop_order = out;
+	return out;
+}
+
+fn props_set(app, e, key, text) {
+	let name = string_trim(key);
+	if (len(name) == 0) { return false; }
+
+	let props = props_of(app, e);
+	let value = props_parse(text);
+
+	# Nothing to record when the value is already that. Types are compared
+	# first: == across two different types is not a question FH is obliged to
+	# answer, and "true" the string is not true the bool.
+	if (contains_key(props, name)) {
+		let old = props[name];
+		if (type(old) == type(value) && old == value) { return false; }
+	}
+
+	doc_begin_edit(app);
+	# doc_begin_edit() snapshots the document, so reach for the entity again
+	props_of(app, doc_selected(app))[name] = value;
+	log_line(app, e.name + "." + name + " = " + props_to_text(value) +
+		" (" + props_type_name(value) + ")");
+	return true;
+}
+
+fn props_remove(app, e, key) {
+	let name = string_trim(key);
+	if (!contains_key(props_of(app, e), name)) { return false; }
+
+	doc_begin_edit(app);
+	delete(props_of(app, doc_selected(app)), name);
+	log_line(app, e.name + ": removed " + name);
+	return true;
+}
+
+
+# --- the inspector section --------------------------------------------------
+
+fn props_panel(app, e) {
+	if (!love_ui_header("Properties", OPT_EXPANDED)) { return 0; }
+
+	let keys = props_keys(app, e);
+	let props = props_of(app, e);
+
+	love_ui_layout_row(1, [-1], 0);
+	for (let i = 0; i < len(keys); i = i + 1) {
+		let k = keys[i];
+		let v = props[k];
+		let row = k + " = " + props_to_text(v) + "   (" + props_type_name(v) + ")";
+
+		# a button's id comes from its label, and two rows can read alike
+		love_ui_pushId(i);
+		if (love_ui_button(row, ALIGN_LEFT)) {
+			love_ui_clear_textbox(PROP_KEY_BOX);
+			love_ui_clear_textbox(PROP_VAL_BOX);
+			app.prop_key = k;
+			app.prop_value = props_to_text(v);
+		}
+		love_ui_popId();
+	}
+
+	if (len(keys) == 0) { love_ui_label("none yet -- add one below"); }
+
+	love_ui_layout_row(2, [56, -1], 0);
+	love_ui_label("key:");
+	let kbox = love_ui_textbox(PROP_KEY_BOX, app.prop_key);
+	love_ui_label("value:");
+	let vbox = love_ui_textbox(PROP_VAL_BOX, app.prop_value);
+
+	# the boxes hold the truth; the app copy only seeds them
+	app.prop_key = kbox[1];
+	app.prop_value = vbox[1];
+
+	love_ui_layout_row(2, [-95, -1], 0);
+	if (love_ui_button("Set", ALIGN_CENTER)) {
+		props_set(app, e, app.prop_key, app.prop_value);
+	}
+	if (love_ui_button("Remove", ALIGN_CENTER)) {
+		props_remove(app, e, app.prop_key);
+	}
+
+	love_ui_layout_row(1, [-1], 0);
+	love_ui_label("true/false and numbers are typed, the rest is text");
+	return 0;
+}

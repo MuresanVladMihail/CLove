@@ -169,3 +169,7 @@ void graphics_reset(void);
 double graphics_getDPIScale(void);
 
 void graphics_shear(float kx, float ky);
+
+/* Writes the framebuffer as it currently stands to a .png. Returns 0 if the
+ * file could not be written. */
+int graphics_captureScreenshot(const char *path);

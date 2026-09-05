@@ -21,6 +21,9 @@
 #include "../include/geometry.h"
 #include "../include/svg.h"
 
+/* The implementation lives in image/imagedata.c; this is just the declarations. */
+#include "../include/stb_image_write.h"
+
 #ifndef SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG
 #define SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG 0x0002
 #endif
@@ -471,6 +474,14 @@ image_ImageData *graphics_getIcon() {
 
 void graphics_setWindowSize(int width, int height) {
     SDL_SetWindowSize(moduleData.window, width, height);
+
+    /* Resizing the window on its own leaves the 2D projection and the GL
+     * viewport on the size the context was created at, so everything keeps
+     * being drawn into the old rectangle in a corner of the bigger window.
+     * graphics_setMode() already does this; a plain resize has to as well -
+     * config.fh's window_width/window_height come through here. */
+    m4x4_newOrtho(&moduleData.projectionMatrix, 0, width, height, 0, 0.1f, 100.0f);
+    glViewport(0, 0, width, height);
 }
 
 int graphics_setMode(int width, int height,
@@ -717,6 +728,44 @@ double graphics_getDPIScale() {
     int pixelWidth, pixelHeight;
     SDL_GL_GetDrawableSize(moduleData.window, &pixelWidth, &pixelHeight);
     return (double) pixelHeight / (double) graphics_getHeight();
+}
+
+int graphics_captureScreenshot(const char *path) {
+    /* Reads the framebuffer that was just drawn, so call it after the frame is
+     * on screen. GL hands rows back bottom-up, so they are flipped on the way
+     * into the file. */
+    int w = graphics_getWidth();
+    int h = graphics_getHeight();
+    unsigned char *pixels;
+    unsigned char *flipped;
+    int y;
+    int ok;
+
+    if (w <= 0 || h <= 0)
+        return 0;
+
+    pixels = malloc((size_t) w * (size_t) h * 4);
+    if (!pixels)
+        return 0;
+    flipped = malloc((size_t) w * (size_t) h * 4);
+    if (!flipped) {
+        free(pixels);
+        return 0;
+    }
+
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+    for (y = 0; y < h; y++)
+        memcpy(flipped + (size_t) y * w * 4,
+               pixels + (size_t) (h - 1 - y) * w * 4,
+               (size_t) w * 4);
+
+    ok = stbi_write_png(path, w, h, 4, flipped, w * 4);
+
+    free(pixels);
+    free(flipped);
+    return ok != 0;
 }
 
 void graphics_shear(float kx, float ky) {

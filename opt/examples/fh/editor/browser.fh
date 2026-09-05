@@ -1,0 +1,198 @@
+# ============================================================================
+#  browser.fh -- the "pick an image" dialog
+# ----------------------------------------------------------------------------
+#  A modal file picker over love_filesystem_list(), which walks the real
+#  filesystem rather than PhysFS's mounted view -- so it can start in the game
+#  directory and be walked all the way out to the machine's root.
+#
+#  What it hands back is a *path*, never the image: the document stores only
+#  where the art lives (see doc.fh). A file inside the game directory is stored
+#  relative to it, so a scene stays portable; anything outside is stored
+#  absolute, and the dialog says so.
+#
+#  The list is a microui panel with one button per row. Rows share their label
+#  with nothing, but two files in different folders can, so each row is wrapped
+#  in a pushId of its index -- microui hashes a button's label into its id.
+# ============================================================================
+
+
+let IMAGE_EXTS = [".svg", ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd"];
+
+let BROWSER_W = 620;
+let BROWSER_H = 460;
+
+fn browser_is_image(name) {
+	for (let i = 0; i < len(IMAGE_EXTS); i = i + 1) {
+		if (path_has_suffix(name, IMAGE_EXTS[i])) { return true; }
+	}
+	return false;
+}
+
+
+# --- the dialog -------------------------------------------------------------
+
+fn browser_read_dir(app, dir) {
+	let listed = love_filesystem_list(dir);
+	if (listed == null) {
+		log_line(app, "cannot read " + dir);
+		return null;
+	}
+
+	# Directories first (love_filesystem_list() sorts them that way), then only
+	# the files this dialog can actually open. Hidden entries are skipped:
+	# a home directory is mostly dotfiles and none of them are artwork.
+	let out = [];
+	for (let i = 0; i < len(listed); i = i + 1) {
+		let entry = listed[i];
+		if (string_substr(entry.name, 0, 1) == ".") { continue; }
+		if (entry.dir || browser_is_image(entry.name)) { append(out, entry); }
+	}
+	return out;
+}
+
+fn browser_goto(app, dir) {
+	let entries = browser_read_dir(app, dir);
+	if (entries == null) { return 0; }
+	app.browser.dir = dir;
+	app.browser.entries = entries;
+	app.browser.picked = null;
+	return 0;
+}
+
+# Opens on the folder the entity's art is already in, so re-picking a sprite
+# starts where the last one came from rather than at the game directory.
+fn browser_open(app, e) {
+	let start = app.game_dir;
+	if (e != null && e.sprite != null) {
+		let current = e.sprite.path;
+		if (!path_is_sep(string_substr(current, 0, 1))) {
+			current = path_join(app.game_dir, current);
+		}
+		let parent = path_parent(current);
+		if (love_filesystem_list(parent) != null) { start = parent; }
+	}
+
+	app.browser = { "dir": start, "entries": [], "picked": null };
+	browser_goto(app, start);
+	return 0;
+}
+
+fn browser_close(app) {
+	app.browser = null;
+	return 0;
+}
+
+# What goes into the document: relative to the game directory when the file is
+# inside it, absolute otherwise.
+fn browser_store_path(app, full) {
+	let rel = path_relative_to(full, app.game_dir);
+	if (rel != null) { return rel; }
+	return full;
+}
+
+fn browser_apply(app) {
+	let e = doc_selected(app);
+	if (e == null || app.browser.picked == null) {
+		browser_close(app);
+		return 0;
+	}
+
+	let stored = browser_store_path(app, app.browser.picked);
+	doc_begin_edit(app);
+	e.sprite = { "path": stored };
+	love_ui_clear_textbox(SPRITE_BOX);
+	log_line(app, "sprite: " + stored);
+	browser_close(app);
+	return 0;
+}
+
+fn browser_panel(app) {
+	if (app.browser == null) { return 0; }
+
+	let b = app.browser;
+
+	if (love_ui_begin_window("Choose an image", 330, 150, BROWSER_W, BROWSER_H, 0)) {
+		# where we are
+		love_ui_layout_row(2, [70, -1], 0);
+		if (love_ui_button("Up", ALIGN_CENTER)) {
+			if (!path_is_root(b.dir)) { browser_goto(app, path_parent(b.dir)); }
+		}
+		love_ui_label(b.dir);
+
+		# shortcuts, so getting from the game directory to anywhere else does
+		# not mean walking up one folder at a time
+		love_ui_layout_row(3, [110, 110, -1], 0);
+		if (love_ui_button("Game folder", ALIGN_CENTER)) { browser_goto(app, app.game_dir); }
+		if (love_ui_button("Home", ALIGN_CENTER)) {
+			let home = love_filesystem_getHomeDirectory();
+			if (home != null) { browser_goto(app, home); }
+		}
+		love_ui_label(len(b.entries) + " items");
+
+		# the listing
+		love_ui_layout_row(1, [-1], -56);
+		love_ui_begin_panel(app.browser_panel, "browser_list", 0);
+		love_ui_layout_row(1, [-1], 0);
+
+		for (let i = 0; i < len(b.entries); i = i + 1) {
+			let entry = b.entries[i];
+			let label = entry.name;
+			if (entry.dir) { label = "[ " + entry.name + " ]"; }
+			if (!entry.dir && path_join(b.dir, entry.name) == b.picked) {
+				label = "> " + entry.name;
+			}
+
+			# two folders can hold files of the same name, and microui hashes a
+			# button's label into its id
+			love_ui_pushId(i);
+			if (love_ui_button(label, ALIGN_LEFT)) {
+				if (entry.dir) {
+					browser_goto(app, path_join(b.dir, entry.name));
+					love_ui_popId();
+					love_ui_end_panel();
+					love_ui_end_window();
+					return 0;
+				}
+				b.picked = path_join(b.dir, entry.name);
+			}
+			love_ui_popId();
+		}
+
+		love_ui_end_panel();
+
+		# what a click on Use would store
+		love_ui_layout_row(1, [-1], 0);
+		if (b.picked == null) {
+			love_ui_label("Pick a file, or open a folder.");
+		} else {
+			let stored = browser_store_path(app, b.picked);
+			if (stored == b.picked) {
+				love_ui_label(path_name(b.picked) + " -- outside the game folder, " +
+					"stored as an absolute path");
+			} else {
+				love_ui_label(stored);
+			}
+		}
+
+		love_ui_layout_row(3, [-180, -90, -1], 0);
+		love_ui_label("");
+		if (love_ui_button("Use", ALIGN_CENTER)) {
+			if (b.picked != null) {
+				browser_apply(app);
+				love_ui_end_window();
+				return 0;
+			}
+		}
+		if (love_ui_button("Cancel", ALIGN_CENTER)) {
+			browser_close(app);
+			love_ui_end_window();
+			return 0;
+		}
+
+		love_ui_end_window();
+	} else {
+		# the window's own close button
+		browser_close(app);
+	}
+	return 0;
+}

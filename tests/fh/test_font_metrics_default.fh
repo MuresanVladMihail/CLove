@@ -1,0 +1,26 @@
+# The font metric getters used to fall back to an uninitialised
+# graphics_Font: measuring before any font was set segfaulted the process.
+# They must now load the default font on demand instead.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    # deliberately no love_graphics_setFont() / newFont() before this
+    let w = love_font_getWidth("Duplicate");
+    let h = love_font_getHeight(0);
+
+    check(type(w) == "number" || type(w) == "integer", "getWidth should return a number");
+    check(w > 0, "a non-empty string should have a positive width");
+    check(h > 0, "the default font should have a positive height");
+    check(love_font_getWidth("") == 0, "the empty string should be 0 wide");
+    check(love_font_getWidth("MM") > love_font_getWidth("M"),
+          "a longer string should be wider");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

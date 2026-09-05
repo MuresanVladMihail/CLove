@@ -1,0 +1,17 @@
+# An .svg that parses cleanly but holds nothing drawable must fail to load.
+#
+# assets/bitmap_only.svg is a bitmap in an SVG wrapper - a single <image> and no
+# vector geometry - which is what Inkscape and pdftocairo produce from a PDF
+# page that is a photograph. nanosvg does not support <image>, so the drawing
+# rasterizes to a fully transparent texture. Loading that "successfully" is the
+# worst outcome available: the game draws nothing, every frame, silently.
+#
+# Expected to fail: love_graphics_newImage() must raise, and the log must carry
+# the reason (which <image>/<text>/<use> element got in the way).
+
+fn love_load() {
+    love_graphics_newImage("assets/bitmap_only.svg");
+    error("loading an .svg with nothing drawable should have failed");
+}
+
+fn main() {}

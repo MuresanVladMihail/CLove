@@ -1,0 +1,283 @@
+# ============================================================================
+#  cursor.fh -- a drawn cursor
+# ----------------------------------------------------------------------------
+#  The OS cursor is hidden and this one is painted instead, so the pointer can
+#  say what the next click will do: a grab hand while panning, a double arrow
+#  on a resize grip turned to that grip's axis, a rotate glyph on the knob, a
+#  cross for the placement tools, plus a short label when the glyph alone would
+#  be ambiguous.
+#
+#  It is drawn inside the viewport only, and the OS cursor is handed back over
+#  the panels. The engine paints the UI *after* love_draw() (ui_draw() in
+#  src/fh_mainactivity.c), so anything drawn here would end up underneath a
+#  panel anyway -- and over a text box or a slider the ordinary arrow is what
+#  you want. Nothing covers the viewport, so there it works out.
+#
+#  Each glyph is a little pixel mask: 'o' is the dark outline, '#' the light
+#  body, anything else transparent. One rectangle per run of equal cells.
+# ============================================================================
+
+
+let PIXEL = 2;   # screen pixels per mask cell
+
+let GLYPHS = {
+	"arrow": [
+		"o..........",
+		"oo.........",
+		"o#o........",
+		"o##o.......",
+		"o###o......",
+		"o####o.....",
+		"o#####o....",
+		"o######o...",
+		"o#######o..",
+		"o########o.",
+		"o#####oooo.",
+		"o##o##o....",
+		"o#o.o##o...",
+		"oo..o##o...",
+		"o....o##o..",
+		"......oo o."
+	],
+	"cross": [
+		".....o.....",
+		".....o.....",
+		".....o.....",
+		".....o.....",
+		"ooooo#ooooo",
+		".....o.....",
+		".....o.....",
+		".....o....."
+	],
+	"resize_h": [
+		"..o.....o..",
+		".oo.....oo.",
+		"oo#ooooo#oo",
+		".oo.....oo.",
+		"..o.....o.."
+	],
+	"resize_v": [
+		"..o..",
+		".o#o.",
+		"oo#oo",
+		"..#..",
+		"..#..",
+		"..#..",
+		"oo#oo",
+		".o#o.",
+		"..o.."
+	],
+	"resize_d1": [
+		"oooooo..",
+		"o###o...",
+		"o##o....",
+		"o#o#o...",
+		"oo..o#o.",
+		"o....o#o",
+		".....o##",
+		"...oooooo"
+	],
+	"resize_d2": [
+		"..oooooo",
+		"...o###o",
+		"....o##o",
+		"...o#o#o",
+		".o#o..oo",
+		"o#o....o",
+		"##o.....",
+		"oooooo.."
+	],
+	"rotate": [
+		"..ooooo..",
+		".o#####o.",
+		"o#o...o#o",
+		"o#o...o#o",
+		"o#o...o#o",
+		".o#####o.",
+		"..ooooo..",
+		"...ooo...",
+		"..ooooo.."
+	],
+	"grab": [
+		"..oo.oo....",
+		".o##o##o...",
+		".o##o##oo..",
+		"o##o##o##o.",
+		"o##o##o##o.",
+		"o#########o",
+		".o########o",
+		".o########o",
+		"..o#######o",
+		"..o######o.",
+		"...oooooo.."
+	]
+};
+
+fn cursor_hide_system(app) {
+	love_mouse_setVisible(false);
+	return 0;
+}
+
+fn cursor_restore_system(app) {
+	love_mouse_setVisible(true);
+	return 0;
+}
+
+# --- deciding what to show ------------------------------------------
+
+# Real cursors pick one of four resize glyphs rather than rotating an
+# arrow, so an angle is snapped to the nearest of them.
+fn cursor_resize_glyph(app, angle) {
+	let step = math_pi() / 4.0;
+	let k = math_floor(angle / step + 0.5);
+	# fold onto 0..3: the double arrow is symmetric
+	let m = k - math_floor(k / 4.0) * 4;
+	if (m == 0) { return "resize_h"; }
+	if (m == 1) { return "resize_d2"; }
+	if (m == 2) { return "resize_v"; }
+	return "resize_d1";
+}
+
+fn cursor_handle_glyph(app, e, handle) {
+	if (handle.id == "rotate") { return ["rotate", "rotate"]; }
+	if (handle.id == "move") { return ["grab", "move"]; }
+	if (handle.id == "move_x") { return [cursor_resize_glyph(app, e.transform.angle), "move X"]; }
+	if (handle.id == "move_y") {
+		return [cursor_resize_glyph(app, e.transform.angle + math_pi() * 0.5), "move Y"];
+	}
+	return [cursor_resize_glyph(app, math_atan2(handle.hy, handle.hx) + e.transform.angle), "resize"];
+}
+
+fn cursor_update(app, inside) {
+	# ours inside the viewport, the system's over the panels
+	love_mouse_setVisible(!inside);
+
+	app.cursor_kind = "arrow";
+	app.cursor_label = "";
+
+	if (app.panning) {
+		app.cursor_kind = "grab";
+		app.cursor_label = "pan";
+		return 0;
+	}
+
+	if (!inside) { return 0; }
+
+	if (app.mode == "play") {
+		app.cursor_label = "playing";
+		return 0;
+	}
+
+	# mid-drag: the handle that was grabbed wins
+	if (app.gizmo != null) {
+		let e = doc_selected(app);
+		if (e != null) {
+			let g = cursor_handle_glyph(app, e, app.gizmo);
+			app.cursor_kind = g[0];
+			app.cursor_label = g[1];
+			return 0;
+		}
+	}
+
+	if (app.dragging) {
+		app.cursor_kind = "grab";
+		app.cursor_label = "move";
+		return 0;
+	}
+
+	if (app.tool != "select") {
+		app.cursor_kind = "cross";
+		app.cursor_label = "place " + app.tool;
+		return 0;
+	}
+
+	# hovering: preview what a click would grab
+	let sel = doc_selected(app);
+	if (sel != null) {
+		let handle = gizmo_hit(app, sel, app.mx, app.my);
+		if (handle != null) {
+			let g = cursor_handle_glyph(app, sel, handle);
+			app.cursor_kind = g[0];
+			app.cursor_label = g[1];
+			return 0;
+		}
+	}
+
+	let over = hit_test(app, app.wx, app.wy);
+	if (over >= 0) {
+		app.cursor_kind = "grab";
+		app.cursor_label = doc_find(app, over).name;
+	}
+	return 0;
+}
+
+# --- drawing ---------------------------------------------------------
+#
+#  Called last in the UI build, so these commands land on top of every
+#  panel. One rectangle per horizontal run keeps the command count small.
+
+fn cursor_draw_glyph(app, name, x, y) {
+	let rows = GLYPHS[name];
+	for (let r = 0; r < len(rows); r = r + 1) {
+		let row = rows[r];
+		let c = 0;
+		while (c < len(row)) {
+			let ch = string_substr(row, c, 1);
+			if (ch == "o" || ch == "#") {
+				let run = 1;
+				while (c + run < len(row) && string_substr(row, c + run, 1) == ch) {
+					run = run + 1;
+				}
+				if (ch == "o") {
+					love_graphics_setColor(12, 14, 20, 255);
+				} else {
+					love_graphics_setColor(245, 246, 250, 255);
+				}
+				love_geometry_rectangle("fill", x + c * PIXEL, y + r * PIXEL,
+					run * PIXEL, PIXEL);
+				c = c + run;
+			} else {
+				c = c + 1;
+			}
+		}
+	}
+	return 0;
+}
+
+fn cursor_draw(app) {
+	let x = app.mx;
+	let y = app.my;
+
+	# the pointer's hot spot is its tip; the others are centred
+	if (app.cursor_kind == "arrow") {
+		cursor_draw_glyph(app, "arrow", x, y);
+	} else {
+		let rows = GLYPHS[app.cursor_kind];
+		let w = len(rows[0]) * PIXEL;
+		let h = len(rows) * PIXEL;
+		cursor_draw_glyph(app, app.cursor_kind, x - w * 0.5, y - h * 0.5);
+	}
+
+	# The label is painted with plain geometry, not with love_ui_*: microui's
+	# draw commands read the top of its clip stack, which only a window, a
+	# panel or a popup fills in, and love_draw() runs outside all three. That
+	# used to abort the process the moment the cursor picked up a label --
+	# hovering an entity, or panning with the right button.
+	if (len(app.cursor_label) > 0) {
+		let tw = love_font_getWidth(app.cursor_label);
+		let th = love_font_getHeight();
+		let bx = x + 16;
+		let by = y + 16;
+		let bw = tw + 10;
+		let bh = th + 6;
+
+		love_graphics_setColor(18, 20, 26, 220);
+		love_geometry_rectangle("fill", bx, by, bw, bh);
+		love_graphics_setColor(70, 76, 90, 255);
+		love_geometry_rectangle("line", bx, by, bw, bh);
+		love_graphics_setColor(230, 232, 240, 255);
+		love_graphics_print(app.cursor_label, bx + 5, by + 3);
+		love_graphics_setColor(255, 255, 255, 255);
+	}
+	return 0;
+}

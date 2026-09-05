@@ -1,0 +1,118 @@
+# ============================================================================
+#  world.fh -- Edit and Play
+# ----------------------------------------------------------------------------
+#  Play builds a Box2D world from the document and Stop throws it away. The
+#  simulation never writes back: a physics editor that lets the simulation edit
+#  the level destroys your work the first time you press play.
+# ============================================================================
+
+
+fn sim_body_of(app, id) {
+	for (let i = 0; i < len(app.runtime); i = i + 1) {
+		if (app.runtime[i][0] == id) { return app.runtime[i][1]; }
+	}
+	return null;
+}
+
+fn sim_build(app) {
+	love_physics_setMeter(app.doc_data.meter);
+	app.world = love_physics_newWorld(app.doc_data.gravity[0], app.doc_data.gravity[1]);
+	app.runtime = [];
+
+	let entities = doc_entities(app);
+	for (let i = 0; i < len(entities); i = i + 1) {
+		let e = entities[i];
+		let f = doc_shape(app, e);
+
+		# the document stores a top-left corner, Box2D wants the centre
+		let c = doc_center(app, e);
+		let body = love_physics_newBody(app.world, c[0], c[1], e.body.type);
+		love_body_setAngle(body, e.transform.angle);
+		love_body_setFixedRotation(body, e.body.fixed_rotation);
+		love_body_setGravityScale(body, e.body.gravity_scale);
+
+		let shape = love_physics_newRectangleShape(f.w, f.h);
+		if (f.shape == "circle") {
+			shape = love_physics_newCircleShape(f.w * 0.5);
+		} else if (f.shape == "traced") {
+			let poly = trace_points(app, e);
+			if (poly == null) {
+				log_line(app, e.name + ": nothing to trace, using its box");
+			} else {
+				shape = love_physics_newPolygonShape(poly);
+			}
+		}
+
+		let fixture = love_physics_newFixture(body, shape, f.density);
+		love_fixture_setFriction(fixture, f.friction);
+		love_fixture_setRestitution(fixture, f.restitution);
+		love_fixture_setSensor(fixture, f.sensor);
+
+		# The entity's id, on both the body and its fixture. A collision
+		# callback is handed fixtures and nothing else, so without this there
+		# is no way back from a contact to the thing in the scene that caused
+		# it -- and that is where any game logic starts. A game building its
+		# own world from the scene package wants to do the same.
+		love_body_setUserData(body, e.id);
+		love_fixture_setUserData(fixture, e.id);
+
+		append(app.runtime, [e.id, body]);
+	}
+
+	log_line(app, "play: " + len(app.runtime) + " bodies, gravity " +
+		app.doc_data.gravity[0] + ", " + app.doc_data.gravity[1]);
+	return 0;
+}
+
+fn sim_destroy(app) {
+	if (app.world != null) {
+		love_world_destroy(app.world);
+		app.world = null;
+	}
+	app.runtime = [];
+	return 0;
+}
+
+fn sim_play(app) {
+	if (app.mode == "play") { return 0; }
+	sim_build(app);
+	app.mode = "play";
+	app.dragging = false;
+	app.gizmo = null;
+	return 0;
+}
+
+fn sim_stop(app) {
+	if (app.mode == "edit") { return 0; }
+	sim_destroy(app);
+	app.mode = "edit";
+	# the document was never touched, so the scene simply snaps back
+	log_line(app, "stopped; the document is unchanged");
+	return 0;
+}
+
+fn sim_update(app) {
+	if (app.mode != "play") { return 0; }
+	# a fixed step keeps the simulation stable when a frame runs long
+	love_world_update(app.world, 1.0 / 60.0);
+	return 0;
+}
+
+# Where an entity is drawn right now: the document in edit mode, the live
+# body in play mode. Returns [centre_x, centre_y, angle].
+fn sim_pose(app, e) {
+	let c = doc_center(app, e);
+	let cx = c[0];
+	let cy = c[1];
+	let a = e.transform.angle;
+
+	if (app.mode == "play") {
+		let body = sim_body_of(app, e.id);
+		if (body != null) {
+			cx = love_body_getX(body);
+			cy = love_body_getY(body);
+			a = love_body_getAngle(body);
+		}
+	}
+	return [cx, cy, a];
+}

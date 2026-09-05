@@ -1,0 +1,56 @@
+# Regression cover for the microui bindings:
+#  - love_ui_slider() returns the edited value, not a MU_RES_* code
+#  - love_ui_number() does the same for a range-less number field
+#  - love_ui_textbox() keeps a real per-id buffer and reports its contents
+#  - love_ui_pushId()/popId() are callable around a list row
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    love_ui_begin();
+    if (love_ui_begin_window("test", 0, 0, 300, 200, 0)) {
+        love_ui_layout_row(1, [-1], 0);
+
+        # untouched by the mouse, a slider must hand back what it was given
+        check(love_ui_slider(50, 0, 100, 1) == 50,
+              "slider should return the value it was passed");
+        check(love_ui_slider(12.5, 0, 100, 1) == 12.5,
+              "slider should preserve a fractional value");
+
+        # each id owns its own buffer, seeded on first use
+        let a = love_ui_textbox(1, "alpha");
+        let b = love_ui_textbox(2, "beta");
+        check(len(a) == 2, "textbox should return [res, text]");
+        check(a[1] == "alpha", "text box 1 should keep its seed text");
+        check(b[1] == "beta", "text box 2 should have its own buffer");
+
+        love_ui_clear_textbox(1);
+        let c = love_ui_textbox(1);
+        check(c[1] == "", "a cleared text box should be empty");
+
+        # untouched by the mouse, a number field returns what it was given
+        check(love_ui_number(430, 1) == 430,
+              "number field should return the value it was passed");
+        check(love_ui_number(-7, 0.5) == -7,
+              "number field should handle negative values");
+
+        # the id stack keeps same-named rows apart; both must be clickable
+        love_ui_pushId(1);
+        check(love_ui_button("row", 0) == false, "row button should not be pressed");
+        love_ui_popId();
+        love_ui_pushId("second");
+        check(love_ui_button("row", 0) == false, "row button should not be pressed");
+        love_ui_popId();
+
+        love_ui_end_window();
+    }
+    love_ui_end();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

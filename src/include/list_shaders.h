@@ -22,7 +22,12 @@ static GLchar const vertexHeader[] =
 static GLchar const vertexFooter[] =
         "void main() {\n"
         "gl_Position = projection * view * model * vec4(vPos * size, 0.1, 1.0);\n"
-        "  fUV = vUV;\n"
+        /* textureRect is the quad's viewport: column 0 is the offset, column 1
+         * the scale, both normalised. It was being uploaded but never applied,
+         * so a quad shrank the rectangle it drew into without ever cropping the
+         * texture - the whole image was squeezed into it. The default quad is
+         * (0,0,1,1), which leaves the coordinates untouched. */
+        "  fUV = textureRect[0] + vUV * textureRect[1];\n"
         "  fColor = vColor;\n"
         "}\n";
 

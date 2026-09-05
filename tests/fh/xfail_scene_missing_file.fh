@@ -1,0 +1,17 @@
+# Scene() on a path that is not there must fail loudly: a level that cannot
+# load is a bug, not a state every caller should have to poll for.
+# Runner expects a non-zero exit.
+
+include "packages/scene.fh"
+
+fn run() {
+    let scene = Scene("no_such_level.json");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}

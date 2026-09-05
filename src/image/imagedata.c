@@ -53,7 +53,7 @@ void image_ImageData_new_with_svg(image_ImageData *dst, char const *filename, fl
 
   svg_Document *doc = svg_Document_new_with_filename(filename);
   if (!doc) {
-    clove_error("%s %s: %s\n", "Error: Could not open vector image: ", filename, svg_error());
+    clove_error("Error: could not open vector image %s: %s\n", filename, svg_error());
     return;
   }
 
@@ -62,7 +62,7 @@ void image_ImageData_new_with_svg(image_ImageData *dst, char const *filename, fl
   int w, h;
   unsigned char *pixels = svg_Document_rasterize(doc, scale, &w, &h);
   if (!pixels) {
-    clove_error("%s %s: %s\n", "Error: Could not rasterize vector image: ", filename, svg_error());
+    clove_error("Error: could not rasterize vector image %s: %s\n", filename, svg_error());
     svg_Document_free(doc);
     return;
   }
@@ -92,7 +92,7 @@ int image_ImageData_setVectorScale(image_ImageData *dst, float scale) {
   int w, h;
   unsigned char *pixels = svg_Document_rasterize(dst->svg, scale, &w, &h);
   if (!pixels) {
-    clove_error("%s %s\n", "Error: Could not rasterize vector image: ", svg_error());
+    clove_error("Error: could not rasterize vector image: %s\n", svg_error());
     return 0;
   }
 

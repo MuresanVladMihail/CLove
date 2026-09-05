@@ -4,8 +4,9 @@
 # Each tests/fh/test_*.fh is a self-contained CLove program: its love_load()
 # runs assertions (failing via FH's error()), prints CLOVE_TEST_OK and quits.
 # tests/fh/assets/ is copied next to it, for tests that load real files.
-# Each tests/fh/xfail_*.fh is expected to fail (exit non-zero) — these lock in
-# the argument-validation guards in the bindings.
+# Each tests/fh/xfail_*.fh is expected to fail (exit non-zero, and below 128 --
+# a signal means it crashed rather than raised) — these lock in the
+# argument-validation guards in the bindings.
 #
 # CLove always loads "main.fh" from the current directory, so every test is
 # copied into a scratch dir as main.fh and run from there. Pass/fail is taken
@@ -57,13 +58,26 @@ run_one() {
         cp -R "$here/fh/assets" "$scratch/assets"
     fi
 
+    # Reusable FH packages travel too, so a test can `include "packages/<x>.fh"`
+    # and exercise the real file rather than a copy that can drift.
+    if [ -d "$root/opt/packages" ]; then
+        rm -rf "$scratch/packages"
+        mkdir -p "$scratch/packages"
+        find "$root/opt/packages" -name '*.fh' -exec cp {} "$scratch/packages/" \;
+    fi
+
     out=$( cd "$scratch" && "$clove" 2>&1 )
     code=$?
 
     ok=0
     if [ "$expect_fail" -eq 1 ]; then
-        # must fail and must not have reached the success marker
-        if [ "$code" -ne 0 ] && ! printf '%s' "$out" | grep -q CLOVE_TEST_OK; then
+        # Must fail, must not have reached the success marker -- and must fail
+        # *cleanly*. A shell reports a killed process as 128+signal, so 134
+        # (SIGABRT) or 139 (SIGSEGV) means the guard under test crashed instead
+        # of raising a script error, which is the very thing these tests exist
+        # to rule out.
+        if [ "$code" -ne 0 ] && [ "$code" -lt 128 ] &&
+           ! printf '%s' "$out" | grep -q CLOVE_TEST_OK; then
             ok=1
         fi
     else

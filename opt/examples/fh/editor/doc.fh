@@ -1,0 +1,259 @@
+# ============================================================================
+#  doc.fh -- the scene document
+# ----------------------------------------------------------------------------
+#  The document is a plain FH map that round-trips through JSON, and it is the
+#  single source of truth: the panels, the viewport and the Box2D world are all
+#  derived from it. Entities are addressed by a stable `id`, never by their
+#  index, so deleting or reordering cannot silently retarget a selection.
+#
+#  Saved document (scene.json):
+#
+#    { "version": 1,
+#      "meter": 30,               # pixels per Box2D metre this map was authored at
+#      "gravity": [0, 900],       # pixels per second squared
+#      "next_id": 4,
+#      "entities": [
+#        { "id": 1, "name": "Ground", "visible": true, "groups": ["terrain"],
+#          "props":     { "damage": 0 },   # free-form, authored per entity
+#          "transform": { "x": 290, "y": 600, "angle": 0, "sx": 1, "sy": 1 },
+#          "color":     [92, 128, 84],
+#          "sprite":    { "path": "art/crate.svg" },   # or null
+#          "body":      { "type": "static", "fixed_rotation": false,
+#                         "gravity_scale": 1 },
+#          "fixtures":  [ { "shape": "rect", "w": 700, "h": 90,
+#                           "density": 1, "friction": 0.4,
+#                           "restitution": 0.1, "sensor": false } ] } ] }
+#
+#  Only authored data goes in the file. A sprite is stored as a path and
+#  nothing else -- love_graphics_newImage() loads .svg and .png through the
+#  same call and love_image_isVector() tells them apart at runtime. Anything
+#  derived from an asset (a collision outline traced from an SVG) is recomputed
+#  on load rather than saved.
+#
+#  Reading a scene back from a game is opt/packages/scene.
+# ============================================================================
+
+
+# --- shape ---------------------------------------------------------
+
+fn doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b) {
+	return {
+		"id": id,
+		"name": name,
+		"visible": true,
+		# Godot-style tags. The scene package queries on these, so game
+		# code can ask for "pickups" instead of hard-coding names.
+		"groups": [],
+		# Free-form authored data: whatever this particular entity needs that
+		# the editor has no field for -- a patrol radius, a door's target
+		# level, how much a pickup is worth. Values are typed (number, bool or
+		# string), see properties.fh. The game reads them with scene.props().
+		"props": {},
+		"transform": { "x": x, "y": y, "angle": 0, "sx": 1, "sy": 1 },
+		"color": [r, g, b],
+		"sprite": null,
+		"body": { "type": "static", "fixed_rotation": false, "gravity_scale": 1 },
+		# One fixture is enough for this skeleton, but the field stays an
+		# array so the format need not change for compound bodies.
+		"fixtures": [ {
+			"shape": kind,
+			"w": w, "h": h,
+			"density": 1, "friction": 0.4, "restitution": 0.1,
+			"sensor": false
+		} ]
+	};
+}
+
+fn doc_empty(app) {
+	return {
+		"version": DOC_VERSION,
+		"meter": 30,
+		"gravity": [0, 900],
+		"next_id": 1,
+		"entities": []
+	};
+}
+
+fn doc_add(app, name, kind, x, y, w, h, r, g, b) {
+	let id = app.doc_data.next_id;
+	app.doc_data.next_id = id + 1;
+	let e = doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b);
+	append(app.doc_data.entities, e);
+	return e;
+}
+
+# --- reading -------------------------------------------------------
+
+fn doc_entities(app) { return app.doc_data.entities; }
+fn doc_count(app) { return len(app.doc_data.entities); }
+
+fn doc_find(app, id) {
+	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+		if (app.doc_data.entities[i].id == id) { return app.doc_data.entities[i]; }
+	}
+	return null;
+}
+
+fn doc_shape(app, e) { return e.fixtures[0]; }
+
+# Entities are positioned by their top-left corner in the document; Box2D
+# wants the body centre, so the two are converted at the boundary.
+fn doc_bounds(app, e) {
+	let f = e.fixtures[0];
+	return [e.transform.x, e.transform.y, f.w, f.h];
+}
+
+fn doc_center(app, e) {
+	let f = e.fixtures[0];
+	return [e.transform.x + f.w * 0.5, e.transform.y + f.h * 0.5];
+}
+
+fn doc_selected(app) {
+	if (app.selected_id < 0) { return null; }
+	return doc_find(app, app.selected_id);
+}
+
+# --- history -------------------------------------------------------
+#
+#  The document is JSON-able, so a snapshot is the whole mechanism: no
+#  command objects, no inverse operations, and nothing to keep in sync
+#  when the format grows a field.
+
+fn doc_push_undo(app) {
+	append(app.undo, json_stringify(app.doc_data));
+	if (len(app.undo) > UNDO_LIMIT) { app.undo = drop_first(app.undo); }
+	app.redo = [];
+	return 0;
+}
+
+# Called by every mutating path. The snapshot is taken once per mouse
+# gesture, so dragging a number field for a second does not fill the stack
+# with a hundred nearly identical documents.
+fn doc_begin_edit(app) {
+	if (app.edit_pushed) { return 0; }
+	doc_push_undo(app);
+	app.edit_pushed = true;
+	app.dirty = true;
+	return 0;
+}
+
+fn doc_undo(app) {
+	if (len(app.undo) == 0) { log_line(app, "nothing to undo"); return 0; }
+	append(app.redo, json_stringify(app.doc_data));
+	app.doc_data = json_parse(app.undo[len(app.undo) - 1]);
+	app.undo = drop_last(app.undo);
+	app.selected_id = -1;
+	app.dirty = true;
+	log_line(app, "undo");
+	return 0;
+}
+
+fn doc_redo(app) {
+	if (len(app.redo) == 0) { log_line(app, "nothing to redo"); return 0; }
+	append(app.undo, json_stringify(app.doc_data));
+	app.doc_data = json_parse(app.redo[len(app.redo) - 1]);
+	app.redo = drop_last(app.redo);
+	app.selected_id = -1;
+	app.dirty = true;
+	log_line(app, "redo");
+	return 0;
+}
+
+# --- editing commands ----------------------------------------------
+
+fn doc_duplicate(app) {
+	let e = doc_selected(app);
+	if (e == null) { return 0; }
+	doc_begin_edit(app);
+	let f = doc_shape(app, e);
+	let copy = doc_add(app, e.name + " copy", f.shape,
+		e.transform.x + app.grid, e.transform.y + app.grid,
+		f.w, f.h, e.color[0], e.color[1], e.color[2]);
+	copy.body.type = e.body.type;
+	copy.visible = e.visible;
+	copy.groups = e.groups;
+	if (e.sprite != null) { copy.sprite = { "path": e.sprite.path }; }
+	app.selected_id = copy.id;
+	log_line(app, "duplicated " + e.name);
+	return 0;
+}
+
+fn doc_delete_selected(app) {
+	let e = doc_selected(app);
+	if (e == null) { return 0; }
+	doc_begin_edit(app);
+	let kept = [];
+	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+		if (app.doc_data.entities[i].id != e.id) { append(kept, app.doc_data.entities[i]); }
+	}
+	app.doc_data.entities = kept;
+	app.selected_id = -1;
+	log_line(app, "deleted " + e.name);
+	return 0;
+}
+
+# --- save / load ---------------------------------------------------
+#
+#  io_* writes straight to the path given, next to the project. The
+#  love_filesystem_* calls go through PhysFS and land in the application's
+#  save directory instead -- right for a game's save games, wrong for a
+#  level file that belongs in the repository beside its assets.
+
+fn doc_save(app, path) {
+	let file = io_open(path, "w");
+	# `true` asks for indented output, so the file stays diffable
+	io_write(file, json_stringify(app.doc_data, true));
+	io_close(file);
+	app.dirty = false;
+	log_line(app, "saved " + path);
+	return true;
+}
+
+fn doc_migrate(app, parsed) {
+	if (!contains_key(parsed, "version")) {
+		log_line(app, "load failed: not a scene file");
+		return null;
+	}
+	if (parsed.version > DOC_VERSION) {
+		log_line(app, "load failed: scene version " + parsed.version +
+			" is newer than this editor (" + DOC_VERSION + ")");
+		return null;
+	}
+	if (!contains_key(parsed, "meter")) { parsed.meter = 30; }
+	if (!contains_key(parsed, "gravity")) { parsed.gravity = [0, 900]; }
+	if (!contains_key(parsed, "entities")) { parsed.entities = []; }
+	for (let i = 0; i < len(parsed.entities); i = i + 1) {
+		if (!contains_key(parsed.entities[i], "groups")) { parsed.entities[i].groups = []; }
+		if (!contains_key(parsed.entities[i], "props")) { parsed.entities[i].props = {}; }
+	}
+	if (!contains_key(parsed, "next_id")) {
+		let highest = 0;
+		for (let i = 0; i < len(parsed.entities); i = i + 1) {
+			if (parsed.entities[i].id > highest) { highest = parsed.entities[i].id; }
+		}
+		parsed.next_id = highest + 1;
+	}
+	return parsed;
+}
+
+fn doc_load(app, path) {
+	# io_open() aborts the script when the file is missing, so look first
+	if (io_filetype(path) != "file") {
+		log_line(app, "no " + path + " to load");
+		return false;
+	}
+	let file = io_open(path, "r");
+	let text = io_read(file);
+	io_close(file);
+
+	let parsed = doc_migrate(app, json_parse(text));
+	if (parsed == null) { return false; }
+
+	app.doc_data = parsed;
+	app.selected_id = -1;
+	app.undo = [];
+	app.redo = [];
+	app.dirty = false;
+	log_line(app, "loaded " + path + " (" + len(parsed.entities) + " entities)");
+	return true;
+}

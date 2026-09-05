@@ -36,6 +36,7 @@
 #include "fhapi/ui.h"
 #include "fhapi/graphics_canvas.h"
 #include "fhapi/config.h"
+#include "fhapi/physics.h"
 
 #include "include/batch.h"
 #include "include/geometry.h"
@@ -335,6 +336,7 @@ int fh_main_activity_load(int argc, char *argv[]) {
     fh_graphics_particlesystem_register(loopData.prog);
     fh_ui_register(loopData.prog);
     fh_graphics_canvas_register(loopData.prog);
+    fh_physics_register(loopData.prog);
     fh_love_register(loopData.prog);
 
     bool dump_bytecode = false;

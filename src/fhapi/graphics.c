@@ -463,6 +463,18 @@ static int fn_love_graphics_draw(struct fh_program *prog,
     return 0;
 }
 
+static int fn_love_graphics_captureScreenshot(struct fh_program *prog,
+                                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_graphics_captureScreenshot(): expected 1 argument (path), got %d", n_args);
+
+    if (!fh_is_string(&args[0]))
+        return fh_set_error(prog, "love_graphics_captureScreenshot(): expected a string path");
+
+    *ret = fh_new_bool(graphics_captureScreenshot(fh_get_string(&args[0])));
+    return 0;
+}
+
 static int fn_love_graphics_getDPIScale(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
     UNUSED(prog);
@@ -482,6 +494,7 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_graphics_pop),
     DEF_FN(love_graphics_clear),
     DEF_FN(love_graphics_draw),
+    DEF_FN(love_graphics_captureScreenshot),
     DEF_FN(love_graphics_getWidth),
     DEF_FN(love_graphics_getHeight),
     DEF_FN(love_graphics_reset),

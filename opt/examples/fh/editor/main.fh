@@ -1,0 +1,505 @@
+# ============================================================================
+#  CLove + microui -- a 2D editor skeleton
+# ----------------------------------------------------------------------------
+#  Run it with:
+#      cd opt/examples/fh/editor && ../../../../build/clove
+#
+#  The scene is a plain FH map that round-trips through JSON and is the single
+#  source of truth; Edit and Play are kept apart so the simulation can never
+#  write back into it. opt/packages/scene is the read side for a game.
+#
+#  Modules, in dependency order. `include` is textual and there are no
+#  namespaces, so each file is a group of prefixed functions that all take the
+#  shared `app` map first -- the same convention FH's own standard library uses
+#  (`string_*`, `math_*`).
+#
+#      const.fh    sizes, ids, small helpers
+#      prefs.fh    the editor's own settings (grid, snap, what is drawn)
+#      doc.fh      the document: entities, history, save/load
+#      properties.fh  free-form authored data on an entity
+#      camera.fh   pan, zoom, world <-> screen
+#      sprites.fh  the image cache
+#      trace.fh    collision traced from vector art
+#      world.fh    Edit and Play, the Box2D side
+#      gizmo.fh    the transform handles
+#      cursor.fh   the drawn cursor
+#      view.fh     the viewport
+#      browser.fh  the "pick an image" dialog
+#      scenes.fh   levels: the Scene menu and switching between them
+#      panels.fh   the microui panels
+#
+#  Every *.json beside the game is a level; the Scene menu in the toolbar
+#  switches between them. editor.json is the exception -- it holds the editor's
+#  own settings (grid step, snapping, what the viewport draws, which level is
+#  open) and is kept out of the levels on purpose: a grid is not scene data,
+#  and a game reading a level has no use for one.
+#
+#  Layout (fixed, see config.fh):
+#
+#      +----------------------------------------------------------------+
+#      | Toolbar (two rows)                                             |
+#      +-----------+----------------------------------------+-----------+
+#      | Hierarchy |                                        |           |
+#      |           |          Viewport (pan / zoom)         | Inspector |
+#      +-----------+                                        |           |
+#      | Console   |                                        |           |
+#      |           +----------------------------------------+           |
+#      |           | Status bar                             |           |
+#      +-----------+----------------------------------------+-----------+
+# ============================================================================
+
+include "const.fh"
+include "prefs.fh"
+include "doc.fh"
+include "properties.fh"
+include "camera.fh"
+include "sprites.fh"
+include "trace.fh"
+include "world.fh"
+include "gizmo.fh"
+include "cursor.fh"
+include "view.fh"
+include "browser.fh"
+include "scenes.fh"
+include "panels.fh"
+
+
+# The engine pumps SDL events at the *end* of the frame (fh_main_loop() in
+# src/fh_mainactivity.c), so a press latched here is handled by the next
+# viewport_input(). That is deliberate: love_mouse_isDown() only reports the
+# button's state at the moment love_update() runs, which loses a click whose
+# press and release fall inside one frame, and reads whatever position the
+# pointer has drifted to by then rather than the one that was clicked -- with a
+# gizmo grip 5 pixels wide that is the difference between grabbing the handle
+# and dropping the selection.
+#
+# CLove hands these callbacks a single array, [x, y, button], not three
+# arguments, and no state map -- hence this queue. It is a map rather than two
+# plain globals because a global `let` in FH is a constant binding: the name
+# cannot be reassigned, though the map it points at is free to change.
+let INPUT = { "press": null, "released": false };
+
+fn love_mousepressed(m) {
+	INPUT.press = m;
+	return 0;
+}
+
+fn love_mousereleased(m) {
+	INPUT.released = true;
+	return 0;
+}
+
+
+
+# ============================================================================
+#  Shared helpers
+# ============================================================================
+
+fn snap_value(app, v) {
+	# prefs_set_grid() keeps app.grid at GRID_MIN or above, so the division is
+	# safe, but a stale editor.json is outside this file's control
+	if (!app.snap || app.grid < GRID_MIN) { return round_to(v, 2); }
+	return math_floor((v + app.grid * 0.5) / app.grid) * app.grid;
+}
+
+fn hit_test(app, wx, wy) {
+	# topmost entity wins, so walk the list backwards
+	let entities = doc_entities(app);
+	for (let i = len(entities) - 1; i >= 0; i = i - 1) {
+		let e = entities[i];
+		let b = doc_bounds(app, e);
+		if (e.visible && point_in(wx, wy, b[0], b[1], b[2], b[3])) { return e.id; }
+	}
+	return -1;
+}
+
+
+# ============================================================================
+#  love_load
+# ============================================================================
+
+fn love_load() {
+	let app = {};
+
+	app.log = [];
+	app.sprite_cache = {};
+	app.trace_cache = {};
+
+	app.selected_id = -1;
+	app.last_selected = -2;
+	app.dirty = false;
+
+	app.undo = [];
+	app.redo = [];
+	app.edit_pushed = false;
+
+	app.mode = "edit";
+	app.world = null;
+	app.runtime = [];
+
+	app.cam = { "x": 0, "y": 0, "zoom": 1 };
+	app.panning = false;
+	app.key_f = false;
+	app.pan_x = 0;
+	app.pan_y = 0;
+
+	app.tool      = "select";
+	prefs_defaults(app);      # grid, snap, show_grid, show_fixtures
+	app.show_style = false;
+	app.confirm   = false;
+
+	app.dragging = false;
+	app.gizmo = null;
+	app.grab = null;
+	app.drag_dx = 0;
+	app.drag_dy = 0;
+
+	app.mouse_down = false;
+	app.mx = 0;
+	app.my = 0;
+	app.wx = 0;
+	app.wy = 0;
+
+	app.cursor_kind = "arrow";
+	app.cursor_label = "";
+	app.popup_open = false;   # set while a microui popup is on screen
+
+	# where relative sprite paths resolve, and where the file picker starts.
+	# love_filesystem_getCurrentDirectory() is a different thing despite the
+	# name: it answers the directory the executable lives in.
+	app.game_dir = love_filesystem_getWorkingDirectory();
+	if (app.game_dir == null) { app.game_dir = "."; }
+	app.browser = null;       # the file picker, while it is open
+
+	# the Properties section: the row order it shows, and the pair of boxes
+	# that edits whichever row was clicked
+	app.prop_order = [];
+	app.prop_key = "";
+	app.prop_value = "";
+
+	# levels. app.scene_path comes from prefs_defaults()/prefs_load().
+	app.scene_files = [];     # the menu's listing, refreshed when it opens
+	app.scene_pending = null; # a switch waiting on the unsaved-changes modal
+	app.new_scene = null;     # the suggested name, while the New level modal is up
+	app.style_open = false;   # the Theme editor's microui container is open
+
+	app.pal_i = 0;
+	app.key_z = false;
+	app.key_y = false;
+	app.key_s = false;
+
+	app.browser_panel   = love_ui_newContainer();
+	app.console_panel   = love_ui_newContainer();
+	app.hierarchy_panel = love_ui_newContainer();
+
+	app.doc_data = doc_empty(app);
+
+	# --- the starting scene ---------------------------------------------
+
+	# Ground has no artwork, so its colour is the fill. The two that do carry
+	# a sprite start white: the colour modulates the sprite (see
+	# view_draw_entity), and white is what "no tint" looks like.
+	let ground = doc_add(app, "Ground", "rect",   140, 560, 700,  90,  92, 128,  84);
+	let crate  = doc_add(app, "Crate",  "rect",   300, 300,  90,  90, 255, 255, 255);
+	let coin   = doc_add(app, "Coin",   "circle", 520, 200,  56,  56, 255, 255, 255);
+
+	ground.groups = ["terrain"];
+	crate.groups = ["props", "breakable"];
+	coin.groups = ["pickups"];
+
+	crate.sprite = { "path": "art/crate.svg" };
+	crate.body.type = "dynamic";
+	coin.sprite = { "path": "art/coin.svg" };
+	coin.body.type = "dynamic";
+	coin.fixtures[0].restitution = 0.6;
+
+	app.selected_id = 2;
+
+	log_line(app, "editor ready");
+
+	if (prefs_load(app)) {
+		log_line(app, "grid " + app.grid + " (from " + PREFS_PATH + ")");
+	}
+
+	# Open the level editor.json remembered, or scene.json when it remembered
+	# nothing. The entities above are only the starting point for a first run
+	# with no file on disk yet.
+	if (io_filetype(app.scene_path) == "file") {
+		doc_load(app, app.scene_path);
+	} else {
+		log_line(app, doc_count(app) + " entities (unsaved, " + app.scene_path + ")");
+	}
+
+	love_graphics_setBackgroundColor(30, 32, 38, 255);
+	return app;
+}
+
+# The OS cursor is ours to give back.
+fn love_quit() {
+	love_mouse_setVisible(true);
+}
+
+
+# ============================================================================
+#  Input
+# ============================================================================
+
+fn spawn_at(app, wx, wy) {
+	let w = 80;
+	let h = 80;
+	if (app.tool == "circle") {
+		w = 56;
+		h = 56;
+	}
+
+	let palette = [
+		[214, 93, 93], [93, 176, 214], [140, 200, 110],
+		[220, 170, 80], [170, 130, 220], [90, 200, 190]
+	];
+	let c = palette[app.pal_i];
+	app.pal_i = app.pal_i + 1;
+	if (app.pal_i > 5) { app.pal_i = 0; }
+
+	let name = "Rect " + app.doc_data.next_id;
+	if (app.tool == "circle") { name = "Circle " + app.doc_data.next_id; }
+
+	doc_begin_edit(app);
+	let e = doc_add(app, name, app.tool,
+		snap_value(app, wx - w * 0.5), snap_value(app, wy - h * 0.5),
+		w, h, c[0], c[1], c[2]);
+
+	app.selected_id = e.id;
+	log_line(app, "added " + name);
+	return 0;
+}
+
+fn viewport_input(app, dt) {
+	let m = love_mouse_getPosition();
+	app.mx = m[0];
+	app.my = m[1];
+
+	let w = cam_to_world(app, app.mx, app.my);
+	app.wx = w[0];
+	app.wy = w[1];
+
+	let down = love_mouse_isDown("l");
+	app.mouse_down = down;
+
+	# one press and one release per frame, taken from the event queue
+	let press = INPUT.press;
+	INPUT.press = null;
+	let released = INPUT.released;
+	INPUT.released = false;
+
+	let pressed = false;
+	let px = app.mx;
+	let py = app.my;
+	if (press != null && press[2] == "l") {
+		pressed = true;
+		px = press[0];
+		py = press[1];
+	}
+
+	# where the button went down, in world units
+	let pw = cam_to_world(app, px, py);
+	let pwx = pw[0];
+	let pwy = pw[1];
+
+	# a snapshot is taken once per gesture, so releasing the button opens the
+	# next undo step
+	if (!down && !pressed) { app.edit_pushed = false; }
+
+	# The docked panels sit outside the viewport rect, but the Theme editor and
+	# the delete confirmation float over it -- ask microui whether the pointer
+	# is over one of its containers rather than only testing the rectangle.
+	let inside = point_in(app.mx, app.my, VP_X, VP_Y, VP_W, VP_H) &&
+		!love_ui_mouse_over();
+	let press_inside = point_in(px, py, VP_X, VP_Y, VP_W, VP_H) &&
+		!love_ui_mouse_over();
+	let panning = cam_input(app, dt, inside);
+
+	# the simulation owns the scene while it runs; only the camera stays live
+	if (app.mode == "play" || panning) {
+		app.dragging = false;
+		cursor_update(app, inside);
+		return 0;
+	}
+
+	# A microui popup is dismissed by the click that lands outside it, and
+	# viewport_input() runs a whole pass before love_ui_begin() -- so without
+	# this the same press both closed the Primitives menu and dropped a body
+	# where the menu was pointing. Swallow that one press, the way a menu
+	# anywhere else does.
+	if (pressed && app.popup_open) {
+		cursor_update(app, inside);
+		return 0;
+	}
+
+	if (pressed && press_inside && !app.confirm && app.browser == null &&
+	    app.scene_pending == null && app.new_scene == null) {
+		if (app.tool == "select") {
+			# a grip of the current selection wins over picking something new,
+			# so a handle that overhangs another entity still works
+			let sel = doc_selected(app);
+			let handle = null;
+			if (sel != null) { handle = gizmo_hit(app, sel, px, py); }
+
+			if (handle != null) {
+				gizmo_begin(app, sel, handle, pwx, pwy);
+			} else {
+				app.selected_id = hit_test(app, pwx, pwy);
+				let e = doc_selected(app);
+				if (e != null) {
+					app.dragging = true;
+					app.drag_dx = pwx - e.transform.x;
+					app.drag_dy = pwy - e.transform.y;
+					log_line(app, "selected " + e.name);
+				}
+			}
+		} else {
+			spawn_at(app, pwx, pwy);
+		}
+	}
+
+	if (app.gizmo != null && down) {
+		let e = doc_selected(app);
+		if (e != null) { gizmo_apply(app, e); }
+	} else if (app.dragging && down) {
+		let e = doc_selected(app);
+		if (e != null) {
+			let nx = snap_value(app, app.wx - app.drag_dx);
+			let ny = snap_value(app, app.wy - app.drag_dy);
+			if (nx != e.transform.x || ny != e.transform.y) {
+				doc_begin_edit(app);
+				e.transform.x = nx;
+				e.transform.y = ny;
+			}
+		}
+	}
+
+	if (released) {
+		app.dragging = false;
+		app.gizmo = null;
+	}
+
+	cursor_update(app, inside);
+	return 0;
+}
+
+fn shortcuts(app) {
+	let ctrl = love_keyboard_isDown("lctrl") || love_keyboard_isDown("rctrl") ||
+		love_keyboard_isDown("lgui") || love_keyboard_isDown("rgui");
+
+	let z = ctrl && love_keyboard_isDown("z");
+	let y = ctrl && love_keyboard_isDown("y");
+	let s = ctrl && love_keyboard_isDown("s");
+
+	# edge-triggered: hold-to-repeat would undo the whole history in a frame
+	if (z && !app.key_z) { doc_undo(app); }
+	if (y && !app.key_y) { doc_redo(app); }
+	if (s && !app.key_s) { doc_save(app, app.scene_path); }
+
+	app.key_z = z;
+	app.key_y = y;
+	app.key_s = s;
+	return 0;
+}
+
+
+# ============================================================================
+#  love_update / love_draw
+# ============================================================================
+
+fn love_update(dt, app) {
+	if (love_keyboard_isDown("esc")) {
+		# Esc backs out of a dialog before it quits the editor
+		if (app.browser != null) {
+			browser_close(app);
+		} else if (app.new_scene != null) {
+			app.new_scene = null;
+		} else if (app.scene_pending != null) {
+			app.scene_pending = null;
+		} else if (app.confirm) {
+			app.confirm = false;
+		} else {
+			love_mouse_setVisible(true);
+			love_event_quit();
+		}
+	}
+
+	shortcuts(app);
+
+	if (app.selected_id != app.last_selected) {
+		# hand the text boxes back to microui so they re-seed from the new entity
+		love_ui_clear_textbox(NAME_BOX);
+		love_ui_clear_textbox(SPRITE_BOX);
+		love_ui_clear_textbox(GROUP_BOX);
+		love_ui_clear_textbox(PROP_KEY_BOX);
+		love_ui_clear_textbox(PROP_VAL_BOX);
+		app.prop_key = "";
+		app.prop_value = "";
+		app.prop_order = [];
+		app.last_selected = app.selected_id;
+	}
+
+	viewport_input(app, dt);
+	sim_update(app);
+	prefs_flush(app);
+
+	# recomputed from microui every frame: each menu ORs itself back in while
+	# it is on screen, and viewport_input() reads the value the previous frame
+	# left behind -- it runs before the panels do
+	app.popup_open = false;
+
+	love_ui_begin();
+	panels_toolbar(app);
+	panels_hierarchy(app);
+	panels_console(app);
+	panels_inspector(app);
+	panels_statusbar(app);
+	panels_theme(app);
+	panels_confirm(app);
+	browser_panel(app);
+	scenes_dialogs(app);
+	love_ui_end();
+}
+
+fn love_draw(app) {
+	view_draw(app);
+}
+
+fn main() {
+}
+
+
+# ============================================================================
+#  NOTES
+# ============================================================================
+#
+#  What is left before this is a full editor:
+#
+#   * Fixture editing by hand beyond the box: polygon vertices, and a
+#     category/mask editor.
+#   * Joints. The document reserves nothing for them yet; they want their own
+#     top-level list referencing entity ids.
+#   * Multi-select and z-order.
+#   * Levels that reference each other (a door leading to level3.json).
+#
+#  Three things about the UI bindings shape the code above:
+#
+#   1. Panels cannot be re-docked at runtime. microui applies the rect passed
+#      to love_ui_begin_window() only when it first sees that window, and CLove
+#      does not expose mu_get_container() for a live window. Hence the fixed
+#      size in config.fh.
+#   2. A microui popup can only be dismissed by clicking outside it; there is
+#      no bound "close this popup" call. That suits the Shortcuts and
+#      Primitives menus and not a confirm dialog, so the delete confirmation is
+#      an ordinary window. The dismissing click is also seen by the viewport,
+#      which is what love_ui_popup_open() and app.popup_open are for; a click
+#      on a window floating over the viewport is caught by
+#      love_ui_mouse_over().
+#   3. Nothing microui draws can be drawn outside a window, a panel or a popup:
+#      its draw commands read a clip stack that only those three push onto.
+#      The cursor and its label are plain love_geometry_* calls for that
+#      reason.
+# ============================================================================

@@ -1,0 +1,136 @@
+# opt/packages/scene/scene.fh -- the read side of a scene the editor saved.
+# Everything here is pure data, so the package is exercised without a window,
+# a physics world or any art.
+
+include "packages/scene.fh"
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn make_doc() {
+    let doc = {};
+    doc.version = 1;
+    doc.meter = 30;
+    doc.gravity = [0, 900];
+    doc.next_id = 4;
+    doc.entities = [
+        { "id": 1, "name": "Ground", "visible": true, "groups": ["terrain"],
+          "transform": { "x": 0, "y": 500, "angle": 0, "sx": 1, "sy": 1 },
+          "color": [92, 128, 84], "sprite": null,
+          "body": { "type": "static", "fixed_rotation": false, "gravity_scale": 1 },
+          "fixtures": [ { "shape": "rect", "w": 400, "h": 40, "density": 1,
+                          "friction": 0.4, "restitution": 0.1, "sensor": false } ] },
+        { "id": 2, "name": "Coin", "visible": true, "groups": ["pickups", "shiny"],
+          "props": { "worth": 25, "shiny": true, "sound": "ding" },
+          "transform": { "x": 100, "y": 100, "angle": 0, "sx": 1, "sy": 1 },
+          "color": [240, 200, 70], "sprite": { "path": "art/coin.svg" },
+          "body": { "type": "dynamic", "fixed_rotation": false, "gravity_scale": 1 },
+          "fixtures": [ { "shape": "circle", "w": 40, "h": 40, "density": 1,
+                          "friction": 0.4, "restitution": 0.6, "sensor": false } ] },
+        { "id": 3, "name": "Coin", "visible": false, "groups": ["pickups"],
+          "transform": { "x": 200, "y": 100, "angle": 0, "sx": 1, "sy": 1 },
+          "color": [240, 200, 70], "sprite": null,
+          "body": { "type": "dynamic", "fixed_rotation": false, "gravity_scale": 1 },
+          "fixtures": [ { "shape": "circle", "w": 40, "h": 40, "density": 1,
+                          "friction": 0.4, "restitution": 0.6, "sensor": false } ] }
+    ];
+    return doc;
+}
+
+fn run() {
+    let scene = Scene(make_doc());
+
+    # --- the document ---
+    check(scene.count() == 3, "the scene should hold 3 entities");
+    check(scene.meter() == 30, "meter should come from the document");
+    check(scene.gravity()[1] == 900, "gravity should come from the document");
+
+    # --- lookup ---
+    check(scene.get(2).name == "Coin", "get() should address an entity by id");
+    check(scene.get(99) == null, "an unknown id should be null, not an error");
+    check(scene.find("Ground").id == 1, "find() should match on name");
+    check(scene.find("Nothing") == null, "an unknown name should be null");
+    check(len(scene.find_all("Coin")) == 2, "find_all() should return every match");
+
+    # --- groups ---
+    check(len(scene.in_group("pickups")) == 2, "both coins are pickups");
+    check(len(scene.in_group("terrain")) == 1, "the ground is terrain");
+    check(len(scene.in_group("absent")) == 0, "an unused group is empty");
+    check(scene.has_group(scene.get(2), "shiny"), "entity 2 is shiny");
+    check(!scene.has_group(scene.get(1), "shiny"), "entity 1 is not shiny");
+    check(len(scene.group_names()) == 3, "three distinct groups are in use");
+
+    # --- properties ---
+    # authored values keep their type, so game code can use them directly
+    let coin = scene.get(2);
+    check(scene.prop(coin, "worth", 0) == 25, "a number property stays a number");
+    check(scene.prop(coin, "shiny", false) == true, "a bool property stays a bool");
+    check(scene.prop(coin, "sound", "") == "ding", "a string property stays a string");
+    check(scene.has_prop(coin, "worth"), "has_prop finds an authored key");
+    check(!scene.has_prop(coin, "speed"), "has_prop rejects a key that is not there");
+
+    # a property the level never set falls back rather than raising
+    check(scene.prop(coin, "speed", 60) == 60, "a missing property falls back");
+
+    # an entity written before properties existed has no props key at all
+    let plain = scene.get(3);
+    check(len(scene.props(plain)) == 0, "an entity without props reads as empty");
+    check(scene.prop(plain, "worth", 7) == 7, "and every lookup on it falls back");
+    check(!scene.has_prop(plain, "worth"), "has_prop is false for it");
+
+    # --- reading one entity ---
+    let coin = scene.get(2);
+    check(scene.position(coin)[0] == 100, "position is the document's top-left");
+    check(scene.size(coin)[0] == 40, "size comes from the fixture");
+    check(scene.center(coin)[0] == 120, "centre is the box middle");
+    check(scene.body_type(coin) == "dynamic", "body type is readable");
+    check(scene.sprite_path(coin) == "art/coin.svg", "sprite is just a path");
+    check(scene.sprite_path(scene.get(3)) == null, "no sprite reads as null");
+    check(scene.is_visible(scene.get(3)) == false, "visibility is readable");
+
+    # --- spatial ---
+    check(len(scene.at_point(120, 120)) == 1, "one entity covers that point");
+    check(len(scene.at_point(9999, 9999)) == 0, "nothing covers empty space");
+    check(len(scene.in_rect(0, 0, 400, 400)) == 2, "both coins are in that rect");
+    check(scene.nearest(210, 110).id == 3, "nearest picks the closest centre");
+
+    let b = scene.bounds();
+    check(b[0] == 0, "bounds start at the leftmost edge");
+    check(b[2] == 400, "bounds end at the rightmost edge");
+    check(b[3] == 540, "bounds include the ground's height");
+
+    # --- filter takes a predicate ---
+    let statics = scene.filter(fn(e) { return e.body.type == "static"; });
+    check(len(statics) == 1, "one static body");
+
+    # --- the same document, this time read off disk ---
+    # Scene(path) is the entry point a game actually uses.
+    let path = "scene_roundtrip.json";
+    let f = io_open(path, "w");
+    io_write(f, json_stringify(make_doc(), true));
+    io_close(f);
+
+    let loaded = Scene(path);
+    check(loaded.count() == 3, "the file should hold the same 3 entities");
+    check(loaded.find("Ground").id == 1, "lookup works on a loaded scene");
+    check(len(loaded.in_group("pickups")) == 2, "groups survive the round trip");
+    check(loaded.prop(loaded.get(2), "worth", 0) == 25,
+          "a number property survives the round trip as a number");
+    check(loaded.prop(loaded.get(2), "shiny", false) == true,
+          "a bool property survives the round trip as a bool");
+    check(loaded.prop(loaded.get(2), "sound", "") == "ding",
+          "a string property survives the round trip as a string");
+    check(loaded.sprite_path(loaded.get(2)) == "art/coin.svg",
+          "a sprite is stored as a path and comes back as one");
+    io_remove(path);
+
+    # Refusing a missing file and a too-new document are failure paths, so
+    # they live in xfail_scene_missing_file.fh and xfail_scene_bad_version.fh.
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

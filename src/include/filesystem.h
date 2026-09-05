@@ -51,8 +51,38 @@ bool filesystem_state(const char* file, int mode);
 bool filesystem_isSymLink(const char* dir);
 bool filesystem_isDir(const char* dir);
 bool filesystem_mkDir(const char* path);
+/* the process's working directory, where a game's relative paths resolve --
+ * filesystem_getCurrentDirectory() answers PhysFS's base directory instead,
+ * which is where the executable lives */
+const char* filesystem_getWorkingDirectory(void);
 const char* filesystem_getCurrentDirectory(void);
 char** filesystem_enumerate(const char* path);
+/* gives the list from filesystem_enumerate() back to PhysFS */
+void filesystem_freeEnumerate(char** list);
+
+/*
+ * One entry of a real directory listing.
+ *
+ * filesystem_enumerate() above is PhysFS's, so it only ever sees what has been
+ * mounted into the virtual filesystem -- fine for a game reading its own
+ * assets, useless for a tool that has to let someone browse the machine. This
+ * pair walks the actual filesystem instead, and takes absolute paths.
+ *
+ * "." and ".." are left out: a caller that wants a parent entry knows where it
+ * is. The list is sorted with directories first, then by name, case
+ * insensitively, which is the order a file picker wants to show.
+ */
+struct DirEntry {
+	char *name;
+	bool is_dir;
+};
+
+struct DirEntry* filesystem_listDirectory(const char* path, int* count);
+void filesystem_freeDirectoryList(struct DirEntry* entries, int count);
+
+/* The user's home directory, straight from the environment -- unlike
+ * filesystem_getUsrDir() this needs no PhysFS identity. NULL if unset. */
+const char* filesystem_getHomeDirectory(void);
 const char* filesystem_getUsrDir(void);
 bool filesystem_setIdentity(const char* path);
 

@@ -1,0 +1,91 @@
+# A fixture belongs to its body, not to the script's handle on it.
+#
+# Every b2 shape carries its CLove wrapper as user data, which the contact
+# callbacks and body:getFixtures() read back, so the wrapper has to outlive the
+# shape. It used to be the other way round: the only strong reference to a
+# fixture was the value newFixture() handed the script, and dropping that - by
+# writing it to a local inside a spawn function, say - let the collector destroy
+# the collision shape underneath a perfectly live body. Everything kept standing
+# until the next collection, so it showed up as a body that silently stopped
+# colliding some time after it was built.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+# Builds a body and drops every handle but the body's, which is how a spawn
+# function normally looks.
+fn makeBall(world, x) {
+    let body = love_physics_newBody(world, x, 100, "dynamic");
+    let shape = love_physics_newCircleShape(20);
+    let fixture = love_physics_newFixture(body, shape, 1.0);
+    return body;
+}
+
+fn churn() {
+    # Real allocation pressure: gc() alone does not move a young object.
+    for (let i = 0; i < 3000; i = i + 1) { let junk = [i, "" + i, [i, i]]; }
+    gc();
+}
+
+fn love_load() {
+    let self = {};
+    love_physics_setMeter(64.0);
+    self.world = love_physics_newWorld(0.0, 2000.0, true);
+
+    self.ground = love_physics_newBody(self.world, 0, 400, "static");
+    love_physics_newFixture(self.ground, love_physics_newRectangleShape(0, 0, 2000, 40), 0);
+    check(len(love_body_getFixtures(self.ground)) == 1,
+          "the ground should report the fixture whose handle was never kept");
+
+    self.ball = makeBall(self.world, 100);
+
+    self.doomed = love_physics_newBody(self.world, 300, 100, "dynamic");
+    self.doomedFixture = love_physics_newFixture(self.doomed, love_physics_newCircleShape(20), 1.0);
+
+    self.n = 0.0;
+    return self;
+}
+
+fn love_update(dt, self) {
+    self.n = self.n + 1.0;
+    love_world_update(self.world, 0.0166, 6);
+
+    if (self.n == 40.0) {
+        let p = love_body_getPosition(self.ball);
+        check(p[1] < 500.0, "the ball should be resting on the ground, got y=" + p[1]);
+
+        # Explicit teardown still has to work, in both directions.
+        love_fixture_destroy(self.doomedFixture);
+        check(love_fixture_isDestroyed(self.doomedFixture),
+              "fixture:destroy() should mark the fixture destroyed");
+        check(len(love_body_getFixtures(self.doomed)) == 0,
+              "a destroyed fixture should be off its body");
+
+        love_body_destroy(self.doomed);
+        check(love_body_isDestroyed(self.doomed), "body:destroy() should mark the body destroyed");
+    }
+
+    if (self.n > 40.0 && self.n < 110.0) { churn(); }
+
+    if (self.n == 150.0) {
+        check(len(love_body_getFixtures(self.ground)) == 1,
+              "the ground should still have its fixture after a collection");
+
+        let p = love_body_getPosition(self.ball);
+        check(p[1] < 500.0, "the ball should still be resting, got y=" + p[1]);
+
+        # A body built after all that churn has to land like any other.
+        self.late = makeBall(self.world, 700);
+    }
+
+    if (self.n == 260.0) {
+        let p = love_body_getPosition(self.late);
+        check(p[1] < 500.0, "a ball built after a collection should land, got y=" + p[1]);
+
+        println("CLOVE_TEST_OK");
+        love_event_quit();
+    }
+}
+
+fn love_draw(self) {}
+
+fn main() {}

@@ -1,0 +1,59 @@
+# love_filesystem_list() walks the real filesystem, not PhysFS's mounted view,
+# so a tool can browse the machine: absolute paths work and directories come
+# first. assets/ travels with the tests, which is what this reads.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn find(entries, name) {
+    for (let i = 0; i < len(entries); i = i + 1) {
+        if (entries[i].name == name) { return entries[i]; }
+    }
+    return null;
+}
+
+fn love_load() {
+    let here = love_filesystem_getWorkingDirectory();
+    check(len(here) > 0, "getWorkingDirectory() should not be empty");
+
+    let entries = love_filesystem_list(here);
+    check(entries != null, "listing the current directory should work");
+
+    let assets = find(entries, "assets");
+    check(assets != null, "assets/ should be listed next to main.fh");
+    check(assets.dir, "assets should be reported as a directory");
+
+    let main = find(entries, "main.fh");
+    check(main != null, "main.fh should be listed");
+    check(!main.dir, "main.fh should not be reported as a directory");
+
+    # "." and ".." are left out -- a caller builds the parent itself
+    check(find(entries, ".") == null, "'.' should not be listed");
+    check(find(entries, "..") == null, "'..' should not be listed");
+
+    # directories sort before files
+    let seen_file = false;
+    for (let i = 0; i < len(entries); i = i + 1) {
+        if (!entries[i].dir) { seen_file = true; }
+        if (entries[i].dir && seen_file) {
+            error("directories must be listed before files");
+        }
+    }
+
+    # an absolute path into a subdirectory
+    let sub = love_filesystem_list(here + "/assets");
+    check(sub != null, "listing assets/ should work");
+    check(len(sub) > 0, "assets/ should not be empty");
+
+    # a directory that isn't there is null, not an error: a browser shows an
+    # empty folder and lets the user walk back out
+    check(love_filesystem_list(here + "/no_such_dir") == null,
+          "a missing directory should list as null");
+
+    let home = love_filesystem_getHomeDirectory();
+    check(home == null || len(home) > 0, "getHomeDirectory() returns a path or null");
+
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

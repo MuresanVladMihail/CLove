@@ -1,0 +1,141 @@
+# ============================================================================
+#  trace.fh -- collision traced from the artwork
+# ----------------------------------------------------------------------------
+#  love_image_getVectorContours() flattens the drawing's paths into polylines
+#  in document coordinates. Those are *derived* data -- they come from the
+#  asset, so they are recomputed here instead of being written into scene.json,
+#  and the collision follows the art whenever the art changes.
+#
+#  Box2D wants a convex polygon of at most MAX_HULL_POINTS points, so the
+#  contours are hulled and then thinned. The hull is a proxy: it cannot dent
+#  inwards, and thinning shrinks it very slightly.
+# ============================================================================
+
+
+fn trace_cross_z(app, ox, oy, ax, ay, bx, by) {
+	return (ax - ox) * (by - oy) - (ay - oy) * (bx - ox);
+}
+
+# points come in as [[x, y], ...]; monotone chain needs them sorted
+fn trace_sort_points(app, pts) {
+	for (let i = 1; i < len(pts); i = i + 1) {
+		let cur = pts[i];
+		let j = i - 1;
+		while (j >= 0 && (pts[j][0] > cur[0] ||
+		                  (pts[j][0] == cur[0] && pts[j][1] > cur[1]))) {
+			pts[j + 1] = pts[j];
+			j = j - 1;
+		}
+		pts[j + 1] = cur;
+	}
+	return pts;
+}
+
+fn trace_convex_hull(app, pts) {
+	if (len(pts) < 3) { return pts; }
+	trace_sort_points(app, pts);
+
+	let lower = [];
+	for (let i = 0; i < len(pts); i = i + 1) {
+		while (len(lower) >= 2 &&
+		       trace_cross_z(app, lower[len(lower) - 2][0], lower[len(lower) - 2][1],
+		               lower[len(lower) - 1][0], lower[len(lower) - 1][1],
+		               pts[i][0], pts[i][1]) <= 0) {
+			lower = drop_last(lower);
+		}
+		append(lower, pts[i]);
+	}
+
+	let upper = [];
+	for (let i = len(pts) - 1; i >= 0; i = i - 1) {
+		while (len(upper) >= 2 &&
+		       trace_cross_z(app, upper[len(upper) - 2][0], upper[len(upper) - 2][1],
+		               upper[len(upper) - 1][0], upper[len(upper) - 1][1],
+		               pts[i][0], pts[i][1]) <= 0) {
+			upper = drop_last(upper);
+		}
+		append(upper, pts[i]);
+	}
+
+	# both lists repeat the two endpoints
+	let hull = [];
+	for (let i = 0; i < len(lower) - 1; i = i + 1) { append(hull, lower[i]); }
+	for (let i = 0; i < len(upper) - 1; i = i + 1) { append(hull, upper[i]); }
+	return hull;
+}
+
+# Drop the vertex that contributes the least area until it fits.
+fn trace_reduce_hull(app, hull, limit) {
+	while (len(hull) > limit) {
+		let worst = 0;
+		# a float from the start: FH's '<' wants both sides the same kind
+		let worst_area = -1.0;
+		for (let i = 0; i < len(hull); i = i + 1) {
+			# wrap around explicitly: FH evaluates the index before any
+			# guard, so hull[i - 1] would be out of range at i == 0
+			let pi = i - 1;
+			if (pi < 0) { pi = len(hull) - 1; }
+			let ni = i + 1;
+			if (ni >= len(hull)) { ni = 0; }
+			let prev = hull[pi];
+			let next = hull[ni];
+
+			let area = math_abs(trace_cross_z(app, prev[0], prev[1], hull[i][0], hull[i][1],
+			                            next[0], next[1]));
+			if (worst_area < 0.0 || area < worst_area) {
+				worst_area = area;
+				worst = i;
+			}
+		}
+		let kept = [];
+		for (let i = 0; i < len(hull); i = i + 1) {
+			if (i != worst) { append(kept, hull[i]); }
+		}
+		hull = kept;
+	}
+	return hull;
+}
+
+# Local polygon for an entity, centred on its origin and scaled onto its
+# fixture box. Returns a flat [x0, y0, x1, y1, ...] or null.
+fn trace_points(app, e) {
+	let img = sprite_of(app, e);
+	if (img == null || !love_image_isVector(img)) { return null; }
+
+	let f = doc_shape(app, e);
+	let key = e.sprite.path + "|" + f.w + "|" + f.h;
+	if (contains_key(app.trace_cache, key)) { return app.trace_cache[key]; }
+
+	let iw = love_image_getWidth(img);
+	let ih = love_image_getHeight(img);
+	let contours = love_image_getVectorContours(img, 1.0);
+
+	let pts = [];
+	for (let c = 0; c < len(contours); c = c + 1) {
+		let coords = contours[c].points;
+		for (let i = 0; i + 1 < len(coords); i = i + 2) {
+			append(pts, [(coords[i] / iw - 0.5) * f.w,
+			             (coords[i + 1] / ih - 0.5) * f.h]);
+		}
+	}
+
+	if (len(pts) < 3) {
+		app.trace_cache[key] = null;
+		return null;
+	}
+
+	let hull = trace_reduce_hull(app, trace_convex_hull(app, pts), MAX_HULL_POINTS);
+	if (len(hull) < 3) {
+		app.trace_cache[key] = null;
+		return null;
+	}
+
+	let flat = [];
+	for (let i = 0; i < len(hull); i = i + 1) {
+		append(flat, round_to(hull[i][0], 2));
+		append(flat, round_to(hull[i][1], 2));
+	}
+	app.trace_cache[key] = flat;
+	log_line(app, "traced " + e.sprite.path + " -> " + len(hull) + " vertices");
+	return flat;
+}

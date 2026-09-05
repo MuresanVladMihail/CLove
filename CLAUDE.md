@@ -59,17 +59,19 @@ src/
   lua_mainactivity.c   the Lua equivalent
   fhapi/               FH <-> C bindings, one module per file (graphics*, audio,
                        image, filesystem, timer, math, keyboard, mouse,
-                       joystick, ui, event, love, config). Lua mirror: luaapi/
+                       joystick, physics, ui, event, love, config).
+                       Lua mirror: luaapi/
   graphics/            OpenGL rendering: window/context, batch, font, canvas,
                        shader, mesh, quad, particlesystem, geometry, image, svg
   audio/               OpenAL (via mojoAL/SDL) static + streaming sources
   image/               CPU-side image data (pixel get/set, load/save)
   math/                vectors, matrices, random, noise, triangulation
+  physics/             the love.physics object model over Box2D 3
   filesystem/, timer/, net/, tools/, ui/   supporting modules
   include/             CLove's own headers, plus vendored stb_image.c,
                        stb_image_write.h and stb_vorbis.c/.h
-  3rdparty/            vendored deps: FH, SDL2, mojoAL, microtar, slre, microui,
-                       physfs, glew, noise, CMath
+  3rdparty/            vendored deps: FH, SDL2, box2d, mojoAL, microtar, slre,
+                       microui, physfs, glew, noise, CMath
 ```
 
 Engine functions are plain C (`graphics_*`, `audio_*`, ...). Each `fhapi/<m>.c`
@@ -94,6 +96,62 @@ FH's public API is `src/3rdparty/FH/src/fh.h`. Notes for binding authors:
 - CMake globs `FH/src/*.c` + map/vec/regex/crypto subdirs but **not**
   `FH/src/tar`; FH's `mtar_*` calls link against CLove's own
   `src/3rdparty/microtar` (the two microtar headers must stay identical).
+
+## Physics (Box2D)
+
+`src/3rdparty/box2d` is Box2D **3.1.1**, vendored as plain sources
+(`include/box2d/*.h` + `src/*.c`) from https://github.com/erincatto/box2d. To
+upgrade, replace those two directories from a release tarball; there is nothing
+patched in it. Box2D 3 is pure C, so the bindings call `b2*` directly.
+
+It is built as its **own CMake target** rather than folded into the engine
+glob, because it needs C17 (`_Static_assert`, anonymous unions) and the Linux
+build puts `-std=c99` in `CMAKE_C_FLAGS`. `include_directories()` adds its
+headers globally so the static `love` library can compile `src/physics/`
+without linking it, the same arrangement freetype has.
+
+`src/physics/physics.c` (+ `src/include/physics.h`) is only the object model
+LÖVE's API needs on top of Box2D:
+
+- **Pixels in, pixels out.** Scripts never see metres. `physics_scaleDown` /
+  `physics_scaleUp` convert with `love_physics_setMeter()` (30 by default).
+  Lengths and forces scale once, torque and rotational inertia twice.
+- **A child retains its parent** (fixture -> body -> world; joint -> world and
+  both bodies), and a parent keeps a *weak* list of live children only so
+  `world:getBodies()` can enumerate them. This is LÖVE's lifetime model: an
+  unreferenced body is collected and leaves the world.
+- **Every Box2D object carries its CLove wrapper in `b2*_GetUserData`**, which
+  is how a contact event or `b2Body_GetShapes()` gets back to a script object.
+- **A destroyed object stays addressable.** Box2D 3's ids are generation
+  checked, so `physics_*_isValid()` can tell, and the bindings turn a call on a
+  destroyed object into a script error rather than a crash — that is what
+  `tests/fh/xfail_physics_destroyed_body.fh` locks in.
+- A chain shape becomes a `b2Chain`, not a `b2Shape`; `physics_Fixture` carries
+  both id kinds and `fixture_shape_id()` in the binding rejects the operations a
+  chain cannot do.
+
+The API's differences from LÖVE 11 (no gear/pulley joints, callbacks by name,
+number/string user data) are listed in SKILLS.md.
+
+## Local fixes in the vendored FH
+
+Two bugs in `src/3rdparty/FH` had to be fixed here; both are latent in FH
+itself, so re-apply them if you re-sync from an FH checkout (better: push them
+upstream first).
+
+- `program.c`, `fh_add_c_func()` / `fh_get_c_func_by_name()`: the name map used
+  to hold a **pointer** into the `c_funcs` stack. That stack is one contiguous
+  array that is realloc'd as it grows, so every pointer handed out before a
+  growth dangled afterwards. It held together only while realloc happened to
+  extend in place; registering the ~216 physics functions was enough to move it
+  and make even `error()` resolve as "unknown variable or function". The map now
+  stores a 1-based index.
+- `vm.c`, `fh_call_vm_function()`: the new frame's register window was computed
+  from `prev_frame->closure->func_def->n_regs`, and fell back to register **0**
+  when the frame it nested inside had no closure — which is exactly the case
+  when a C function calls back into the script (a collision callback fired from
+  `world:update()`). It now starts at `prev_frame->stack_top`, which is the
+  right bound for both frame kinds.
 
 ## Writing bindings (conventions)
 
@@ -128,6 +186,33 @@ texture. Two invariants to keep in mind when touching that code:
   `graphics_Image_free()`.
 
 Scripting side and the Inkscape caveats: see SKILLS.md.
+
+### The vendored nanosvg is patched — do not overwrite it blindly
+
+`src/include/nanosvg.h` and `nanosvgrast.h` are upstream
+(https://github.com/memononen/nanosvg) **plus a clip path implementation that
+upstream does not have and has never had** (issue #141 is still open). Pulling
+fresh copies from upstream silently removes it, and every `.svg` that came
+through cairo — anything converted from PDF/EPS/AI — goes back to rendering its
+gradient shapes as coloured rectangles, because cairo states those shapes as a
+rectangle plus a `<clipPath>`. `tests/fh/test_svg_clip.fh` fails if the patch
+is lost. To upgrade nanosvg, re-apply the patch on top:
+
+- `nanosvg.h`: `NSVGclipPath` (public), `clipPaths`/`clipPathCount` on
+  `NSVGshape`, `clipPaths` on `NSVGimage`, `NSVGclipRef` and the clip fields on
+  `NSVGparser`, `clipPathIds`/`clipPathCount` on `NSVGattrib`,
+  `nsvg__parseClipPath`, `nsvg__parseShapeElement` (the shape dispatch factored
+  out so `<clipPath>` children reuse it), `nsvg__addClipRef`,
+  `nsvg__clipPathForBounds`, `nsvg__resolveClipPaths`,
+  `nsvg__scaleShapeGeometry`, the `clip-path`/`clip-rule` cases in
+  `nsvg__parseAttr`, and clip-aware teardown (`nsvg__deleteShapes`).
+- `nanosvgrast.h`: the `clip`/`clipMask`/`stencil`/`maskTarget`/`yMin`/`yMax`
+  fields on `NSVGrasterizer`, `nsvg__rasterizeFill`, `nsvg__buildClipMask`, and
+  the mask-blit plus clip-modulation branches in `nsvg__rasterizeSortedEdges`.
+
+The masks are 8-bit coverage buffers built per shape and only over that shape's
+device-space bounds, so the cost is proportional to what is actually clipped:
+on a 2.9 MB, 1029-path cairo drawing it is ~5% of the rasterization time.
 
 ## Platform gotchas
 

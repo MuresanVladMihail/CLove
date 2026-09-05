@@ -1,0 +1,9 @@
+fn love_config(c) {
+	c.window_title = "CLove UI example (microui)";
+	c.window_width = 860;
+	c.window_height = 620;
+	c.window_x = -1;
+	c.window_y = -1;
+	c.window_vsync = true;
+	c.window_resizable = true;
+}
