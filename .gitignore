@@ -41,10 +41,9 @@ tags
 # OS specific files
 .DS_Store
 
-# cmake output folder - anchored to the repository root on purpose: an
-# unanchored "build/" also matched vendored directories such as
-# src/3rdparty/glew/build/, so glew's own CMake files never made it into the
-# repository and a fresh clone could not configure.
+# cmake output folder (anchored to the repo root: an unanchored "build/"
+# also matched vendored source directories such as
+# src/3rdparty/glew/build/cmake, silently keeping them out of the repo)
 /build/
 /cmake-build-*/
 
@@ -52,7 +51,7 @@ tags
 /*.txt.*
 
 # local backup of the old GLEW copy (see CLAUDE.md)
-glew-old/
+/glew-old/
 
 # compiled engine binary (no extension on Linux/macOS) - covers stray
 # builds left inside example/game directories during local testing

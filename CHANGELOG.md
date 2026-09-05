@@ -47,13 +47,15 @@ version 0.8.0 not yet released
 	created, and if that pixel format can't be provided (software renderers,
 	remote desktops, old drivers) CLove retries once without multisampling instead
 	of failing to start; both errors now report SDL_GetError().
-* fixed: the repository can be built from a fresh clone again. Three vendored
-	pieces never made it into git: src/3rdparty/glew/build/cmake (swallowed by the
-	unanchored "build/" ignore rule), part of the vendored SDL sources
-	(SDL2/src/core/**, swallowed by a bare "core" rule meant for core dumps - the
-	Windows SDL_hid/SDL_immdevice files among them) and microui, which was a git
-	submodule with no .gitmodules entry. The ignore rules are now anchored and all
-	three are tracked as plain files.
+* fixed: the repository can be built from a fresh clone again. Unanchored or
+	over-broad .gitignore rules kept vendored upstream sources out of git:
+	src/3rdparty/glew/build/ (the "build/" rule, so glew's own CMake project was
+	missing and cmake could not even configure) and src/3rdparty/SDL2/src/core/**
+	(a bare "core" rule meant for core dumps - the Windows SDL_hid/SDL_immdevice
+	files among them, which are globbed, so they went missing silently). microui
+	was a git submodule with no .gitmodules entry, i.e. an empty directory after a
+	clone. The rules are now anchored and narrowed, and everything under
+	src/3rdparty/ is tracked as plain files.
 * fixed: link error "multiple definition of 'clove_running'" with GCC >= 10 and
 	any other -fno-common compiler; the two main-loop flags are now declared extern
 	in utils.h and defined once in tools/utils.c.

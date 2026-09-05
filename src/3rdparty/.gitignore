@@ -44,9 +44,12 @@
 *.pdb
 tests/TEST_MK_DIR
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
+# Kernel Module Compile Results. These are deliberately narrow: "*.mod*"
+# also matched SDL2's cmake/test/swift/module.modulemap, and "*.cmd" matched
+# SDL2's visualtest/launch_harness.cmd, dropping both from the repo.
+*.mod
+*.mod.c
+.*.cmd
 .tmp_versions/
 modules.order
 Module.symvers
@@ -135,13 +138,11 @@ Temporary Items
 # pattern "fh" also matched FH/ on case-insensitive filesystems)
 FH/fh
 
-# core dumps - NOT directories named "core": a bare "core" pattern also
-# matched SDL2/src/core/, which silently dropped part of the vendored SDL
-# sources (SDL_evdev_capabilities.c, SDL_threadprio.c, SDL_sandbox.c ...)
-# and broke the Linux build from a fresh clone.
-/core
+# core dumps. A bare "core" pattern also matched the SDL2 src/core/
+# directory and silently dropped its sources from the repo, so match only
+# the shapes an actual core dump takes.
 core.[0-9]*
-
+*.core
 .*.swp
 .gdb_history
 *.creator.*
@@ -149,3 +150,10 @@ tags
 
 # local backup of the old GLEW copy, not part of the build
 glew-old/
+
+# Nothing under src/3rdparty/ is a build output of this project - it is all
+# vendored upstream source. Re-include extensions that the repo-root
+# .gitignore claims for CLove's own build products but which upstream
+# projects legitimately ship as source or data (e.g. SDL2's
+# test/unifont-*.hex font data).
+!*.hex

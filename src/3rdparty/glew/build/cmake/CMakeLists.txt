@@ -18,7 +18,6 @@ endif ()
 option (GLEW_X11 "X11 mode" ON)
 option (GLEW_EGL "EGL mode" OFF)
 option (BUILD_SHARED_LIBS "install/link shared instead of static libs" ON)
-option (CLANG_TIDY "clang-tidy linting" OFF)
 
 set (GLEW_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
@@ -35,25 +34,6 @@ if (NOT GLEW_CUSTOM_OUTPUT_DIRS)
   set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
   set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
   set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-endif()
-
-# Optional clang-tidy linting mode
-
-if (CLANG_TIDY)
-  find_program(CLANG_TIDY_BIN NAMES clang-tidy)
-  if (CLANG_TIDY_BIN)
-    set(CLANG_TIDY_ARGS -checks=*)
-    string(APPEND CLANG_TIDY_ARGS ",readability-*,-readability-identifier-length,-readability-magic-numbers,-readability-function-cognitive-complexity,-readability-braces-around-statements,-readability-function-size,-readability-isolate-declaration")
-    string(APPEND CLANG_TIDY_ARGS ",hicpp-*,-hicpp-braces-around-statements,-hicpp-function-size")
-    string(APPEND CLANG_TIDY_ARGS ",altera-*,-altera-unroll-loops,-altera-id-dependent-backward-branch")
-    string(APPEND CLANG_TIDY_ARGS ",google-*,-google-readability-braces-around-statements,-google-readability-function-size")
-    string(APPEND CLANG_TIDY_ARGS ",cppcoreguidelines-*,-cppcoreguidelines-avoid-non-const-global-variables,-cppcoreguidelines-avoid-magic-numbers,-cppcoreguidelines-init-variables")
-    string(APPEND CLANG_TIDY_ARGS ",bugprone-*,-bugprone-reserved-identifier")
-    string(APPEND CLANG_TIDY_ARGS ",llvm-*,-llvm-include-order,-llvmlibc-*")
-    string(APPEND CLANG_TIDY_ARGS ",clang-*,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,-clang-analyzer-security.insecureAPI.strcpy")
-    string(APPEND CLANG_TIDY_ARGS ",-cert-dcl37-c,-cert-dcl51-cpp,-cert-err33-c,-cert-err34-c")
-    set(CMAKE_C_CLANG_TIDY ${CLANG_TIDY_BIN} ${CLANG_TIDY_ARGS})
-  endif()
 endif()
 
 find_package (OpenGL REQUIRED)
@@ -117,6 +97,8 @@ endif ()
 
 #### GLEW ####
 
+include_directories (${GLEW_DIR}/include ${X11_INCLUDE_DIR})
+
 set (GLEW_PUBLIC_HEADERS_FILES
   ${GLEW_DIR}/include/GL/wglew.h
   ${GLEW_DIR}/include/GL/glew.h
@@ -136,27 +118,27 @@ set_target_properties (glew PROPERTIES COMPILE_DEFINITIONS "GLEW_BUILD" OUTPUT_N
 add_library (glew_s STATIC ${GLEW_PUBLIC_HEADERS_FILES} ${GLEW_SRC_FILES})
 set_target_properties (glew_s PROPERTIES COMPILE_DEFINITIONS "GLEW_STATIC" OUTPUT_NAME "${GLEW_LIB_NAME}" PREFIX lib)
 
-if (MSVC AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+if (MSVC)
   # add options from visual studio project
   target_compile_definitions (glew PRIVATE "GLEW_BUILD;VC_EXTRALEAN")
   target_compile_definitions (glew_s PRIVATE "GLEW_STATIC;VC_EXTRALEAN")
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i?86|x86|x86_32)$")
-	  target_link_libraries (glew PRIVATE -BASE:0x62AA0000)
+	  target_link_libraries (glew LINK_PRIVATE -BASE:0x62AA0000)
   endif()
   # kill security checks which are dependent on stdlib
   target_compile_options (glew PRIVATE -GS-)
   target_compile_options (glew_s PRIVATE -GS-)
   # remove stdlib dependency
-  target_link_libraries (glew PRIVATE -nodefaultlib -noentry)
-  target_link_libraries (glew PRIVATE libvcruntime.lib)
-  target_link_libraries (glew PRIVATE msvcrt.lib )
+  target_link_libraries (glew LINK_PRIVATE -nodefaultlib -noentry)
+  target_link_libraries (glew LINK_PRIVATE libvcruntime.lib)
+  target_link_libraries (glew LINK_PRIVATE msvcrt.lib )
   string(REGEX REPLACE "/RTC(su|[1su])" "" CMAKE_C_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
 elseif (WIN32 AND ((CMAKE_C_COMPILER_ID MATCHES "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang")))
   # remove stdlib dependency on windows with GCC and Clang (for similar reasons
   # as to MSVC - to allow it to be used with any Windows compiler)
   target_compile_options (glew PRIVATE -fno-builtin -fno-stack-protector)
   target_compile_options (glew_s PRIVATE -fno-builtin -fno-stack-protector)
-  target_link_libraries (glew PRIVATE -nostdlib)
+  target_link_libraries (glew LINK_PRIVATE -nostdlib)
 endif ()
 
 if (BUILD_FRAMEWORK)
@@ -172,16 +154,12 @@ if (BUILD_FRAMEWORK)
   )
 endif()
 
-target_link_libraries (glew PRIVATE ${GLEW_LIBRARIES})
-target_link_libraries (glew_s PUBLIC ${GLEW_LIBRARIES})
+target_link_libraries (glew LINK_PUBLIC ${GLEW_LIBRARIES})
+target_link_libraries (glew_s ${GLEW_LIBRARIES})
 
 target_compile_definitions(glew_s INTERFACE "GLEW_STATIC")
 foreach(t glew glew_s)
-  target_include_directories(${t} PUBLIC $<BUILD_INTERFACE:${GLEW_DIR}/include>)
   target_include_directories(${t} PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-  if (NOT WIN32)
-    target_include_directories(${t} PUBLIC ${X11_INCLUDE_DIR})
-  endif()
 endforeach()
 
 set(targets_to_install "")
@@ -211,11 +189,8 @@ if (BUILD_UTILS)
      target_link_libraries (glewinfo glew_s)
   endif()
   if (NOT WIN32)
-    target_link_libraries(glewinfo ${X11_LIBRARIES} ${GLEW_LIBRARIES})
+    target_link_libraries(glewinfo ${X11_LIBRARIES})
   endif ()
-  if (GLEW_EGL)
-    target_link_libraries(glewinfo ${OPENGL_egl_LIBRARY})
-  endif()
 
   set (VISUALINFO_SRC_FILES ${GLEW_DIR}/src/visualinfo.c)
   if (WIN32)
@@ -228,7 +203,7 @@ if (BUILD_UTILS)
      target_link_libraries (visualinfo glew_s)
   endif()
   if (NOT WIN32)
-    target_link_libraries(visualinfo ${X11_LIBRARIES} ${GLEW_LIBRARIES})
+    target_link_libraries(visualinfo ${X11_LIBRARIES})
   endif ()
 
   install ( TARGETS glewinfo visualinfo
