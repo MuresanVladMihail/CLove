@@ -67,13 +67,13 @@ void graphics_bindDefaultVao(void) {
     glBindVertexArray(moduleData.defaultVao);
 }
 
-static void graphics_init_window(int width, int height) {
+static bool graphics_init_window(int width, int height) {
     glewExperimental = true;
     GLenum res = glewInit();
 
     if (res != GLEW_OK) {
-        clove_error("Error: Could not init glew!\n");
-        return;
+        clove_error("Error: Could not init glew: %s\n", glewGetErrorString(res));
+        return false;
     }
 
     glViewport(0, 0, width, height);
@@ -113,19 +113,58 @@ static void graphics_init_window(int width, int height) {
     glDepthMask(GL_FALSE);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     graphics_clearScissor();
+
+    return true;
 }
 
-void graphics_init(int width, int height, bool resizable, bool stats, bool show) {
+/* SDL chooses the window's pixel format when the window is created, so every
+ * GL attribute has to be set before SDL_CreateWindow(). Setting them
+ * afterwards leaves the window on whatever visual SDL defaulted to. */
+static void graphics_setGLAttributes(int msaa_samples) {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, msaa_samples > 0 ? 1 : 0);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, msaa_samples);
+
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+}
+
+static void graphics_destroyWindow(void) {
+    if (moduleData.context) {
+        SDL_GL_DeleteContext(moduleData.context);
+        moduleData.context = NULL;
+    }
+    if (moduleData.window) {
+        SDL_DestroyWindow(moduleData.window);
+        moduleData.window = NULL;
+    }
+}
+
+bool graphics_init(int width, int height, bool resizable, bool stats, bool show) {
     moduleData.isCreated = false;
-    moduleData.hasWindow = show;
+    /* Only true once a window *and* a context actually exist: the rest of the
+     * engine uses this flag to decide whether it may call into GL. */
+    moduleData.hasWindow = false;
+    moduleData.window = NULL;
+    moduleData.context = NULL;
 
     if (!show) {
-        return;
+        return true;
     }
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        clove_error("Error: Could not init SDL video \n");
-        return;
+        clove_error("Error: Could not init SDL video: %s\n", SDL_GetError());
+        return false;
     }
 
     moduleData.x = SDL_WINDOWPOS_CENTERED;
@@ -137,37 +176,36 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
         moduleData.w_flags = (SDL_WindowFlags) (moduleData.w_flags | SDL_WINDOW_RESIZABLE);
     }
 
-    moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
-                                         moduleData.w_flags);
+    /* 4x MSAA is a preference, not a requirement. Software rasterizers and
+     * older drivers offer no multisampled visual, and demanding one used to
+     * abort startup outright. Fall back to no multisampling instead. */
+    static const int msaa_preference[] = { 4, 0 };
+    const size_t msaa_count = sizeof(msaa_preference) / sizeof(msaa_preference[0]);
 
-    if (!moduleData.window) {
-        clove_error("Error: Could not create window :O\n");
-        return;
+    for (size_t i = 0; i < msaa_count; i++) {
+        graphics_setGLAttributes(msaa_preference[i]);
+
+        moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
+                                             moduleData.w_flags);
+        if (moduleData.window) {
+            moduleData.context = SDL_GL_CreateContext(moduleData.window);
+            if (moduleData.context)
+                break;
+        }
+
+        const char *why = SDL_GetError();
+        graphics_destroyWindow();
+
+        if (msaa_preference[i] > 0)
+            clove_error("Warning: no %dx multisampled OpenGL window (%s), retrying without multisampling\n",
+                        msaa_preference[i], why);
+        else
+            clove_error("Error: Could not create window context: %s\n", why);
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-
-
-    moduleData.context = SDL_GL_CreateContext(moduleData.window);
     if (!moduleData.context) {
-        clove_error("Error: Could not create window context!\n");
-        return;
+        graphics_destroyWindow();
+        return false;
     }
 
     //moduleData.surface = SDL_GetWindowSurface(moduleData.window);
@@ -182,7 +220,13 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
         printf("Renderer: %s\n", glGetString(GL_RENDERER));
     }
 
-    graphics_init_window(width, height);
+    if (!graphics_init_window(width, height)) {
+        graphics_destroyWindow();
+        return false;
+    }
+
+    moduleData.hasWindow = true;
+    return true;
 }
 
 void graphics_shutdown() {
@@ -454,20 +498,44 @@ int graphics_setMode(int width, int height,
      */
 #ifndef CLOVE_WEB
     if (!moduleData.hasWindow) {
-        moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
-                                             moduleData.w_flags);
-        if (!moduleData.window)
-            clove_error("Error: Could not create window :O");
+        /* Same fallback as graphics_init(): prefer 4x MSAA, accept none. */
+        static const int msaa_preference[] = { 4, 0 };
+        const size_t msaa_count = sizeof(msaa_preference) / sizeof(msaa_preference[0]);
 
-        moduleData.context = SDL_GL_CreateContext(moduleData.window);
+        for (size_t i = 0; i < msaa_count; i++) {
+            graphics_setGLAttributes(msaa_preference[i]);
 
-        if (!moduleData.context)
-            clove_error("Error: Could not create window context!");
+            moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
+                                                 moduleData.w_flags);
+            if (moduleData.window) {
+                moduleData.context = SDL_GL_CreateContext(moduleData.window);
+                if (moduleData.context)
+                    break;
+            }
+
+            const char *why = SDL_GetError();
+            graphics_destroyWindow();
+
+            if (msaa_preference[i] > 0)
+                clove_error("Warning: no %dx multisampled OpenGL window (%s), retrying without multisampling\n",
+                            msaa_preference[i], why);
+            else
+                clove_error("Error: Could not create window context: %s\n", why);
+        }
+
+        /* Bail out instead of falling through into GL calls with no context. */
+        if (!moduleData.context) {
+            graphics_destroyWindow();
+            return 0;
+        }
 
         if (vsync)
             SDL_GL_SetSwapInterval(1);
 
-        graphics_init_window(width, height);
+        if (!graphics_init_window(width, height)) {
+            graphics_destroyWindow();
+            return 0;
+        }
 
         moduleData.hasWindow = true;
     }

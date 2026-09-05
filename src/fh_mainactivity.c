@@ -294,7 +294,17 @@ int fh_main_activity_load(int argc, char *argv[]) {
 
     printf("%s %s \n", "Platform:", filesystem_getOS());
 
-    graphics_init(800, 600, 0, 1, 1);
+    if (!graphics_init(800, 600, 0, 1, 1)) {
+        clove_error("ERROR: could not initialize graphics\n");
+        /* Tear down only what has been initialized so far; clove_finish()
+         * assumes the UI, geometry and batch subsystems are already up. */
+        fh_deinit(loopData.prog);
+        joystick_close();
+        audio_close();
+        graphics_shutdown();
+        filesystem_free();
+        return 1;
+    }
 
     graphics_setBordless(0);
     graphics_setVsync(true);

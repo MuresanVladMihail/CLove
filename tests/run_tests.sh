@@ -75,6 +75,34 @@ run_one() {
     fi
 }
 
+# Regression check: when no GL context can be created -- here via SDL's dummy
+# video driver, which has no OpenGL -- CLove must report the error and exit
+# cleanly. It used to mark the window as usable before the context existed and
+# then call into GL with no context, dying with SIGSEGV (exit 139).
+check_no_gl_exits_cleanly() {
+    name=no_gl_clean_exit
+
+    printf 'fn love_load() { }\n' > "$scratch/main.fh"
+
+    out=$( cd "$scratch" && SDL_VIDEODRIVER=dummy "$clove" 2>&1 )
+    code=$?
+
+    if [ "$code" -ne 0 ] && [ "$code" -lt 128 ]; then
+        pass=$((pass + 1))
+        printf '  PASS  %s\n' "$name"
+    else
+        fail=$((fail + 1))
+        failed_list="$failed_list $name"
+        if [ "$code" -ge 128 ]; then
+            printf '  FAIL  %s (killed by signal %d, expected a clean non-zero exit)\n' \
+                "$name" "$((code - 128))"
+        else
+            printf '  FAIL  %s (exit 0, expected a clean non-zero exit)\n' "$name"
+        fi
+        printf '%s\n' "$out" | grep -iE 'error' | sed 's/^/        /'
+    fi
+}
+
 echo "Running CLove FH tests with: $clove"
 echo
 
@@ -84,6 +112,8 @@ done
 for t in "$here"/fh/xfail_*.fh; do
     [ -e "$t" ] && run_one "$t"
 done
+
+check_no_gl_exits_cleanly
 
 echo
 echo "------------------------------------"

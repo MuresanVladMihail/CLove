@@ -257,8 +257,17 @@ void lua_main_activity_load(int argc, char *argv[]) {
     if (config.window.stats)
         printf("%s %s \n", "Debug: Platform:", filesystem_getOS());
 
-    graphics_init(config.window.width, config.window.height, config.window.resizable, config.window.stats,
-                  config.window.window);
+    if (!graphics_init(config.window.width, config.window.height, config.window.resizable, config.window.stats,
+                       config.window.window)) {
+        clove_error("ERROR: could not initialize graphics\n");
+        /* main_clean() assumes the geometry and batch subsystems are up. */
+        joystick_close();
+        audio_close();
+        graphics_shutdown();
+        filesystem_free();
+        lua_close(lua);
+        return;
+    }
     /*
      * When we do not have a visible window we can't put
      * these properties

@@ -23,7 +23,9 @@
  * Weather or not debug messages should be logged
  * Weather or not the window should appear on the screen
  */
-void graphics_init(int width, int height, bool resizable, bool stats, bool show);
+/* Returns false if the window or GL context could not be created; the caller
+ * must not use any other graphics function in that case. */
+bool graphics_init(int width, int height, bool resizable, bool stats, bool show);
 
 typedef struct {
     float red;
