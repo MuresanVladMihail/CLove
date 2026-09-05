@@ -13,6 +13,10 @@
 void ui_init(void);
 void ui_deinit(void);
 mu_Context *ui_get_context(void);
+int ui_in_container(void);
+int ui_popup_open(const char *name);
+int ui_mouse_over(void);
+void ui_set_window_open(const char *name, int open);
 
 void ui_layout_row(int no_items, int widths[], int height);
 void ui_layout_begin_column(void);
@@ -31,13 +35,17 @@ void ui_end_window(void);
 void ui_draw_control_text(const char *str, mu_Rect rect, int colorid, int opt);
 mu_Rect ui_layout_next(void);
 void ui_rect(mu_Rect rect, mu_Color color);
-int ui_checkbox(const char *label, int state);
+int ui_checkbox(const char *label, int state, int id);
 void ui_text(const char *text);
 int ui_button(const char* label, int opt);
 int ui_textbox(char* label, int len, int opt);
 int ui_header(const char *label, int opt);
 void ui_label(const char *label, int opt);
-mu_Real ui_slider(mu_Real value, int low, int high, int step, int opt);
+mu_Real ui_slider(mu_Real value, int low, int high, int step, int id, int opt,
+                  int decimals);
+mu_Real ui_number(mu_Real value, mu_Real step, int id, int opt, int decimals);
+void ui_push_id(const void *data, int size);
+void ui_pop_id(void);
 int ui_begin_tree(const char *label, int opt);
 void ui_end_tree(void);
 void ui_draw_rect(int x, int y, int w, int h,

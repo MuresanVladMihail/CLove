@@ -1,0 +1,68 @@
+# Sliders, number fields, check boxes and text boxes take their microui widget
+# id from the address of the value they are handed, and CLove's wrappers pass a
+# stack local -- the same address on every call. Without an explicit id every
+# one of them collapsed into a single widget and none responded to the mouse.
+#
+# love_ui_last_id() reports the id microui assigned to the widget just built,
+# which is exactly the property to guard.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    love_ui_begin();
+    if (love_ui_begin_window("test", 0, 0, 400, 400, 0)) {
+        love_ui_layout_row(1, [-1], 0);
+
+        love_ui_number(1, 1, 10);
+        let n1 = love_ui_last_id();
+        love_ui_number(1, 1, 11);
+        let n2 = love_ui_last_id();
+        love_ui_number(1, 1, 10);
+        let n3 = love_ui_last_id();
+
+        check(n1 != n2, "two number fields with different ids must be different widgets");
+        check(n1 == n3, "the same id must address the same widget");
+
+        love_ui_slider(5, 0, 10, 1, 20);
+        let s1 = love_ui_last_id();
+        love_ui_slider(5, 0, 10, 1, 21);
+        let s2 = love_ui_last_id();
+
+        check(s1 != s2, "two sliders with different ids must be different widgets");
+        check(n1 != s1, "a number field and a slider must not collide");
+
+        # check boxes hash the address of the state they are handed, which is
+        # one stack slot for all of them -- so they need an id of their own too
+        love_ui_checkbox("Sensor", false, 30);
+        let c1 = love_ui_last_id();
+        love_ui_checkbox("Fixed rotation", false, 31);
+        let c2 = love_ui_last_id();
+        love_ui_checkbox("Sensor", false, 30);
+        let c3 = love_ui_last_id();
+
+        check(c1 != c2, "two check boxes with different ids must be different widgets");
+        check(c1 == c3, "the same id must address the same check box");
+        check(c1 != s1, "a check box and a slider must not collide");
+
+        # text boxes keep one buffer per id, so their addresses differ too
+        let t1 = love_ui_textbox(1, "a");
+        let id1 = love_ui_last_id();
+        let t2 = love_ui_textbox(2, "b");
+        let id2 = love_ui_last_id();
+        check(id1 != id2, "two text boxes with different ids must be different widgets");
+        check(t1[1] == "a", "a text box keeps the text seeded for its id");
+        check(t2[1] == "b", "each id has its own buffer");
+
+        love_ui_end_window();
+    }
+    love_ui_end();
+    love_ui_clear_textbox();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

@@ -14,6 +14,19 @@
 #include "../3rdparty/microui/src/microui.h"
 #include "../include/ui.h"
 
+/* Widgets, layout and draw commands all read the top of one of microui's
+ * stacks through expect(), which aborts the process. Nothing but a window, a
+ * panel or a popup fills those stacks, so a script calling one of these at top
+ * level used to take CLove down with "assertion failed" -- turn it into an
+ * ordinary script error instead. */
+#define UI_NEED_CONTAINER(fname) \
+    do { \
+        if (!ui_in_container()) \
+            return fh_set_error(prog, fname "(): must be called inside a " \
+                                "window, a panel or a popup"); \
+    } while (0)
+
+
 static fh_c_obj_gc_callback ui_container_gc(mu_Container *cnt) {
     free(cnt);
     return (fh_c_obj_gc_callback) 1;
@@ -29,6 +42,7 @@ static int fn_love_ui_newContainer(struct fh_program *prog,
 
 static int fn_love_ui_layout_next(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_layout_next");
     UNUSED(args);
     if (n_args != 0) {
         return fh_set_error(prog, "This function doesn't expect any arguments");
@@ -52,6 +66,7 @@ static int fn_love_ui_layout_next(struct fh_program *prog,
 
 static int fn_love_ui_layout_setNext(struct fh_program *prog,
                                      struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_layout_setNext");
     if (n_args != 5)
         return fh_set_error(prog, "Expected 5 arguments, got %d\n", n_args);
 
@@ -78,6 +93,7 @@ static int fn_love_ui_layout_setNext(struct fh_program *prog,
 
 static int fn_love_ui_rect(struct fh_program *prog,
                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_rect");
     if (n_args < 7)
         return fh_set_error(prog, "Expected at least 7 arguments, got %d", n_args);
 
@@ -106,6 +122,7 @@ static int fn_love_ui_rect(struct fh_program *prog,
 
 static int fn_love_ui_control_text(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_control_text");
     if (n_args < 6)
         return fh_set_error(prog, "Expected at least 6 arguments, got %d", n_args);
 
@@ -288,8 +305,62 @@ static int fn_love_ui_open_popup(struct fh_program *prog,
     return 0;
 }
 
+/* love_ui_setWindowOpen(name, open)
+ *
+ * microui's close button latches a window shut: its container's open flag goes
+ * to 0 and love_ui_begin_window() answers false from then on. Call this to
+ * show it again -- typically when whatever check box or menu item owns the
+ * window is switched back on. */
+static int fn_love_ui_setWindowOpen(struct fh_program *prog,
+                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_ui_setWindowOpen(): expected 2 arguments, got %d", n_args);
+    if (!fh_is_string(&args[0]))
+        return fh_set_error(prog, "love_ui_setWindowOpen(): expected the window name as a string");
+    if (!fh_is_bool(&args[1]))
+        return fh_set_error(prog, "love_ui_setWindowOpen(): expected a boolean");
+
+    ui_set_window_open(fh_get_string(&args[0]), fh_get_bool(&args[1]) ? 1 : 0);
+    *ret = fh_new_null();
+    return 0;
+}
+
+/* love_ui_mouse_over() -> bool
+ *
+ * Whether the pointer is over any microui window, panel or popup. A game that
+ * draws its own viewport beneath floating UI asks this before it acts on a
+ * click, so a press meant for a window does not also land in the scene. */
+static int fn_love_ui_mouse_over(struct fh_program *prog,
+                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    (void) args;
+    if (n_args != 0)
+        return fh_set_error(prog, "love_ui_mouse_over(): expected no arguments, got %d", n_args);
+
+    *ret = fh_new_bool(ui_mouse_over() != 0);
+    return 0;
+}
+
+/* love_ui_popup_open(name) -> bool
+ *
+ * Whether the named popup is on screen. love_ui_begin_popup() still returns
+ * true on the frame the popup closes, so a script that needs to know "is a
+ * menu up right now" -- to keep the click that dismisses it from also doing
+ * something underneath -- has to ask this instead. Call it from the same
+ * window that opened the popup: the name is hashed against the id stack. */
+static int fn_love_ui_popup_open(struct fh_program *prog,
+                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_popup_open(): expected 1 argument, got %d", n_args);
+    if (!fh_is_string(&args[0]))
+        return fh_set_error(prog, "love_ui_popup_open(): expected the popup name as a string");
+
+    *ret = fh_new_bool(ui_popup_open(fh_get_string(&args[0])) != 0);
+    return 0;
+}
+
 static int fn_love_ui_end_popup(struct fh_program *prog,
                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_end_popup");
     UNUSED(prog);
     UNUSED(args);
     UNUSED(n_args);
@@ -329,6 +400,7 @@ static int fn_love_ui_begin_window(struct fh_program *prog,
 
 static int fn_love_ui_end_window(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_end_window");
     UNUSED(prog);
     UNUSED(args);
     UNUSED(n_args);
@@ -339,6 +411,7 @@ static int fn_love_ui_end_window(struct fh_program *prog,
 
 static int fn_love_ui_layout_row(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_layout_row");
     if (n_args != 3) {
         return fh_set_error(prog, "Invalid number of arguments, expected 3 got: %d", n_args);
     }
@@ -378,6 +451,7 @@ static int fn_love_ui_layout_row(struct fh_program *prog,
 
 static int fn_love_ui_layout_width(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_layout_width");
     if (n_args != 1)
         return fh_set_error(prog, "love_ui_layout_width(): expected 1 argument, got %d", n_args);
     if (!fh_is_number(&args[0]))
@@ -391,6 +465,7 @@ static int fn_love_ui_layout_width(struct fh_program *prog,
 
 static int fn_love_ui_layout_height(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_layout_height");
     if (n_args != 1)
         return fh_set_error(prog, "love_ui_layout_height(): expected 1 argument, got %d", n_args);
     if (!fh_is_number(&args[0]))
@@ -404,6 +479,7 @@ static int fn_love_ui_layout_height(struct fh_program *prog,
 
 static int fn_love_ui_header(struct fh_program *prog,
                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_header");
     if (n_args < 1)
         return fh_set_error(prog, "love_ui_header(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
@@ -417,6 +493,7 @@ static int fn_love_ui_header(struct fh_program *prog,
 
 static int fn_love_ui_begin_tree(struct fh_program *prog,
                                  struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_begin_tree");
     if (n_args < 1)
         return fh_set_error(prog, "love_ui_begin_tree(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
@@ -430,6 +507,7 @@ static int fn_love_ui_begin_tree(struct fh_program *prog,
 
 static int fn_love_ui_end_tree(struct fh_program *prog,
                                struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_end_tree");
     UNUSED(prog);
     UNUSED(args);
     UNUSED(n_args);
@@ -440,6 +518,7 @@ static int fn_love_ui_end_tree(struct fh_program *prog,
 
 static int fn_love_ui_begin_panel(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_begin_panel");
     if (n_args < 2)
         return fh_set_error(prog, "love_ui_begin_panel(): expected at least 2 arguments, got %d", n_args);
     if (!fh_is_c_obj_of_type(&args[0], FH_UI_TYPE) ||
@@ -458,6 +537,7 @@ static int fn_love_ui_begin_panel(struct fh_program *prog,
 
 static int fn_love_ui_end_panel(struct fh_program *prog,
                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_end_panel");
     UNUSED(prog);
     UNUSED(ret);
     UNUSED(args);
@@ -504,6 +584,7 @@ static int fn_love_ui_setFocus(struct fh_program *prog,
 
 static int fn_love_ui_slider(struct fh_program *prog,
                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_slider");
     if (n_args < 4)
         return fh_set_error(prog, "love_ui_slider(): expected at least 4 arguments, got %d", n_args);
     for (int i = 0; i < 4; i++) {
@@ -515,13 +596,81 @@ static int fn_love_ui_slider(struct fh_program *prog,
     double low = fh_get_number(&args[1]);
     double high = fh_get_number(&args[2]);
     double step = fh_optnumber(args, n_args, 3, 0);
-    int opt = (int) fh_optnumber(args, n_args, 4, MU_OPT_ALIGNRIGHT);
-    *ret = fh_new_number(ui_slider(value, low, high, step, opt));
+    /* The id keeps sliders apart; without one they would all be the same
+       widget and none of them would respond. */
+    int id = (int) fh_optnumber(args, n_args, 4, 0);
+    int opt = (int) fh_optnumber(args, n_args, 5, MU_OPT_ALIGNRIGHT);
+    /* how many decimals the value is shown with; 2 is microui's own default */
+    int decimals = (int) fh_optnumber(args, n_args, 6, 2);
+    *ret = fh_new_number(ui_slider(value, low, high, step, id, opt, decimals));
+    return 0;
+}
+
+/*
+ * love_ui_number(value, step, [id], [opt]) -> value
+ *
+ * A drag-to-edit number field: unlike a slider it has no fixed range, which
+ * is what an inspector wants for coordinates and sizes. Give each field on a
+ * panel a different id, or they all become the same widget.
+ */
+static int fn_love_ui_number(struct fh_program *prog,
+                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_number");
+    if (n_args < 2)
+        return fh_set_error(prog, "love_ui_number(): expected at least 2 arguments, got %d", n_args);
+    for (int i = 0; i < 2; i++) {
+        if (!fh_is_number(&args[i])) {
+            return fh_set_error(prog, "Argument %d was expected to be of type number", i);
+        }
+    }
+    double value = fh_get_number(&args[0]);
+    double step = fh_get_number(&args[1]);
+    int id = (int) fh_optnumber(args, n_args, 2, 0);
+    int opt = (int) fh_optnumber(args, n_args, 3, MU_OPT_ALIGNCENTER);
+    int decimals = (int) fh_optnumber(args, n_args, 4, 2);
+    *ret = fh_new_number(ui_number(value, step, id, opt, decimals));
+    return 0;
+}
+
+/*
+ * love_ui_pushId(key) / love_ui_popId()
+ *
+ * microui hashes a widget's label into its id, so two list rows with the same
+ * text are the same widget. Wrap each row in a push/pop of something unique
+ * (an entity id, a loop index) to keep them apart.
+ */
+static int fn_love_ui_pushId(struct fh_program *prog,
+                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_pushId(): expected 1 argument, got %d", n_args);
+
+    if (fh_is_number(&args[0])) {
+        int key = (int) fh_get_number(&args[0]);
+        ui_push_id(&key, sizeof(key));
+    } else if (fh_is_string(&args[0])) {
+        const char *key = fh_get_string(&args[0]);
+        ui_push_id(key, (int) strlen(key));
+    } else {
+        return fh_set_error(prog, "love_ui_pushId(): expected a number or a string");
+    }
+
+    *ret = fh_new_null();
+    return 0;
+}
+
+static int fn_love_ui_popId(struct fh_program *prog,
+                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    UNUSED(prog);
+    UNUSED(args);
+    UNUSED(n_args);
+    ui_pop_id();
+    *ret = fh_new_null();
     return 0;
 }
 
 static int fn_love_ui_label(struct fh_program *prog,
                             struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_label");
     if (n_args < 1)
         return fh_set_error(prog, "love_ui_label(): expected at least 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
@@ -693,6 +842,7 @@ static int fn_love_ui_getColor(struct fh_program *prog,
 
 static int fn_love_ui_text(struct fh_program *prog,
                            struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_text");
     if (n_args != 1)
         return fh_set_error(prog, "love_ui_text(): expected 1 argument, got %d", n_args);
     if (!fh_is_string(&args[0])) {
@@ -706,6 +856,7 @@ static int fn_love_ui_text(struct fh_program *prog,
 
 static int fn_love_ui_checkbox(struct fh_program *prog,
                                struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_checkbox");
     if (n_args != 3)
         return fh_set_error(prog, "love_ui_checkbox(): expected 3 arguments, got %d", n_args);
     if (!fh_is_string(&args[0])) {
@@ -718,13 +869,15 @@ static int fn_love_ui_checkbox(struct fh_program *prog,
 
     const char *label = fh_get_string(&args[0]);
     bool state = fh_get_bool(&args[1]);
-    *ret = fh_new_bool(ui_checkbox(label, state));
+    int id = (int) fh_get_number(&args[2]);
+    *ret = fh_new_bool(ui_checkbox(label, state, id));
     return 0;
 }
 
 
 static int fn_love_ui_button(struct fh_program *prog,
                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_button");
     if (n_args != 2)
         return fh_set_error(prog, "love_ui_button(): expected 2 arguments, got %d", n_args);
     if (!fh_is_string(&args[0])) {
@@ -739,62 +892,118 @@ static int fn_love_ui_button(struct fh_program *prog,
     return 0;
 }
 
-// TODO: This value shouldn't be hard-coded!
-static char textbox_buf[128];
-static char type_string_textbox_buf[128];
+/*
+ * Text boxes keep their buffer on the C side: microui edits the buffer in
+ * place across frames, and an FH string cannot be mutated that way. Each
+ * script-supplied id owns one buffer, so several text boxes can be live at
+ * once -- the previous implementation shared a single static buffer, wrote
+ * into the FH string object it was handed, and read back a buffer that was
+ * never filled, so it always returned an empty string.
+ */
+#define UI_TEXTBOX_CAPACITY 256
+#define UI_TEXTBOX_SLOTS    32
 
+static struct {
+    int id;
+    bool in_use;
+    char buf[UI_TEXTBOX_CAPACITY];
+} textboxes[UI_TEXTBOX_SLOTS];
+
+static int textbox_slot(int id) {
+    int free_slot = -1;
+    for (int i = 0; i < UI_TEXTBOX_SLOTS; ++i) {
+        if (textboxes[i].in_use && textboxes[i].id == id) {
+            return i;
+        }
+        if (!textboxes[i].in_use && free_slot < 0) {
+            free_slot = i;
+        }
+    }
+    if (free_slot < 0) {
+        return -1;
+    }
+    textboxes[free_slot].in_use = true;
+    textboxes[free_slot].id = id;
+    textboxes[free_slot].buf[0] = '\0';
+    return free_slot;
+}
+
+/*
+ * love_ui_clear_textbox([id]) -- empties one text box, or every one when
+ * called without an id.
+ */
 static int fn_love_ui_clear_textbox(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
-    UNUSED(prog);
-    UNUSED(args);
-    UNUSED(n_args);
-    memset(textbox_buf, 0, sizeof (textbox_buf));
+    if (n_args == 0) {
+        memset(textboxes, 0, sizeof(textboxes));
+        *ret = fh_new_null();
+        return 0;
+    }
+    if (!fh_is_number(&args[0])) {
+        return fh_set_error(prog, "love_ui_clear_textbox(): expected the text box id as a number");
+    }
+    int id = (int) fh_get_number(&args[0]);
+    for (int i = 0; i < UI_TEXTBOX_SLOTS; ++i) {
+        if (textboxes[i].in_use && textboxes[i].id == id) {
+            textboxes[i].buf[0] = '\0';
+            break;
+        }
+    }
     *ret = fh_new_null();
     return 0;
 }
 
+/*
+ * love_ui_textbox(id, [initial_text], [opt]) -> [res, text]
+ *
+ * `id` names the buffer this text box edits. `initial_text` seeds it the
+ * first time that id is seen (later frames keep whatever the user typed).
+ * `res` is a MU_RES_* bitmask -- compare it against love_ui_res_state(...).
+ */
 static int fn_love_ui_textbox(struct fh_program *prog,
                               struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (n_args != 2)
-        return fh_set_error(prog, "love_ui_textbox(): expected 2 arguments, got %d", n_args);
-    if (!fh_is_string(&args[0])) {
-        return fh_set_error(prog, "Expected string label");
-    } else if (!fh_is_number(&args[1])) {
-        return fh_set_error(prog, "Expected number id");
+    UI_NEED_CONTAINER("love_ui_textbox");
+    if (n_args < 1)
+        return fh_set_error(prog, "love_ui_textbox(): expected at least 1 argument, got %d", n_args);
+    if (!fh_is_number(&args[0]))
+        return fh_set_error(prog, "love_ui_textbox(): expected the text box id as a number");
+
+    int id = (int) fh_get_number(&args[0]);
+    int slot = textbox_slot(id);
+    if (slot < 0)
+        return fh_set_error(prog, "love_ui_textbox(): out of text box slots (max %d)", UI_TEXTBOX_SLOTS);
+
+    bool fresh = textboxes[slot].buf[0] == '\0';
+    if (fresh && n_args > 1 && fh_is_string(&args[1])) {
+        const char *initial = fh_get_string(&args[1]);
+        size_t len = strlen(initial);
+        if (len >= UI_TEXTBOX_CAPACITY) {
+            len = UI_TEXTBOX_CAPACITY - 1;
+        }
+        memcpy(textboxes[slot].buf, initial, len);
+        textboxes[slot].buf[len] = '\0';
     }
 
-    char *label = (char *) fh_get_string(&args[0]);
+    int opt = (int) fh_optnumber(args, n_args, 2, 0);
+    int res = ui_textbox(textboxes[slot].buf, UI_TEXTBOX_CAPACITY, opt);
 
-    size_t len = strlen(label);
-    size_t new_size = strlen(textbox_buf) + len;
-    int sizeof_textbox_buf = sizeof(textbox_buf);
-    if (new_size >= sizeof_textbox_buf) {
-        *ret = fh_new_bool(false);
-        return 0;
-    }
-    memcpy(textbox_buf + len, label, len);
-    int opt = (int) fh_optnumber(args, n_args, 1, MU_OPT_ALIGNRIGHT);
-    int ret_state = ui_textbox(label, len, opt);
-    if (strcmp(type_string_textbox_buf, " ") != 0) {
-        int pin_state = fh_get_pin_state(prog);
-        struct fh_array *arr = fh_make_array(prog, true);
-        fh_grow_array_object(prog, arr, 4);
-        arr->items[0] = fh_new_number(ret_state);
-        arr->items[1] = fh_new_string(prog, type_string_textbox_buf);
+    int pin_state = fh_get_pin_state(prog);
+    struct fh_array *arr = fh_make_array(prog, true);
+    fh_grow_array_object(prog, arr, 2);
+    arr->items[0] = fh_new_number(res);
+    arr->items[1] = fh_new_string(prog, textboxes[slot].buf);
 
-        struct fh_value arr_value = fh_new_array(prog);
-        arr_value.data.obj = arr;
+    struct fh_value arr_value = fh_new_array(prog);
+    arr_value.data.obj = arr;
 
-        *ret = arr_value;
-        fh_restore_pin_state(prog, pin_state);
-    } else {
-        *ret = fh_new_bool(false);
-    }
+    *ret = arr_value;
+    fh_restore_pin_state(prog, pin_state);
     return 0;
 }
 
 static int fn_love_ui_layout_begin_column(struct fh_program *prog,
                                           struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_layout_begin_column");
     UNUSED(prog);
     UNUSED(args);
     UNUSED(n_args);
@@ -805,6 +1014,7 @@ static int fn_love_ui_layout_begin_column(struct fh_program *prog,
 
 static int fn_love_ui_layout_end_column(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
+    UI_NEED_CONTAINER("love_ui_layout_end_column");
     UNUSED(prog);
     UNUSED(args);
     UNUSED(n_args);
@@ -848,6 +1058,9 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_ui_clear_textbox),
     DEF_FN(love_ui_label),
     DEF_FN(love_ui_slider),
+    DEF_FN(love_ui_number),
+    DEF_FN(love_ui_pushId),
+    DEF_FN(love_ui_popId),
     DEF_FN(love_ui_begin),
     DEF_FN(love_ui_end),
     DEF_FN(love_ui_align),
@@ -876,6 +1089,9 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_ui_opt),
     DEF_FN(love_ui_begin_popup),
     DEF_FN(love_ui_end_popup),
+    DEF_FN(love_ui_popup_open),
+    DEF_FN(love_ui_mouse_over),
+    DEF_FN(love_ui_setWindowOpen),
     DEF_FN(love_ui_open_popup),
     DEF_FN(love_ui_res_state)
 };

@@ -72,6 +72,20 @@ static void graphics_loadDefaultFont() {
     moduleData.currentFont = &moduleData.defaultFont;
 }
 
+/*
+ * The metric getters used to fall back to &moduleData.defaultFont, which is
+ * only a valid FT face once graphics_loadDefaultFont() has run -- measuring
+ * before any font was set dereferenced an uninitialised face and crashed.
+ * Going through here loads the default font on demand, exactly like
+ * love_graphics_print() does.
+ */
+static graphics_Font *graphics_measuringFont(void) {
+    if (!moduleData.currentFont) {
+        graphics_loadDefaultFont();
+    }
+    return moduleData.currentFont;
+}
+
 static int fn_love_graphics_setFont(struct fh_program *prog,
                                     struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 1)
@@ -148,8 +162,15 @@ static int fn_love_graphics_print(struct fh_program *prog,
 
 static int fn_love_font_getHeight(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (n_args != 1)
-        return fh_set_error(prog, "love_font_getHeight(): expected 1 argument, got %d", n_args);
+    if (n_args > 1)
+        return fh_set_error(prog, "love_font_getHeight(): expected at most 1 argument, got %d", n_args);
+
+    if (n_args == 0) {
+        /* no font given: measure with the default one, the same fallback
+         * love_font_getWidth() takes */
+        *ret = fh_new_number((int) graphics_Font_getHeight(graphics_measuringFont()));
+        return 0;
+    }
 
     if (fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
         graphics_Font *font = fh_get_c_obj_value(&args[0]);
@@ -160,7 +181,7 @@ static int fn_love_font_getHeight(struct fh_program *prog,
 
         *ret = fh_new_number((int)font->image->height);
     } else {
-        *ret = fh_new_number((int) graphics_Font_getHeight(&moduleData.defaultFont));
+        *ret = fh_new_number((int) graphics_Font_getHeight(graphics_measuringFont()));
     }
     return 0;
 }
@@ -171,7 +192,12 @@ static int fn_love_font_getWidth(struct fh_program *prog,
         return fh_set_error(prog, "love_font_getWidth(): expected at least 1 argument, got %d", n_args);
 
     int string_index = 0;
-    if (fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE)) {
+    if (fh_is_c_obj_of_type(&args[0], FH_FONT_TYPE) ||
+        fh_is_c_obj_of_type(&args[0], FH_BITMAP_FONT_TYPE)) {
+        if (n_args < 2) {
+            return fh_set_error(prog, "love_font_getWidth(): expected a string after the font, got %d argument(s)",
+                                n_args);
+        }
         if (!fh_is_string(&args[1])) {
             return fh_set_error(prog, "Expected string");
         }
@@ -194,7 +220,7 @@ static int fn_love_font_getWidth(struct fh_program *prog,
         bitmap = fh_get_c_obj_value(&args[0]);
         *ret = fh_new_number((int)graphics_BitmapFont_getWidth(bitmap, line));
     } else {
-        *ret = fh_new_number((int) graphics_Font_getWidth(&moduleData.defaultFont, line));
+        *ret = fh_new_number((int) graphics_Font_getWidth(graphics_measuringFont(), line));
     }
 
     return 0;

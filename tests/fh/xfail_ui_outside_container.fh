@@ -1,0 +1,16 @@
+# love_ui_rect() outside a window/panel/popup must be a script error, not an
+# abort. microui's draw commands read the top of its clip stack through
+# expect(), which calls abort(), and nothing but a container pushes onto it --
+# so the editor's cursor label used to take the whole process down the moment
+# it drew. The runner also insists an xfail dies with a plain exit code rather
+# than a signal, which is the half of this that regressed.
+
+fn love_load() {
+    love_ui_begin();
+    love_ui_rect(10, 10, 40, 20, 255, 0, 0, 255);
+    love_ui_end();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

@@ -1,0 +1,31 @@
+# json_stringify(value, pretty) — the optional second argument switches to
+# indented output. Both forms must parse back to the same document.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    let doc = { "version": 1, "entities": [ { "id": 2, "name": "Crate" } ] };
+
+    let compact = json_stringify(doc);
+    let pretty = json_stringify(doc, true);
+
+    check(type(compact) == "string", "json_stringify should return a string");
+    check(len(pretty) > len(compact), "pretty output should be longer");
+    check(string_find(compact, "\n") == null || string_find(compact, "\n") < 0,
+          "compact output should be a single line");
+
+    let a = json_parse(compact);
+    let b = json_parse(pretty);
+    check(a.version == 1, "compact should round-trip");
+    check(b.version == 1, "pretty should round-trip");
+    check(b.entities[0].name == "Crate", "nested values should survive");
+    check(b.entities[0].id == 2, "ids should survive");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

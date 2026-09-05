@@ -214,7 +214,15 @@ void graphics_geometry_rectangle(bool filled,
                                  float ox, float oy) {
     growBuffers(32, 6);
 
-    bool special = rotation != 0.0f || sx != 1.0f || sy != 1.0f;
+    /*
+     * The fast path below writes the corners out directly and so has no way to
+     * honour an origin; only drawBufferSpecial() builds a transform from
+     * ox/oy. Leaving them out of this test made the same call move the
+     * rectangle by (ox, oy) the moment a rotation became non-zero -- an
+     * outline drawn over a rotating body would jump by its own half-size.
+     */
+    bool special = rotation != 0.0f || sx != 1.0f || sy != 1.0f ||
+                   ox != 0.0f || oy != 0.0f;
 
     /*
      * What is commented with 0,1,2,3 represent the declaration of the shape for this rectangle

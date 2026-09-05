@@ -1,0 +1,15 @@
+# love_font_getWidth(font) used to read args[1] without checking n_args when
+# the first argument was a font object. Runner expects a non-zero exit.
+
+fn run() {
+    let f = love_graphics_newFont(12);
+    love_font_getWidth(f); # missing the string to measure
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK"); # must NOT be reached
+    love_event_quit();
+}
+
+fn main() {}
