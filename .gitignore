@@ -57,5 +57,12 @@ tags
 # builds left inside example/game directories during local testing
 /opt/examples/**/clove
 
+# The 2D editor example writes its work next to itself: scene.json is whatever
+# level is open, editor.json the grid step and the rest of its settings. Both
+# are the user's, not the example's - the editor seeds a starting scene in code
+# when there is no file, and a committed one would carry absolute sprite paths
+# from whichever machine saved it.
+/opt/examples/fh/editor/*.json
+
 # JetBrains IDE project state
 .idea/

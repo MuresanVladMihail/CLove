@@ -22,9 +22,85 @@ version 0.8.0 not yet released
 * added: love.system.setClipboardText(text).
 * added: love_system_getClipboardText().
 * added: love_system_getProcessorCount().
+* added: physics. Box2D 3.1.1 is vendored under src/3rdparty/box2d and exposed
+	through LOVE's love.physics API (FH only): worlds, bodies, shapes, fixtures,
+	nine joint kinds, ray casts, AABB queries and begin/end collision callbacks.
+	Coordinates are pixels, converted with love_physics_setMeter() (30 by
+	default) exactly as in LOVE. See SKILLS.md for the API and the handful of
+	places Box2D 3 forced a difference (no gear or pulley joints, callbacks are
+	function names, user data is a number or a string).
+* the editor example grew per-entity properties: a free-form key/value map on
+	each entity, authored in the inspector, typed on the way in (true/false to
+	a bool, anything numeric to a number, the rest text) and read back with
+	scene.props()/prop()/has_prop() from opt/packages/scene. Groups say what a
+	thing is, properties say with what parameters -- which is what a game needs
+	instead of scripts attached to entities. Play mode now also stamps the
+	entity id into each body's and fixture's user data, so a collision callback
+	can get back to the entity that caused it.
+* the editor example (opt/examples/fh/editor) grew levels: every *.json beside
+	the game is one, the Scene button in the toolbar switches between them and
+	creates new ones, and switching with unsaved work asks first. editor.json
+	holds the editor's own settings -- grid step, snapping, what the viewport
+	draws, and which level to reopen -- rather than putting any of that in a
+	level file. The toolbar was rebuilt on a shared column grid so its two rows
+	line up.
+* added: an optional decimals argument to love_ui_slider() and love_ui_number()
+	(FH only), 0 to 6, so a field holding a whole number is not shown as
+	"20.00". A digit count rather than a printf format, since a format string
+	coming from a script is a footgun.
+* added: love_filesystem_list(path), love_filesystem_getWorkingDirectory() and
+	love_filesystem_getHomeDirectory() (FH only). These walk the real
+	filesystem instead of PhysFS's mounted view, which is what a tool needs:
+	love_filesystem_enumerate() can only ever see the game's own source and save
+	directories. Used by the editor's image picker
+	(opt/examples/fh/editor/browser.fh).
+* fixed: love_filesystem_enumerate() took its element count from strlen() of
+	the first filename and then indexed the list with it, reading well past the
+	end; it also leaked the list PhysFS handed back (FH only).
+* added: love_ui_mouse_over(), love_ui_popup_open(name) and
+	love_ui_setWindowOpen(name, open) (FH only). Between them a game that draws
+	its own viewport under the UI can tell whether a click belongs to microui,
+	whether a menu is still on screen (love_ui_begin_popup() answers true on the
+	frame the popup is dismissed, so it cannot say), and can re-open a window
+	that microui's own close button latched shut.
+* fixed: love_ui_rect, love_ui_text and every other widget, layout or draw call
+	aborted the process on a microui assertion when called outside a window, a
+	panel or a popup -- nothing else fills the stacks they read. They raise an
+	ordinary script error now (FH only).
+* fixed: check boxes all shared one widget id, because mu_checkbox() derives it
+	from the address of the state it is handed and the wrapper always passed the
+	same stack slot. Only the last one drawn responded to the mouse.
+	love_ui_checkbox()'s id argument was accepted and ignored; it is now used,
+	the same way love_ui_slider() and love_ui_number() use theirs (FH only).
+* fixed: love_font_getHeight() with no argument reported an error instead of
+	measuring with the default font, which love_font_getWidth(text) already did
+	(FH only).
+* fixed: FH could lose track of a C function once enough of them were
+	registered. fh_add_c_func() stored a pointer into the c_funcs stack, which
+	is one contiguous array that moves when it grows, so every earlier entry
+	dangled after a reallocation; the map now holds an index. Registering the
+	physics module was enough to push the table over the edge and make even
+	error() "unknown".
+* fixed: calling a script function from C while the VM was already running (an
+	engine callback fired from inside a binding, e.g. a collision callback)
+	scribbled over the running function's registers. fh_call_vm_function()
+	placed the new frame at register 0 whenever the frame it nested inside was
+	a C call, instead of above it.
 * added: end-to-end FH test suite under tests/ with a runner; the process exit code now reflects script errors (FH only).
 * added: optional callbacks (love_focus, love_quit) no longer raise an error every frame when left undefined (FH only).
 * added: CLAUDE.md and SKILLS.md documentation.
+* added: clip path support in vector art. The vendored nanosvg now implements
+	<clipPath> (userSpaceOnUse and objectBoundingBox, intersection of nested
+	<g clip-path>, forward references, clip-rule), which upstream nanosvg does
+	not have. Without it any .svg produced by cairo - a PDF, EPS or AI file
+	converted to SVG - rendered its gradient shapes as plain coloured
+	rectangles, since cairo states such a shape as a rectangle plus a clip
+	path. See CLAUDE.md before upgrading nanosvg.
+* fixed: colours written as fractional percentages, e.g.
+	rgb(76.861572%, 89.4104%, 41.175842%), no longer come out as flat grey in
+	.svg files. That is how cairo writes every colour, so an affected drawing
+	lost all of its colours at once. Fixed by updating the vendored nanosvg
+	(the copy in tree dated from 2014).
 * added: vector art (SVG) support. love_graphics_newImage("art.svg") loads and
 	love_graphics_draw() draws it like any other image; the drawing is kept and
 	re-rasterized as the image is scaled up, so it stays sharp instead of turning
