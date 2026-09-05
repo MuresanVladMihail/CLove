@@ -943,15 +943,22 @@ static int fn_love_particleSystem_setQuads(struct fh_program *prog,
 
     struct fh_array *arr = GET_VAL_ARRAY(&args[1]);
 
-    graphics_Quad **quads = malloc(sizeof(graphics_Quad) * arr->len);
+    /* An array of quad *pointers*, so size it by the pointer, not the struct. */
+    graphics_Quad **quads = malloc(sizeof(graphics_Quad *) * arr->len);
+    if (!quads)
+        return fh_set_error(prog, "love_particleSystem_setQuads(): out of memory");
 
     for (uint32_t i = 0; i < arr->len; i++) {
-        if (fh_is_c_obj_of_type(&arr->items[i], FH_GRAPHICS_QUAD))
+        /* The test was inverted: it rejected every element that actually was
+         * a quad, and let anything else through to fh_get_c_obj_value(). */
+        if (!fh_is_c_obj_of_type(&arr->items[i], FH_GRAPHICS_QUAD)) {
+            free(quads);
             return fh_set_error(prog, "Expected quad");
+        }
         quads[i] = fh_get_c_obj_value(&arr->items[i]);
     }
 
-    graphics_ParticleSystem_setQuads(p, arr->len, quads);
+    graphics_ParticleSystem_setQuads(p, arr->len, (graphics_Quad const * const *) quads);
 
     free(quads);
     *ret = fh_new_null();

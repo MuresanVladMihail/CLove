@@ -1,0 +1,28 @@
+# Regression guard: love_particleSystem_setQuads() had its type check
+# inverted -- `if (fh_is_c_obj_of_type(..., FH_GRAPHICS_QUAD))` returned
+# "Expected quad" for every element that actually *was* a quad, so a valid
+# call always failed, while a non-quad element fell through to
+# fh_get_c_obj_value() on an arbitrary value.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn love_load() {
+    let d = love_graphics_newImageData(8, 8);
+    let img = love_graphics_newImage(d);
+    let ps = love_graphics_newParticleSystem(img, 32);
+
+    let q1 = love_graphics_newQuad(0, 0, 4, 4, 8, 8);
+    let q2 = love_graphics_newQuad(4, 0, 4, 4, 8, 8);
+
+    # A valid array of quads must be accepted.
+    love_particleSystem_setQuads(ps, [q1, q2]);
+
+    # A single quad, and the empty array, are both valid.
+    love_particleSystem_setQuads(ps, [q1]);
+    love_particleSystem_setQuads(ps, []);
+
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}
