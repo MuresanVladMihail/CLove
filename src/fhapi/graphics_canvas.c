@@ -12,10 +12,11 @@
 
 #include "graphics_canvas.h"
 
-static fh_c_obj_gc_callback gcCanvas(graphics_Canvas *c) {
+static void gcCanvas(void *data) {
+    graphics_Canvas *c = data;
+
     graphics_Canvas_free(c);
     free(c);
-    return (fh_c_obj_gc_callback)1;
 }
 
 static int fn_love_graphics_newCanvas(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
@@ -42,7 +43,7 @@ static int fn_love_graphics_newCanvas(struct fh_program *prog, struct fh_value *
 
     graphics_Canvas_new(c, width, height);
 
-    fh_c_obj_gc_callback *callback = gcCanvas;
+    fh_c_obj_gc_callback callback = gcCanvas;
 
     *ret = fh_new_c_obj(prog, c, callback, FH_GRAPHICS_CANVAS);
     return 0;

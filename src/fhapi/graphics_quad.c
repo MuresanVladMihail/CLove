@@ -14,9 +14,10 @@
 
 #include "../include/quad.h"
 
-static fh_c_obj_gc_callback quad_gc(graphics_Quad *quad) {
+static void quad_gc(void *data) {
+    graphics_Quad *quad = data;
+
     free(quad);
-    return (fh_c_obj_gc_callback)1;
 }
 
 static int fn_love_graphics_newQuad(struct fh_program *prog,
@@ -41,7 +42,7 @@ static int fn_love_graphics_newQuad(struct fh_program *prog,
     graphics_Quad *quad = malloc(sizeof(graphics_Quad));
     graphics_Quad_newWithRef(quad, x, y, w, h, rw, rh);
 
-    fh_c_obj_gc_callback *callback = quad_gc;
+    fh_c_obj_gc_callback callback = quad_gc;
 
     *ret = fh_new_c_obj(prog, quad, callback, FH_GRAPHICS_QUAD);
     return 0;

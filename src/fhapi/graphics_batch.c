@@ -18,7 +18,9 @@
 #include "graphics_quad.h"
 #include "image.h"
 
-static void batch_gc(graphics_Batch *batch) {
+static void batch_gc(void *data) {
+    graphics_Batch *batch = data;
+
     graphics_Batch_free(batch);
     free(batch);
 }
@@ -36,7 +38,7 @@ static int fn_love_graphics_newSpriteBatch(struct fh_program *prog,
     graphics_Batch *batch = malloc(sizeof(graphics_Batch));
     graphics_Batch_new(batch, image->img, count, graphics_BatchUsage_dynamic);
 
-    fh_c_obj_gc_callback *callback = batch_gc;
+    fh_c_obj_gc_callback callback = batch_gc;
     *ret = fh_new_c_obj(prog, batch, callback, FH_GRAPHICS_BATCH);
     return 0;
 }

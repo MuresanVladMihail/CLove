@@ -79,10 +79,11 @@ static long readIndices(struct fh_program *prog, struct fh_value *args, struct f
     return arr->len;
 }
 
-static fh_c_obj_gc_callback on_gc(graphics_Mesh *mesh) {
+static void on_gc(void *data) {
+    graphics_Mesh *mesh = data;
+
     graphics_Mesh_free(mesh);
     free(mesh);
-    return (fh_c_obj_gc_callback)1;
 }
 
 static int fn_love_graphics_newMesh(struct fh_program *prog,
@@ -116,7 +117,7 @@ static int fn_love_graphics_newMesh(struct fh_program *prog,
     graphics_Mesh *mesh = malloc(sizeof(graphics_Mesh));
     graphics_Mesh_new(mesh, vertexCount, (graphics_Vertex*)moduleData.vertices, arrIndices->len, moduleData.indices, mode);
 
-    fh_c_obj_gc_callback *callback = on_gc;
+    fh_c_obj_gc_callback callback = on_gc;
 
     *ret = fh_new_c_obj(prog, mesh, callback, FH_GRAPHICS_MESH);
     return 0;

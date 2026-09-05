@@ -13,7 +13,9 @@
 
 #include "../include/bitmap_font.h"
 
-static void gcFont(graphics_BitmapFont *font) {
+static void gcFont(void *data) {
+    graphics_BitmapFont *font = data;
+
     graphics_BitmapFont_free(font);
     free(font);
 }
@@ -33,7 +35,7 @@ static int fn_love_graphics_newBitmapFont(struct fh_program *prog,
     int gh = (int)fh_optnumber(args, n_args, 3, 0.0);
     int max_size = (int)fh_optnumber(args, n_args, 4, 128.0);
 
-    fh_c_obj_gc_callback *freeCallback = gcFont;
+    fh_c_obj_gc_callback freeCallback = gcFont;
 
     graphics_BitmapFont *font = malloc(sizeof (graphics_BitmapFont));
 

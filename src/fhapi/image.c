@@ -12,7 +12,9 @@
 
 #include "../3rdparty/FH/src/value.h"
 
-static fh_c_obj_gc_callback onFreeCallback(fh_image_t *data) {
+static void onFreeCallback(void *ptr) {
+    fh_image_t *data = ptr;
+
     graphics_Image_free(data->img);
     // data->data is NULL after newImage() adopts an existing ImageData
     // c_obj (ownership moves here - see below); nothing left to free then.
@@ -22,17 +24,17 @@ static fh_c_obj_gc_callback onFreeCallback(fh_image_t *data) {
     }
     free(data->img);
     free(data);
-    return (fh_c_obj_gc_callback)1;
 }
 
-static fh_c_obj_gc_callback imageDataFreeCallback(image_ImageData *data) {
+static void imageDataFreeCallback(void *ptr) {
+    image_ImageData *data = ptr;
+
     // NULL after newImage() adopts this handle (see below) and transfers
     // ownership to the new Image's own free callback.
     if (data) {
         image_ImageData_free(data);
         free(data);
     }
-    return (fh_c_obj_gc_callback)1;
 }
 
 static int fn_love_graphics_newImageData(struct fh_program *prog,
@@ -47,7 +49,7 @@ static int fn_love_graphics_newImageData(struct fh_program *prog,
 
     image_ImageData_new_with_size(data, (int) fh_get_number(&args[0]),
             (int) fh_get_number(&args[1]), 4);
-    fh_c_obj_gc_callback *callback = imageDataFreeCallback;
+    fh_c_obj_gc_callback callback = imageDataFreeCallback;
     *ret = fh_new_c_obj(prog, data, callback, FH_IMAGE_DATA_TYPE);
     return 0;
 }
@@ -92,7 +94,7 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
         return fh_set_error(prog, "Expected image data or path to image");
     }
 
-    fh_c_obj_gc_callback *onFree = onFreeCallback;
+    fh_c_obj_gc_callback onFree = onFreeCallback;
     *ret = fh_new_c_obj(prog, img, onFree, FH_IMAGE_TYPE);
     return 0;
 }

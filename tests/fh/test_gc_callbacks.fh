@@ -1,0 +1,52 @@
+# Engine objects handed to FH carry a garbage-collection callback that frees
+# the underlying C object. Those callbacks used to be declared with the wrong
+# type -- `fh_c_obj_gc_callback gcFont(graphics_Font *)`, a function *returning*
+# a callback and taking a typed pointer, where FH expects `void (*)(void *)`.
+# The GC then called them through a mismatched function pointer type.
+#
+# This test creates engine objects, drops every reference and forces a
+# collection, so the callbacks actually run.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn make_garbage(n) {
+    let i = 0;
+    while (i < n) {
+        # Each of these wraps a malloc'd C object with a gc callback.
+        let q = love_graphics_newQuad(0, 0, 16, 16, 64, 64);
+        let d = love_graphics_newImageData(8, 8);
+        # No reference survives the iteration, so both become collectable.
+        i = i + 1;
+    }
+}
+
+fn run() {
+    make_garbage(200);
+
+    # Force the collector to run the free callbacks.
+    gc();
+
+    # The interpreter and the engine must both still be usable afterwards.
+    let q = love_graphics_newQuad(0, 0, 16, 16, 64, 64);
+    let v = love_quad_getViewport(q);
+    check(v[2] == 0.25, "quad still usable after gc");
+
+    let d = love_graphics_newImageData(4, 4);
+    love_image_setPixel(d, 0, 0, 255, 128, 64, 255);
+    let p = love_image_getPixel(d, 0, 0);
+    check(p[0] == 255 && p[1] == 128, "imagedata still usable after gc");
+
+    # A second cycle, to catch a callback that corrupts the heap rather than
+    # crashing outright on the first pass.
+    make_garbage(200);
+    gc();
+    check(love_quad_getViewport(q)[2] == 0.25, "quad survives a second gc");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

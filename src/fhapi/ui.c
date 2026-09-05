@@ -14,15 +14,16 @@
 #include "../3rdparty/microui/src/microui.h"
 #include "../include/ui.h"
 
-static fh_c_obj_gc_callback ui_container_gc(mu_Container *cnt) {
+static void ui_container_gc(void *data) {
+    mu_Container *cnt = data;
+
     free(cnt);
-    return (fh_c_obj_gc_callback) 1;
 }
 
 static int fn_love_ui_newContainer(struct fh_program *prog,
                                    struct fh_value *ret, struct fh_value *args, int n_args) {
     mu_Container *cnt = malloc(sizeof(mu_Container));
-    fh_c_obj_gc_callback *callback = ui_container_gc;
+    fh_c_obj_gc_callback callback = ui_container_gc;
     *ret = fh_new_c_obj(prog, cnt, callback, FH_UI_TYPE);
     return 0;
 }

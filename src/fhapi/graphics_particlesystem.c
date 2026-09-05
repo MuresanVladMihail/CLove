@@ -15,18 +15,20 @@
 #include "image.h"
 #include "graphics_quad.h"
 
-fh_c_obj_gc_callback particle_gc(graphics_ParticleSystem *p) {
+void particle_gc(void *data) {
+    graphics_ParticleSystem *p = data;
+
     graphics_ParticleSystem_free(p);
     free(p);
-    return (fh_c_obj_gc_callback)1;
 }
 
 // Frees only the fh_image_t wrapper itself, not the graphics_Image it
 // points to - for handles (like getTexture() below) that borrow a texture
 // still owned by something else.
-static fh_c_obj_gc_callback freeImageWrapperOnly(fh_image_t *x) {
+static void freeImageWrapperOnly(void *data) {
+    fh_image_t *x = data;
+
     free(x);
-    return (fh_c_obj_gc_callback)1;
 }
 
 static int fn_love_graphics_newParticleSystem(struct fh_program *prog,
@@ -48,7 +50,7 @@ static int fn_love_graphics_newParticleSystem(struct fh_program *prog,
     graphics_ParticleSystem *p = malloc(sizeof(graphics_ParticleSystem));
     graphics_ParticleSystem_new(p, image->img, (size_t)buffer);
 
-    fh_c_obj_gc_callback *callback = particle_gc;
+    fh_c_obj_gc_callback callback = particle_gc;
     *ret = fh_new_c_obj(prog, p, callback, FH_GRAPHICS_PARTICLE);
 
     return 0;
@@ -869,7 +871,7 @@ static int fn_love_particleSystem_getTexture(struct fh_program *prog,
     x->img = graphics_ParticleSystem_getTexture(p);
     // We don't have to free the texture from the particle system that
     // we just fetched because it's just a reference, the object itself has its own life events
-    fh_c_obj_gc_callback *callback = freeImageWrapperOnly;
+    fh_c_obj_gc_callback callback = freeImageWrapperOnly;
     *ret = fh_new_c_obj(prog, x, callback, FH_IMAGE_TYPE);
     return 0;
 }

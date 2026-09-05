@@ -28,10 +28,11 @@ static struct {
     bool isBitmapFont;
 } moduleData;
 
-static fh_c_obj_gc_callback gcFont(graphics_Font *font) {
+static void gcFont(void *data) {
+    graphics_Font *font = data;
+
     graphics_Font_free(font);
     free(font);
-    return (fh_c_obj_gc_callback) 1;
 }
 
 static int fn_love_graphics_newFont(struct fh_program *prog,
@@ -61,7 +62,7 @@ static int fn_love_graphics_newFont(struct fh_program *prog,
     if (err != 0)
         return fh_set_error(prog, "Error loading font");
 
-    fh_c_obj_gc_callback *callback = gcFont;
+    fh_c_obj_gc_callback callback = gcFont;
     *ret = fh_new_c_obj(prog, font, callback, FH_FONT_TYPE);
     return 0;
 }

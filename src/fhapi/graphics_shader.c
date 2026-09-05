@@ -19,10 +19,11 @@
 
 #include "image.h"
 
-static fh_c_obj_gc_callback shader_gc(fh_graphics_Shader *shader) {
+static void shader_gc(void *data) {
+    fh_graphics_Shader *shader = data;
+
     graphics_Shader_free(&shader->shader);
     free(shader);
-    return (fh_c_obj_gc_callback) 1;
 }
 
 static struct {
@@ -145,7 +146,7 @@ static int fn_love_graphics_newShader(struct fh_program *prog,
     int const textureUnits = shader->shader.textureUnitCount;
     shader->referencedTextures = 0;
 
-    fh_c_obj_gc_callback *callback = shader_gc;
+    fh_c_obj_gc_callback callback = shader_gc;
     *ret = fh_new_c_obj(prog, shader, callback, FH_GRAPHICS_SHADER);
 
     return 0;

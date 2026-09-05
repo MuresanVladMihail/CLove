@@ -15,18 +15,20 @@
 #include "../include/staticsource.h"
 #include "../include/streamsource.h"
 
-static fh_c_obj_gc_callback gcStaticSource(audio_StaticSource *source) {
+static void gcStaticSource(void *data) {
+    audio_StaticSource *source = data;
+
     audio_SourceCommon_free(&source->common);
     audio_StaticSource_free(source);
     free(source);
-    return (fh_c_obj_gc_callback)1;
 }
 
 
-static fh_c_obj_gc_callback gcStreamSource(audio_StreamSource *source) {
+static void gcStreamSource(void *data) {
+    audio_StreamSource *source = data;
+
     audio_StreamSource_free(source);
     free(source);
-    return (fh_c_obj_gc_callback)1;
 }
 
 static int fn_love_audio_newSource(struct fh_program *prog,
@@ -43,7 +45,7 @@ static int fn_love_audio_newSource(struct fh_program *prog,
     audio_StaticSource *staticSource = NULL;
     audio_StreamSource *streamSource = NULL;
     if (strcmp(type, "static") == 0) {
-        fh_c_obj_gc_callback *callback = gcStaticSource;
+        fh_c_obj_gc_callback callback = gcStaticSource;
 
         staticSource = malloc(sizeof(audio_StaticSource));
         err = audio_loadStatic(staticSource, filename);
@@ -53,7 +55,7 @@ static int fn_love_audio_newSource(struct fh_program *prog,
             free(staticSource);
         }
     } else if (strcmp(type, "stream") == 0) {
-        fh_c_obj_gc_callback *callback = gcStreamSource;
+        fh_c_obj_gc_callback callback = gcStreamSource;
 
         streamSource = malloc(sizeof(audio_StreamSource));
         err = audio_loadStream(streamSource, filename);
