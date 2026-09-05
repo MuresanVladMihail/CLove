@@ -17,9 +17,13 @@
 
 int clove_error(const char *format, ...);
 
-/* Used in the main loop in FH and Lua(to be done) activities*/
-bool clove_running;
-bool clove_reload;
+/* Used in the main loop in FH and Lua(to be done) activities.
+ * Declared extern here and defined once in tools/utils.c: a plain definition
+ * in a header is a tentative definition in every translation unit that
+ * includes it, which GCC >= 10 (-fno-common by default) rejects at link time
+ * as "multiple definition of 'clove_running'". */
+extern bool clove_running;
+extern bool clove_reload;
 
 #ifndef USE_NATIVE
 #define USE_NATIVE 100

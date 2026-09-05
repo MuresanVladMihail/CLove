@@ -134,7 +134,14 @@ Temporary Items
 # the fh interpreter binary (NOT the FH/ source directory; the bare
 # pattern "fh" also matched FH/ on case-insensitive filesystems)
 FH/fh
-core
+
+# core dumps - NOT directories named "core": a bare "core" pattern also
+# matched SDL2/src/core/, which silently dropped part of the vendored SDL
+# sources (SDL_evdev_capabilities.c, SDL_threadprio.c, SDL_sandbox.c ...)
+# and broke the Linux build from a fresh clone.
+/core
+core.[0-9]*
+
 .*.swp
 .gdb_history
 *.creator.*

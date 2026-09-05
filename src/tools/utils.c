@@ -12,6 +12,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+/* The single definition of the two main-loop flags declared in utils.h. */
+bool clove_running;
+bool clove_reload;
+
 int clove_error(const char* format, ...)
 {
   va_list argptr;

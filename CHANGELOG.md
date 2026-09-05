@@ -34,6 +34,16 @@ version 0.8.0 not yet released
 	argument to love_graphics_newImage (FH only; Lua gets the loading and the
 	automatic re-rasterization, without the new getters).
 
+* fixed: the repository can be built from a fresh clone again. Three vendored
+	pieces never made it into git: src/3rdparty/glew/build/cmake (swallowed by the
+	unanchored "build/" ignore rule), part of the vendored SDL sources
+	(SDL2/src/core/**, swallowed by a bare "core" rule meant for core dumps - the
+	Windows SDL_hid/SDL_immdevice files among them) and microui, which was a git
+	submodule with no .gitmodules entry. The ignore rules are now anchored and all
+	three are tracked as plain files.
+* fixed: link error "multiple definition of 'clove_running'" with GCC >= 10 and
+	any other -fno-common compiler; the two main-loop flags are now declared extern
+	in utils.h and defined once in tools/utils.c.
 * fixed: every love_* callback is optional again. Undefined ones (love_textinput
 	above all, which SDL fires for every printable key, so pressing SPACE quit a
 	game that only defined love_keypressed) used to raise

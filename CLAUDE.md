@@ -137,6 +137,13 @@ Scripting side and the Inkscape caveats: see SKILLS.md.
   2.32.10 (see `CHANGELOG.md`); `clove_finish()` in `fh_mainactivity.c` now
   runs the same full teardown (`audio_close()` before `graphics_shutdown()`'s
   `SDL_Quit()`) on every platform, with no `__APPLE__`-specific early exit.
-- Build artifacts (`build/`, `cmake-build-debug/`) and the local `glew-old/`
-  backup are gitignored; don't commit them.
+- Build artifacts (`/build/`, `/cmake-build-*/`) and the local `glew-old/`
+  backup are gitignored; don't commit them. Those rules are anchored to the
+  repository root on purpose — unanchored patterns used to swallow vendored
+  files (`src/3rdparty/glew/build/cmake/`, `src/3rdparty/SDL2/src/core/**`), so
+  a fresh clone wouldn't configure. When adding to `.gitignore`, anchor the
+  pattern and check `git status --ignored` afterwards.
+- Every vendored dependency under `src/3rdparty/` is tracked as plain files —
+  no submodules, no `.gitmodules` (microui used to be a stray gitlink and came
+  out empty on a clone).
 ```
