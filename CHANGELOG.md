@@ -25,6 +25,18 @@ version 0.8.0 not yet released
 * added: end-to-end FH test suite under tests/ with a runner; the process exit code now reflects script errors (FH only).
 * added: optional callbacks (love_focus, love_quit) no longer raise an error every frame when left undefined (FH only).
 * added: CLAUDE.md and SKILLS.md documentation.
+* added: clip path support in vector art. The vendored nanosvg now implements
+	<clipPath> (userSpaceOnUse and objectBoundingBox, intersection of nested
+	<g clip-path>, forward references, clip-rule), which upstream nanosvg does
+	not have. Without it any .svg produced by cairo - a PDF, EPS or AI file
+	converted to SVG - rendered its gradient shapes as plain coloured
+	rectangles, since cairo states such a shape as a rectangle plus a clip
+	path. See CLAUDE.md before upgrading nanosvg.
+* fixed: colours written as fractional percentages, e.g.
+	rgb(76.861572%, 89.4104%, 41.175842%), no longer come out as flat grey in
+	.svg files. That is how cairo writes every colour, so an affected drawing
+	lost all of its colours at once. Fixed by updating the vendored nanosvg
+	(the copy in tree dated from 2014).
 * added: vector art (SVG) support. love_graphics_newImage("art.svg") loads and
 	love_graphics_draw() draws it like any other image; the drawing is kept and
 	re-rasterized as the image is scaled up, so it stays sharp instead of turning

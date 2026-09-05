@@ -129,6 +129,33 @@ texture. Two invariants to keep in mind when touching that code:
 
 Scripting side and the Inkscape caveats: see SKILLS.md.
 
+### The vendored nanosvg is patched — do not overwrite it blindly
+
+`src/include/nanosvg.h` and `nanosvgrast.h` are upstream
+(https://github.com/memononen/nanosvg) **plus a clip path implementation that
+upstream does not have and has never had** (issue #141 is still open). Pulling
+fresh copies from upstream silently removes it, and every `.svg` that came
+through cairo — anything converted from PDF/EPS/AI — goes back to rendering its
+gradient shapes as coloured rectangles, because cairo states those shapes as a
+rectangle plus a `<clipPath>`. `tests/fh/test_svg_clip.fh` fails if the patch
+is lost. To upgrade nanosvg, re-apply the patch on top:
+
+- `nanosvg.h`: `NSVGclipPath` (public), `clipPaths`/`clipPathCount` on
+  `NSVGshape`, `clipPaths` on `NSVGimage`, `NSVGclipRef` and the clip fields on
+  `NSVGparser`, `clipPathIds`/`clipPathCount` on `NSVGattrib`,
+  `nsvg__parseClipPath`, `nsvg__parseShapeElement` (the shape dispatch factored
+  out so `<clipPath>` children reuse it), `nsvg__addClipRef`,
+  `nsvg__clipPathForBounds`, `nsvg__resolveClipPaths`,
+  `nsvg__scaleShapeGeometry`, the `clip-path`/`clip-rule` cases in
+  `nsvg__parseAttr`, and clip-aware teardown (`nsvg__deleteShapes`).
+- `nanosvgrast.h`: the `clip`/`clipMask`/`stencil`/`maskTarget`/`yMin`/`yMax`
+  fields on `NSVGrasterizer`, `nsvg__rasterizeFill`, `nsvg__buildClipMask`, and
+  the mask-blit plus clip-modulation branches in `nsvg__rasterizeSortedEdges`.
+
+The masks are 8-bit coverage buffers built per shape and only over that shape's
+device-space bounds, so the cost is proportional to what is actually clipped:
+on a 2.9 MB, 1029-path cairo drawing it is ~5% of the rasterization time.
+
 ## Platform gotchas
 
 - **macOS shutdown (fixed):** the bundled SDL 2.0.8 CoreAudio backend used to

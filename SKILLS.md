@@ -120,15 +120,44 @@ instead of magnifying pixels. Everything else — quads, filters, wrap, batches,
 
 Save as **Plain SVG** or **Inkscape SVG** — both load; Inkscape's extra
 attributes are ignored. The renderer is nanosvg, which covers paths, shapes,
-groups, transforms, strokes (dashes, caps, joins), solid fills, gradients and
-opacity, but **not**:
+groups, transforms, strokes (dashes, caps, joins), solid fills, gradients,
+opacity and clip paths, but **not**:
 
 - `<text>` — pick the text and use *Path → Object to Path* before saving.
-- clip paths, masks, filters (blur, drop shadow) — flatten them in Inkscape
-  (*Object → Clip → Release* / *Filters → ... → apply*, or *Edit → Make a
-  Bitmap Copy* for effects you cannot flatten).
+- masks and filters (blur, drop shadow) — flatten them in Inkscape
+  (*Filters → ... → apply*, or *Edit → Make a Bitmap Copy* for effects you
+  cannot flatten).
+- `<use>` — *Edit → Clone → Unlink Clone* turns those into real shapes.
 - embedded or linked bitmaps (`<image>`) — export those as PNG and draw them
   as a separate image.
+
+`clip-path` is supported, including `clipPathUnits="objectBoundingBox"`,
+intersection of nested `<g clip-path>` levels, and a clip path defined after
+the shapes that use it. Two deliberate departures from the spec: a `clip-path`
+pointing at an id that does not exist leaves the shape **unclipped** rather
+than hiding it, and `clip-path` on a `<clipPath>` itself is ignored.
+
+### Files that came through cairo
+
+An `.svg` produced by cairo — a PDF, EPS or AI file converted to SVG, or
+Inkscape's *Save a Copy* through its cairo backend — needs the clip path
+support above to render at all correctly, because cairo never fills the real
+outline of a gradient shape. It emits a **rectangle** covering the gradient and
+puts the actual outline in a `<clipPath>`:
+
+```xml
+<g clip-path="url(#clip-0)">
+  <path fill="url(#linear-pattern-0)" d="M 0 0 L 400 0 L 400 200 L 0 200 Z"/>
+</g>
+```
+
+Two things follow. Re-saving such a file from Inkscape does **not** undo this —
+Inkscape imports the clipped groups and writes them back unchanged, so Plain
+SVG and Inkscape SVG look identical to the renderer. And cairo writes every
+colour as a fractional percentage (`rgb(76.861572%, 89.4104%, 41.175842%)`),
+which older nanosvg releases could not parse and turned into flat grey.
+
+To see whether a file uses the trick: `grep -c '<g clip-path' file.svg`.
 
 Sizes are read as CSS pixels at 96 dpi, which is exactly Inkscape's user unit,
 so a document sized in mm (Inkscape's default) comes out at the size the
