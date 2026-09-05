@@ -132,7 +132,9 @@ void fh_main_loop(int argc, char **argv) {
 
     update_args[0] = loopData.delta;
     update_args[1] = loopData.opt;
-    if (fh_call_function(loopData.prog, "love_update", update_args, 2, NULL) == -2) {
+    /* love_update is optional: a game may only draw. */
+    if (fh_function_exists(loopData.prog, "love_update") &&
+        fh_call_function(loopData.prog, "love_update", update_args, 2, NULL) == -2) {
         return;
     }
 
@@ -146,7 +148,9 @@ void fh_main_loop(int argc, char **argv) {
     }*/
 
     graphics_clear();
-    if (fh_call_function(loopData.prog, "love_draw", &loopData.opt, 1, NULL) == -2) {
+    /* love_draw is optional too. */
+    if (fh_function_exists(loopData.prog, "love_draw") &&
+        fh_call_function(loopData.prog, "love_draw", &loopData.opt, 1, NULL) == -2) {
         return;
     }
 
@@ -372,7 +376,10 @@ int fh_main_activity_load(int argc, char *argv[]) {
 
     loopData.opt = fh_new_map(loopData.prog);
 
-    if (fh_call_function(loopData.prog, "love_load", NULL, 0, &loopData.opt) < 0) {
+    /* love_load is optional: without it the state map handed to the other
+     * callbacks simply stays empty. */
+    if (fh_function_exists(loopData.prog, "love_load") &&
+        fh_call_function(loopData.prog, "love_load", NULL, 0, &loopData.opt) < 0) {
         clove_error("Error: %s\n", fh_get_error(loopData.prog));
         fh_running = false;
         return clove_finish(1);

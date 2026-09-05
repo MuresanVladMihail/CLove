@@ -42,7 +42,7 @@ fn love_config(c) {
 }
 ```
 
-## Lifecycle & input callbacks (define the ones you need — all optional except love_load/update/draw)
+## Lifecycle & input callbacks (all optional — define the ones you need)
 
 - `love_load()` / `love_update(dt, self)` / `love_draw(self)`
 - `love_focus(focused)` , `love_quit()`

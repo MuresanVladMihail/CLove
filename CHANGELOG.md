@@ -34,6 +34,12 @@ version 0.8.0 not yet released
 	argument to love_graphics_newImage (FH only; Lua gets the loading and the
 	automatic re-rasterization, without the new getters).
 
+* fixed: every love_* callback is optional again. Undefined ones (love_textinput
+	above all, which SDL fires for every printable key, so pressing SPACE quit a
+	game that only defined love_keypressed) used to raise
+	"function '...' doesn't exist" and stop the engine; love_load, love_update,
+	love_draw, love_config, the keyboard, mouse and joystick callbacks are now
+	all skipped when the game doesn't define them (FH only).
 * fixed: love_image_getWidth/getHeight on an image now report the size the image
 	is drawn at, like love_image_getDimensions already did (they used to read the
 	backing image data, which for vector art is a different size).

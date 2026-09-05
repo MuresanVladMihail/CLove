@@ -23,6 +23,10 @@ static struct {
 } moduleData;
 
 void fh_joystick_pressed(int id, int button) {
+    /* Optional callback: a game that doesn't handle joysticks isn't an error. */
+    if (!fh_function_exists(moduleData.prog, "love_joystickpressed")) {
+        return;
+    }
     struct fh_value _id = fh_new_number(id);
     struct fh_value button_str = fh_new_string(moduleData.prog,
             joystick_convert_button_to_str(button));
@@ -41,6 +45,9 @@ void fh_joystick_pressed(int id, int button) {
 }
 
 void fh_joystick_released(int id, int button) {
+    if (!fh_function_exists(moduleData.prog, "love_joystickreleased")) {
+        return;
+    }
     struct fh_value _id = fh_new_number(id);
     struct fh_value button_str = fh_new_string(moduleData.prog,
             joystick_convert_button_to_str(button));

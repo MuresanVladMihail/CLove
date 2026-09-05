@@ -19,6 +19,10 @@ static struct {
 } moduleData;
 
 void fh_mouse_pressed(int x, int y, int button) {
+    /* Optional callback: a game that doesn't handle the mouse isn't an error. */
+    if (!fh_function_exists(moduleData.prog, "love_mousepressed")) {
+        return;
+    }
     struct fh_value _x = fh_new_number(x);
     struct fh_value _y = fh_new_number(y);
     struct fh_value _button = fh_new_string(moduleData.prog, mouse_button_to_str(button));
@@ -37,6 +41,9 @@ void fh_mouse_pressed(int x, int y, int button) {
 }
 
 void fh_mouse_released(int x, int y, int button) {
+    if (!fh_function_exists(moduleData.prog, "love_mousereleased")) {
+        return;
+    }
     struct fh_value _x = fh_new_number(x);
     struct fh_value _y = fh_new_number(y);
     struct fh_value _button = fh_new_string(moduleData.prog, mouse_button_to_str(button));
@@ -55,6 +62,9 @@ void fh_mouse_released(int x, int y, int button) {
 }
 
 void fh_mouse_wheelmoved(int y) {
+    if (!fh_function_exists(moduleData.prog, "love_wheelmoved")) {
+        return;
+    }
     struct fh_value _y = fh_new_number(y);
 
     if (fh_call_function(moduleData.prog, "love_wheelmoved", &_y, 1, NULL) < 0) {

@@ -22,6 +22,10 @@ int fh_keyboard_keypressed(SDL_Keycode key, bool repeat) {
     if(repeat && !moduleData.keyRepeat) {
         return -1;
     }
+    /* Optional callback: a game that doesn't handle keys must not be an error. */
+    if (!fh_function_exists(moduleData.prog, "love_keypressed")) {
+        return 0;
+    }
     struct fh_value keyName = fh_new_string(moduleData.prog, keyboard_getKeyName(key));
     struct fh_value keyAsNumber = fh_new_number(key);
     struct fh_value isrepeat = fh_new_bool(repeat);
@@ -41,6 +45,9 @@ int fh_keyboard_keypressed(SDL_Keycode key, bool repeat) {
 }
 
 int fh_keyboard_keyreleased(SDL_Keycode key) {
+    if (!fh_function_exists(moduleData.prog, "love_keyreleased")) {
+        return 0;
+    }
     struct fh_value keyName = fh_new_string(moduleData.prog, keyboard_getKeyName(key));
     struct fh_value keyAsNumber = fh_new_number(key);
 
@@ -58,6 +65,14 @@ int fh_keyboard_keyreleased(SDL_Keycode key) {
 }
 
 int fh_keyboard_textInput(char const* text) {
+    /*
+     * SDL sends a text input event for every printable key (SPACE included),
+     * so an unguarded call here killed any game that only defines
+     * love_keypressed.
+     */
+    if (!fh_function_exists(moduleData.prog, "love_textinput")) {
+        return 0;
+    }
     struct fh_value textObj = fh_new_string(moduleData.prog, text);
     if (fh_call_function(moduleData.prog, "love_textinput", &textObj, 1, NULL) < 0) {
         return fh_set_error(moduleData.prog, "ERROR: %s\n", fh_get_error(moduleData.prog));
