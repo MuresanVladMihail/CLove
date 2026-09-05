@@ -34,6 +34,12 @@ version 0.8.0 not yet released
 	argument to love_graphics_newImage (FH only; Lua gets the loading and the
 	automatic re-rasterization, without the new getters).
 
+* fixed: the OpenGL attributes (4x multisampling, colour/depth/stencil sizes)
+	were set *after* SDL_CreateWindow, so SDL threw them away - the window never
+	actually got the requested pixel format. They are now set before the window is
+	created, and if that pixel format can't be provided (software renderers,
+	remote desktops, old drivers) CLove retries once without multisampling instead
+	of failing to start; both errors now report SDL_GetError().
 * fixed: the repository can be built from a fresh clone again. Three vendored
 	pieces never made it into git: src/3rdparty/glew/build/cmake (swallowed by the
 	unanchored "build/" ignore rule), part of the vendored SDL sources
