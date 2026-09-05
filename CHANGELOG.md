@@ -34,6 +34,37 @@ version 0.8.0 not yet released
 	argument to love_graphics_newImage (FH only; Lua gets the loading and the
 	automatic re-rasterization, without the new getters).
 
+* fixed: love_keyboard_isDown("...") crashed the engine for any key name the
+	engine doesn't know (a typo, or a key with no name in the table): the lookup
+	walked the name table using the *keycode* count as its bound and strcmp'd
+	hundreds of entries past its end. Unknown names now simply answer false.
+* fixed: love_keyboard_setKeyRepeat() and love_keyboard_setTextInput() called
+	with no argument read args[0] out of bounds while formatting their error
+	message (FH only).
+* fixed: the OpenGL attributes (4x multisampling, colour/depth/stencil sizes)
+	were set *after* SDL_CreateWindow, so SDL threw them away - the window never
+	actually got the requested pixel format. They are now set before the window is
+	created, and if that pixel format can't be provided (software renderers,
+	remote desktops, old drivers) CLove retries once without multisampling instead
+	of failing to start; both errors now report SDL_GetError().
+* fixed: the repository can be built from a fresh clone again. Unanchored or
+	over-broad .gitignore rules kept vendored upstream sources out of git:
+	src/3rdparty/glew/build/ (the "build/" rule, so glew's own CMake project was
+	missing and cmake could not even configure) and src/3rdparty/SDL2/src/core/**
+	(a bare "core" rule meant for core dumps - the Windows SDL_hid/SDL_immdevice
+	files among them, which are globbed, so they went missing silently). microui
+	was a git submodule with no .gitmodules entry, i.e. an empty directory after a
+	clone. The rules are now anchored and narrowed, and everything under
+	src/3rdparty/ is tracked as plain files.
+* fixed: link error "multiple definition of 'clove_running'" with GCC >= 10 and
+	any other -fno-common compiler; the two main-loop flags are now declared extern
+	in utils.h and defined once in tools/utils.c.
+* fixed: every love_* callback is optional again. Undefined ones (love_textinput
+	above all, which SDL fires for every printable key, so pressing SPACE quit a
+	game that only defined love_keypressed) used to raise
+	"function '...' doesn't exist" and stop the engine; love_load, love_update,
+	love_draw, love_config, the keyboard, mouse and joystick callbacks are now
+	all skipped when the game doesn't define them (FH only).
 * fixed: love_image_getWidth/getHeight on an image now report the size the image
 	is drawn at, like love_image_getDimensions already did (they used to read the
 	backing image data, which for vector art is a different size).

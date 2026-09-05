@@ -116,6 +116,32 @@ static void graphics_init_window(int width, int height) {
     graphics_clearScissor();
 }
 
+/*
+ * SDL reads the pixel format attributes (colour sizes, depth, stencil,
+ * multisampling) when the *window* is created and the context attributes
+ * (version, profile, flags) when the context is created, so every attribute
+ * has to be set before SDL_CreateWindow - setting them afterwards, as this
+ * code used to, silently threw the multisampling and buffer sizes away.
+ */
+static void graphics_setGLAttributes(int msaa_samples) {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, msaa_samples > 0 ? 1 : 0);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, msaa_samples);
+
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+}
+
 void graphics_init(int width, int height, bool resizable, bool stats, bool show) {
     moduleData.isCreated = false;
     moduleData.hasWindow = show;
@@ -138,37 +164,37 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
         moduleData.w_flags = (SDL_WindowFlags) (moduleData.w_flags | SDL_WINDOW_RESIZABLE);
     }
 
+    graphics_setGLAttributes(4);
     moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
                                          moduleData.w_flags);
-
-    if (!moduleData.window) {
-        clove_error("Error: Could not create window :O\n");
-        return;
+    if (moduleData.window) {
+        moduleData.context = SDL_GL_CreateContext(moduleData.window);
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+    if (!moduleData.window || !moduleData.context) {
+        /*
+         * 4x multisampling isn't available everywhere (software renderers,
+         * remote desktops, old drivers): drop it and try once more rather
+         * than refusing to start.
+         */
+        if (moduleData.window) {
+            SDL_DestroyWindow(moduleData.window);
+            moduleData.window = NULL;
+        }
 
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+        graphics_setGLAttributes(0);
+        moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
+                                             moduleData.w_flags);
+        if (!moduleData.window) {
+            clove_error("Error: Could not create window :O %s\n", SDL_GetError());
+            return;
+        }
 
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-
-
-    moduleData.context = SDL_GL_CreateContext(moduleData.window);
-    if (!moduleData.context) {
-        clove_error("Error: Could not create window context!\n");
-        return;
+        moduleData.context = SDL_GL_CreateContext(moduleData.window);
+        if (!moduleData.context) {
+            clove_error("Error: Could not create window context! %s\n", SDL_GetError());
+            return;
+        }
     }
 
     //moduleData.surface = SDL_GetWindowSurface(moduleData.window);

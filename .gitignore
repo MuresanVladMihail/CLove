@@ -47,9 +47,8 @@ tags
 /build/
 /cmake-build-*/
 
-# cmake build files
-*.txt.*
-*.txt.*
+# cmake build files - top level only, so vendored *.txt.in and friends survive
+/*.txt.*
 
 # local backup of the old GLEW copy (see CLAUDE.md)
 /glew-old/

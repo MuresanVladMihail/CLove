@@ -1,0 +1,33 @@
+# love_keyboard_isDown() with a name the engine doesn't know.
+#
+# The name lookup used to walk the key-name table with the *keycode* count as
+# its bound (hundreds of entries past the end of the array) and strcmp whatever
+# pointers it found there, so asking about a key that isn't in the table - a
+# typo, or simply a key CLove has no name for - segfaulted the engine.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn love_load() {
+    # Unknown names must answer "not pressed", not crash.
+    check(!love_keyboard_isDown("no_such_key"), "an unknown key name should not be down");
+    check(!love_keyboard_isDown("appbookmarks"), "the last name in the table should not be down");
+    check(!love_keyboard_isDown(""), "an empty key name should not be down");
+
+    # Known names still answer (nothing is held down under the test runner).
+    check(!love_keyboard_isDown("space"), "space should not be down");
+    check(!love_keyboard_isDown("esc"), "esc should not be down");
+
+    # Several names at once: any-of, and an unknown one in the list is harmless.
+    check(!love_keyboard_isDown("a", "no_such_key", "f1"), "none of these should be down");
+
+    # Key repeat is off by default and round-trips.
+    check(!love_keyboard_hasKeyRepeat(), "key repeat should start off");
+    love_keyboard_setKeyRepeat(true);
+    check(love_keyboard_hasKeyRepeat(), "key repeat should be on after setKeyRepeat(true)");
+    love_keyboard_setKeyRepeat(false);
+
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

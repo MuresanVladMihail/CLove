@@ -16,6 +16,11 @@
 
 int fh_config(struct fh_program *prog) {
 
+    /* config.fh may exist without defining love_config - nothing to apply. */
+    if (!fh_function_exists(prog, "love_config")) {
+        return 0;
+    }
+
     struct fh_value config = fh_new_map(prog);
 
     if (fh_call_function(prog, "love_config", &config, 1, NULL) < 0) {

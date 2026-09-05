@@ -1,0 +1,27 @@
+# Optional love_* callbacks.
+#
+# A game only has to define the callbacks it cares about. This program defines
+# neither love_load nor love_update (and none of the input callbacks): the
+# engine must run its frame anyway instead of erroring out with
+# "function '...' doesn't exist" and quitting.
+#
+# The input callbacks (love_keypressed, love_textinput, love_mousepressed, ...)
+# are guarded the same way; they can't be exercised here because the runner
+# feeds no SDL input events. love_textinput was the one that bit in practice:
+# SDL emits it for every printable key, so pressing SPACE in a game that only
+# handles love_keypressed used to kill the engine.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn love_draw(self) {
+    # love_load is missing, so the state map the engine hands around is empty
+    # but perfectly usable.
+    check(self != null, "the state map should still be handed to love_draw");
+
+    love_graphics_print("optional callbacks", 10, 10);
+
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}
