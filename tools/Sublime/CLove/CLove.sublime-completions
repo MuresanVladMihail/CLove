@@ -1,0 +1,3349 @@
+{
+  "scope": "source.fh",
+  "completions": [
+    {
+      "trigger": "love_load",
+      "contents": "fn love_load() {\n\tlet self = {};\n\t$0\n\treturn self;\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "called once; the value it returns is the game state passed to update/draw"
+    },
+    {
+      "trigger": "love_update",
+      "contents": "fn love_update(dt, self) {\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "called every frame; dt is seconds since the last frame"
+    },
+    {
+      "trigger": "love_draw",
+      "contents": "fn love_draw(self) {\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "called every frame, after love_update"
+    },
+    {
+      "trigger": "love_config",
+      "contents": "fn love_config(c) {\n\tc.window_title = \"${1:My Game}\";\n\tc.window_width = ${2:800};\n\tc.window_height = ${3:600};\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "in config.fh; called once before the window exists"
+    },
+    {
+      "trigger": "love_focus",
+      "contents": "fn love_focus(focused) {\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "focused is a bool"
+    },
+    {
+      "trigger": "love_quit",
+      "contents": "fn love_quit() {\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "called as the game shuts down"
+    },
+    {
+      "trigger": "love_keypressed",
+      "contents": "fn love_keypressed(key) {\n\t# key = [name, keycode, isrepeat]\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "key is the array [name, keycode, isrepeat]"
+    },
+    {
+      "trigger": "love_keyreleased",
+      "contents": "fn love_keyreleased(key) {\n\t# key = [name, keycode]\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "key is the array [name, keycode]"
+    },
+    {
+      "trigger": "love_textinput",
+      "contents": "fn love_textinput(text) {\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "text is a string"
+    },
+    {
+      "trigger": "love_mousepressed",
+      "contents": "fn love_mousepressed(m) {\n\t# m = [x, y, button]\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "m is the array [x, y, button]"
+    },
+    {
+      "trigger": "love_mousereleased",
+      "contents": "fn love_mousereleased(m) {\n\t# m = [x, y, button]\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "m is the array [x, y, button]"
+    },
+    {
+      "trigger": "love_wheelmoved",
+      "contents": "fn love_wheelmoved(y) {\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "y is a number"
+    },
+    {
+      "trigger": "love_joystickpressed",
+      "contents": "fn love_joystickpressed(j) {\n\t# j = [id, button]\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "j is the array [id, button]"
+    },
+    {
+      "trigger": "love_joystickreleased",
+      "contents": "fn love_joystickreleased(j) {\n\t# j = [id, button]\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "j is the array [id, button]"
+    },
+    {
+      "trigger": "love_audio_getPitch",
+      "contents": "love_audio_getPitch($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_getType",
+      "contents": "love_audio_getType($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_getVolume",
+      "contents": "love_audio_getVolume($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_isLooping",
+      "contents": "love_audio_isLooping($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_isPaused",
+      "contents": "love_audio_isPaused($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_isPlaying",
+      "contents": "love_audio_isPlaying($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_isStopped",
+      "contents": "love_audio_isStopped($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_newSource",
+      "contents": "love_audio_newSource($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_pause",
+      "contents": "love_audio_pause($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_play",
+      "contents": "love_audio_play($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_resume",
+      "contents": "love_audio_resume($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_setGlobalVolume",
+      "contents": "love_audio_setGlobalVolume($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_setLooping",
+      "contents": "love_audio_setLooping($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_setPitch",
+      "contents": "love_audio_setPitch($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_setPosition",
+      "contents": "love_audio_setPosition($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_setVelocity",
+      "contents": "love_audio_setVelocity($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_setVolume",
+      "contents": "love_audio_setVolume($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_stop",
+      "contents": "love_audio_stop($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_event_quit",
+      "contents": "love_event_quit($0)",
+      "annotation": "event",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/event.c"
+    },
+    {
+      "trigger": "love_event_reload",
+      "contents": "love_event_reload($0)",
+      "annotation": "event",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/event.c"
+    },
+    {
+      "trigger": "love_filesystem_append",
+      "contents": "love_filesystem_append($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_enumerate",
+      "contents": "love_filesystem_enumerate($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_exists",
+      "contents": "love_filesystem_exists($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_getCurrentDirectory",
+      "contents": "love_filesystem_getCurrentDirectory($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_getInfo",
+      "contents": "love_filesystem_getInfo($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_getSaveDirectory",
+      "contents": "love_filesystem_getSaveDirectory($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_getSource",
+      "contents": "love_filesystem_getSource($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_getUsrDir",
+      "contents": "love_filesystem_getUsrDir($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_isDir",
+      "contents": "love_filesystem_isDir($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_isSymLink",
+      "contents": "love_filesystem_isSymLink($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_mkDir",
+      "contents": "love_filesystem_mkDir($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_read",
+      "contents": "love_filesystem_read($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_remove",
+      "contents": "love_filesystem_remove($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_rename",
+      "contents": "love_filesystem_rename($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_setIdentity",
+      "contents": "love_filesystem_setIdentity($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_setSource",
+      "contents": "love_filesystem_setSource($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_state",
+      "contents": "love_filesystem_state($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_write",
+      "contents": "love_filesystem_write($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_font_getAscent",
+      "contents": "love_font_getAscent($0)",
+      "annotation": "font",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_font_getBaseline",
+      "contents": "love_font_getBaseline($0)",
+      "annotation": "font",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_font_getDescent",
+      "contents": "love_font_getDescent($0)",
+      "annotation": "font",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_font_getFilter",
+      "contents": "love_font_getFilter($0)",
+      "annotation": "font",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_font_getHeight",
+      "contents": "love_font_getHeight($0)",
+      "annotation": "font",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_font_getWidth",
+      "contents": "love_font_getWidth($0)",
+      "annotation": "font",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_font_getWrap",
+      "contents": "love_font_getWrap($0)",
+      "annotation": "font",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_font_setFilter",
+      "contents": "love_font_setFilter($0)",
+      "annotation": "font",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_geometry_circle",
+      "contents": "love_geometry_circle($0)",
+      "annotation": "geometry",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_geometry.c"
+    },
+    {
+      "trigger": "love_geometry_getLineWidth",
+      "contents": "love_geometry_getLineWidth($0)",
+      "annotation": "geometry",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_geometry.c"
+    },
+    {
+      "trigger": "love_geometry_line",
+      "contents": "love_geometry_line($0)",
+      "annotation": "geometry",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_geometry.c"
+    },
+    {
+      "trigger": "love_geometry_points",
+      "contents": "love_geometry_points($0)",
+      "annotation": "geometry",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_geometry.c"
+    },
+    {
+      "trigger": "love_geometry_polygon",
+      "contents": "love_geometry_polygon($0)",
+      "annotation": "geometry",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_geometry.c"
+    },
+    {
+      "trigger": "love_geometry_rectangle",
+      "contents": "love_geometry_rectangle($0)",
+      "annotation": "geometry",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_geometry.c"
+    },
+    {
+      "trigger": "love_geometry_setLineWidth",
+      "contents": "love_geometry_setLineWidth($0)",
+      "annotation": "geometry",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_geometry.c"
+    },
+    {
+      "trigger": "love_getVersion",
+      "contents": "love_getVersion($0)",
+      "annotation": "misc",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/love.c"
+    },
+    {
+      "trigger": "love_graphics_batch_add",
+      "contents": "love_graphics_batch_add($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_bind",
+      "contents": "love_graphics_batch_bind($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_clear",
+      "contents": "love_graphics_batch_clear($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_flush",
+      "contents": "love_graphics_batch_flush($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_getBufferSize",
+      "contents": "love_graphics_batch_getBufferSize($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_getColor",
+      "contents": "love_graphics_batch_getColor($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_getCount",
+      "contents": "love_graphics_batch_getCount($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_getTexture",
+      "contents": "love_graphics_batch_getTexture($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_set",
+      "contents": "love_graphics_batch_set($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_setBufferSize",
+      "contents": "love_graphics_batch_setBufferSize($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_setColor",
+      "contents": "love_graphics_batch_setColor($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_setTexture",
+      "contents": "love_graphics_batch_setTexture($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_batch_unbind",
+      "contents": "love_graphics_batch_unbind($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_clear",
+      "contents": "love_graphics_clear($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_draw",
+      "contents": "love_graphics_draw($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getBackgroundColor",
+      "contents": "love_graphics_getBackgroundColor($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getBlendMode",
+      "contents": "love_graphics_getBlendMode($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getColor",
+      "contents": "love_graphics_getColor($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getColorMask",
+      "contents": "love_graphics_getColorMask($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getDPIScale",
+      "contents": "love_graphics_getDPIScale($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getFont",
+      "contents": "love_graphics_getFont($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_graphics_getHeight",
+      "contents": "love_graphics_getHeight($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getMaxAnisotropy",
+      "contents": "love_graphics_getMaxAnisotropy($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getMaxTextureUnits",
+      "contents": "love_graphics_getMaxTextureUnits($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_graphics_getScissor",
+      "contents": "love_graphics_getScissor($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_getShader",
+      "contents": "love_graphics_getShader($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_graphics_getShaderWarnings",
+      "contents": "love_graphics_getShaderWarnings($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_graphics_getWidth",
+      "contents": "love_graphics_getWidth($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_newBitmapFont",
+      "contents": "love_graphics_newBitmapFont($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_bitmapfont.c"
+    },
+    {
+      "trigger": "love_graphics_newCanvas",
+      "contents": "love_graphics_newCanvas($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_canvas.c"
+    },
+    {
+      "trigger": "love_graphics_newFont",
+      "contents": "love_graphics_newFont($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_graphics_newImage",
+      "contents": "love_graphics_newImage($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_graphics_newImageData",
+      "contents": "love_graphics_newImageData($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_graphics_newMesh",
+      "contents": "love_graphics_newMesh($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_mesh.c"
+    },
+    {
+      "trigger": "love_graphics_newParticleSystem",
+      "contents": "love_graphics_newParticleSystem($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_graphics_newQuad",
+      "contents": "love_graphics_newQuad($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_quad.c"
+    },
+    {
+      "trigger": "love_graphics_newShader",
+      "contents": "love_graphics_newShader($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_graphics_newSpriteBatch",
+      "contents": "love_graphics_newSpriteBatch($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_origin",
+      "contents": "love_graphics_origin($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_pop",
+      "contents": "love_graphics_pop($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_print",
+      "contents": "love_graphics_print($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_graphics_push",
+      "contents": "love_graphics_push($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_reset",
+      "contents": "love_graphics_reset($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_rotate",
+      "contents": "love_graphics_rotate($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_scale",
+      "contents": "love_graphics_scale($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_setBackgroundColor",
+      "contents": "love_graphics_setBackgroundColor($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_setBlendMode",
+      "contents": "love_graphics_setBlendMode($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_setCanvas",
+      "contents": "love_graphics_setCanvas($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_canvas.c"
+    },
+    {
+      "trigger": "love_graphics_setColor",
+      "contents": "love_graphics_setColor($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_setColorMask",
+      "contents": "love_graphics_setColorMask($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_setFont",
+      "contents": "love_graphics_setFont($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_graphics_setScissor",
+      "contents": "love_graphics_setScissor($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_setShader",
+      "contents": "love_graphics_setShader($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_graphics_shear",
+      "contents": "love_graphics_shear($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_graphics_translate",
+      "contents": "love_graphics_translate($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
+    },
+    {
+      "trigger": "love_image_getChannels",
+      "contents": "love_image_getChannels($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getDimensions",
+      "contents": "love_image_getDimensions($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getFilter",
+      "contents": "love_image_getFilter($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getHeight",
+      "contents": "love_image_getHeight($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getMipmapFilter",
+      "contents": "love_image_getMipmapFilter($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getPath",
+      "contents": "love_image_getPath($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getPixel",
+      "contents": "love_image_getPixel($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getWidth",
+      "contents": "love_image_getWidth($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getWrap",
+      "contents": "love_image_getWrap($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_refresh",
+      "contents": "love_image_refresh($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_setFilter",
+      "contents": "love_image_setFilter($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_setMipmapFilter",
+      "contents": "love_image_setMipmapFilter($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_setPixel",
+      "contents": "love_image_setPixel($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_setWrap",
+      "contents": "love_image_setWrap($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_keyboard_hasKeyRepeat",
+      "contents": "love_keyboard_hasKeyRepeat($0)",
+      "annotation": "keyboard",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/keyboard.c"
+    },
+    {
+      "trigger": "love_keyboard_hasTextInput",
+      "contents": "love_keyboard_hasTextInput($0)",
+      "annotation": "keyboard",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/keyboard.c"
+    },
+    {
+      "trigger": "love_keyboard_isDown",
+      "contents": "love_keyboard_isDown($0)",
+      "annotation": "keyboard",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/keyboard.c"
+    },
+    {
+      "trigger": "love_keyboard_setKeyRepeat",
+      "contents": "love_keyboard_setKeyRepeat($0)",
+      "annotation": "keyboard",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/keyboard.c"
+    },
+    {
+      "trigger": "love_keyboard_setTextInput",
+      "contents": "love_keyboard_setTextInput($0)",
+      "annotation": "keyboard",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/keyboard.c"
+    },
+    {
+      "trigger": "love_math_isConvex",
+      "contents": "love_math_isConvex($0)",
+      "annotation": "math",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/math.c"
+    },
+    {
+      "trigger": "love_math_noise",
+      "contents": "love_math_noise($0)",
+      "annotation": "math",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/math.c"
+    },
+    {
+      "trigger": "love_mesh_setIndices",
+      "contents": "love_mesh_setIndices($0)",
+      "annotation": "mesh",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_mesh.c"
+    },
+    {
+      "trigger": "love_mesh_setTexture",
+      "contents": "love_mesh_setTexture($0)",
+      "annotation": "mesh",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_mesh.c"
+    },
+    {
+      "trigger": "love_mesh_setVertices",
+      "contents": "love_mesh_setVertices($0)",
+      "annotation": "mesh",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_mesh.c"
+    },
+    {
+      "trigger": "love_mouse_getPosition",
+      "contents": "love_mouse_getPosition($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_mouse_getX",
+      "contents": "love_mouse_getX($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_mouse_getY",
+      "contents": "love_mouse_getY($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_mouse_isDown",
+      "contents": "love_mouse_isDown($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_mouse_isVisible",
+      "contents": "love_mouse_isVisible($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_mouse_setPosition",
+      "contents": "love_mouse_setPosition($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_mouse_setVisible",
+      "contents": "love_mouse_setVisible($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_mouse_setX",
+      "contents": "love_mouse_setX($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_mouse_setY",
+      "contents": "love_mouse_setY($0)",
+      "annotation": "mouse",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/mouse.c"
+    },
+    {
+      "trigger": "love_particleSystem_clone",
+      "contents": "love_particleSystem_clone($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_emit",
+      "contents": "love_particleSystem_emit($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getAreaSpread",
+      "contents": "love_particleSystem_getAreaSpread($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getBufferSize",
+      "contents": "love_particleSystem_getBufferSize($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getColors",
+      "contents": "love_particleSystem_getColors($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getCount",
+      "contents": "love_particleSystem_getCount($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getDirection",
+      "contents": "love_particleSystem_getDirection($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getEmissionRate",
+      "contents": "love_particleSystem_getEmissionRate($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getEmitterLifetime",
+      "contents": "love_particleSystem_getEmitterLifetime($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getInsertMode",
+      "contents": "love_particleSystem_getInsertMode($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getLinearAcceleration",
+      "contents": "love_particleSystem_getLinearAcceleration($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getLinearDamping",
+      "contents": "love_particleSystem_getLinearDamping($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getOffset",
+      "contents": "love_particleSystem_getOffset($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getParticleLifetime",
+      "contents": "love_particleSystem_getParticleLifetime($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getPosition",
+      "contents": "love_particleSystem_getPosition($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getRadialAcceleration",
+      "contents": "love_particleSystem_getRadialAcceleration($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getRotation",
+      "contents": "love_particleSystem_getRotation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getSizeVariation",
+      "contents": "love_particleSystem_getSizeVariation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getSizes",
+      "contents": "love_particleSystem_getSizes($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getSpeed",
+      "contents": "love_particleSystem_getSpeed($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getSpin",
+      "contents": "love_particleSystem_getSpin($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getSpinVariation",
+      "contents": "love_particleSystem_getSpinVariation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getSpread",
+      "contents": "love_particleSystem_getSpread($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getTangentialAcceleration",
+      "contents": "love_particleSystem_getTangentialAcceleration($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getTexture",
+      "contents": "love_particleSystem_getTexture($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_hasRelativeRotation",
+      "contents": "love_particleSystem_hasRelativeRotation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_isActive",
+      "contents": "love_particleSystem_isActive($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_isPaused",
+      "contents": "love_particleSystem_isPaused($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_isStopped",
+      "contents": "love_particleSystem_isStopped($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_moveTo",
+      "contents": "love_particleSystem_moveTo($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_pause",
+      "contents": "love_particleSystem_pause($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_reset",
+      "contents": "love_particleSystem_reset($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setAreaSpread",
+      "contents": "love_particleSystem_setAreaSpread($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setBufferSize",
+      "contents": "love_particleSystem_setBufferSize($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setColors",
+      "contents": "love_particleSystem_setColors($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setDirection",
+      "contents": "love_particleSystem_setDirection($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setEmissionRate",
+      "contents": "love_particleSystem_setEmissionRate($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setEmitterLifetime",
+      "contents": "love_particleSystem_setEmitterLifetime($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setInsertMode",
+      "contents": "love_particleSystem_setInsertMode($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setLinearAcceleration",
+      "contents": "love_particleSystem_setLinearAcceleration($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setLinearDamping",
+      "contents": "love_particleSystem_setLinearDamping($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setOffset",
+      "contents": "love_particleSystem_setOffset($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setPosition",
+      "contents": "love_particleSystem_setPosition($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setQuads",
+      "contents": "love_particleSystem_setQuads($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setRadialAcceleration",
+      "contents": "love_particleSystem_setRadialAcceleration($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setRelativeRotation",
+      "contents": "love_particleSystem_setRelativeRotation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setRotation",
+      "contents": "love_particleSystem_setRotation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setSizeVariation",
+      "contents": "love_particleSystem_setSizeVariation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setSpeed",
+      "contents": "love_particleSystem_setSpeed($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setSpin",
+      "contents": "love_particleSystem_setSpin($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setSpinVariation",
+      "contents": "love_particleSystem_setSpinVariation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setSpread",
+      "contents": "love_particleSystem_setSpread($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setTangentialAcceleration",
+      "contents": "love_particleSystem_setTangentialAcceleration($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setTexture",
+      "contents": "love_particleSystem_setTexture($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_start",
+      "contents": "love_particleSystem_start($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_stop",
+      "contents": "love_particleSystem_stop($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_update",
+      "contents": "love_particleSystem_update($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_quad_getViewport",
+      "contents": "love_quad_getViewport($0)",
+      "annotation": "quad",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_quad.c"
+    },
+    {
+      "trigger": "love_quad_setViewport",
+      "contents": "love_quad_setViewport($0)",
+      "annotation": "quad",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_quad.c"
+    },
+    {
+      "trigger": "love_shader_sendBool",
+      "contents": "love_shader_sendBool($0)",
+      "annotation": "shader",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_shader_sendFloat",
+      "contents": "love_shader_sendFloat($0)",
+      "annotation": "shader",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_shader_sendInteger",
+      "contents": "love_shader_sendInteger($0)",
+      "annotation": "shader",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_shader_sendMatrice",
+      "contents": "love_shader_sendMatrice($0)",
+      "annotation": "shader",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_shader_sendTexture",
+      "contents": "love_shader_sendTexture($0)",
+      "annotation": "shader",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_shader_sendVector",
+      "contents": "love_shader_sendVector($0)",
+      "annotation": "shader",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
+    },
+    {
+      "trigger": "love_timer_getAverageDelta",
+      "contents": "love_timer_getAverageDelta($0)",
+      "annotation": "timer",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/timer.c"
+    },
+    {
+      "trigger": "love_timer_getDelta",
+      "contents": "love_timer_getDelta($0)",
+      "annotation": "timer",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/timer.c"
+    },
+    {
+      "trigger": "love_timer_getFPS",
+      "contents": "love_timer_getFPS($0)",
+      "annotation": "timer",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/timer.c"
+    },
+    {
+      "trigger": "love_timer_getTime",
+      "contents": "love_timer_getTime($0)",
+      "annotation": "timer",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/timer.c"
+    },
+    {
+      "trigger": "love_timer_sleep",
+      "contents": "love_timer_sleep($0)",
+      "annotation": "timer",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/timer.c"
+    },
+    {
+      "trigger": "love_timer_step",
+      "contents": "love_timer_step($0)",
+      "annotation": "timer",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/timer.c"
+    },
+    {
+      "trigger": "love_ui_align",
+      "contents": "love_ui_align($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_begin",
+      "contents": "love_ui_begin($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_begin_panel",
+      "contents": "love_ui_begin_panel($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_begin_popup",
+      "contents": "love_ui_begin_popup($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_begin_tree",
+      "contents": "love_ui_begin_tree($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_begin_window",
+      "contents": "love_ui_begin_window($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_button",
+      "contents": "love_ui_button($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_checkbox",
+      "contents": "love_ui_checkbox($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_clear_textbox",
+      "contents": "love_ui_clear_textbox($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_control_text",
+      "contents": "love_ui_control_text($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_end",
+      "contents": "love_ui_end($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_end_panel",
+      "contents": "love_ui_end_panel($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_end_popup",
+      "contents": "love_ui_end_popup($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_end_tree",
+      "contents": "love_ui_end_tree($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_end_window",
+      "contents": "love_ui_end_window($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_getColor",
+      "contents": "love_ui_getColor($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_getContainerContentSize",
+      "contents": "love_ui_getContainerContentSize($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_getContainerInfo",
+      "contents": "love_ui_getContainerInfo($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_getContainerScroll",
+      "contents": "love_ui_getContainerScroll($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_hasFocus",
+      "contents": "love_ui_hasFocus($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_header",
+      "contents": "love_ui_header($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_label",
+      "contents": "love_ui_label($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_last_id",
+      "contents": "love_ui_last_id($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_layout_begin_column",
+      "contents": "love_ui_layout_begin_column($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_layout_end_column",
+      "contents": "love_ui_layout_end_column($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_layout_height",
+      "contents": "love_ui_layout_height($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_layout_next",
+      "contents": "love_ui_layout_next($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_layout_row",
+      "contents": "love_ui_layout_row($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_layout_setNext",
+      "contents": "love_ui_layout_setNext($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_layout_width",
+      "contents": "love_ui_layout_width($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_newContainer",
+      "contents": "love_ui_newContainer($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_open_popup",
+      "contents": "love_ui_open_popup($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_opt",
+      "contents": "love_ui_opt($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_rect",
+      "contents": "love_ui_rect($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_res_state",
+      "contents": "love_ui_res_state($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_setColor",
+      "contents": "love_ui_setColor($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_setContainerInfo",
+      "contents": "love_ui_setContainerInfo($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_setContainerScroll",
+      "contents": "love_ui_setContainerScroll($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_setFocus",
+      "contents": "love_ui_setFocus($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_slider",
+      "contents": "love_ui_slider($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_text",
+      "contents": "love_ui_text($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_textbox",
+      "contents": "love_ui_textbox($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_window_getDesktopDimension",
+      "contents": "love_window_getDesktopDimension($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_getDimensions",
+      "contents": "love_window_getDimensions($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_getDisplayCount",
+      "contents": "love_window_getDisplayCount($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_getDisplayName",
+      "contents": "love_window_getDisplayName($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_getHeight",
+      "contents": "love_window_getHeight($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_getIcon",
+      "contents": "love_window_getIcon($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_getTitle",
+      "contents": "love_window_getTitle($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_getWidth",
+      "contents": "love_window_getWidth($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_hasFocus",
+      "contents": "love_window_hasFocus($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_hasMouseFocus",
+      "contents": "love_window_hasMouseFocus($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_isCreated",
+      "contents": "love_window_isCreated($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_setFullscreen",
+      "contents": "love_window_setFullscreen($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_setIcon",
+      "contents": "love_window_setIcon($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_setMode",
+      "contents": "love_window_setMode($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_setPosition",
+      "contents": "love_window_setPosition($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_setTitle",
+      "contents": "love_window_setTitle($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_window_setVsync",
+      "contents": "love_window_setVsync($0)",
+      "annotation": "window",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "window_title",
+      "contents": "c.window_title = \"${1:My Game}\";$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "string -- window title"
+    },
+    {
+      "trigger": "window_width",
+      "contents": "c.window_width = ${1:800};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "number -- window width"
+    },
+    {
+      "trigger": "window_height",
+      "contents": "c.window_height = ${1:600};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "number -- window height"
+    },
+    {
+      "trigger": "window_min_width",
+      "contents": "c.window_min_width = ${1:320};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "number -- minimum window width"
+    },
+    {
+      "trigger": "window_min_height",
+      "contents": "c.window_min_height = ${1:240};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "number -- minimum window height"
+    },
+    {
+      "trigger": "window_max_width",
+      "contents": "c.window_max_width = ${1:1920};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "number -- maximum window width"
+    },
+    {
+      "trigger": "window_max_height",
+      "contents": "c.window_max_height = ${1:1080};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "number -- maximum window height"
+    },
+    {
+      "trigger": "window_x",
+      "contents": "c.window_x = ${1:0};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "number -- window position on screen"
+    },
+    {
+      "trigger": "window_y",
+      "contents": "c.window_y = ${1:0};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "number -- window position on screen"
+    },
+    {
+      "trigger": "window_bordless",
+      "contents": "c.window_bordless = ${1:true};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "bool -- remove the window border"
+    },
+    {
+      "trigger": "window_resizable",
+      "contents": "c.window_resizable = ${1:true};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "bool -- let the user resize the window"
+    },
+    {
+      "trigger": "window_vsync",
+      "contents": "c.window_vsync = ${1:true};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "bool -- enable vsync"
+    },
+    {
+      "trigger": "window_destroy",
+      "contents": "c.window_destroy = ${1:true};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "bool -- destroy the window at once (headless)"
+    },
+    {
+      "trigger": "window_icon",
+      "contents": "c.window_icon = \"${1:icon.png}\";$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "string -- path to the window icon"
+    },
+    {
+      "trigger": "window_fullscreen",
+      "contents": "c.window_fullscreen = ${1:true};$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "bool -- go fullscreen"
+    },
+    {
+      "trigger": "window_fullscreentype",
+      "contents": "c.window_fullscreentype = \"${1:desktop}\";$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "string -- fullscreen type"
+    },
+    {
+      "trigger": "version",
+      "contents": "c.version = \"${1:0.0.0}\";$0",
+      "annotation": "config.fh",
+      "kind": [
+        "variable",
+        "k",
+        "CLove config"
+      ],
+      "details": "string -- expected CLove version"
+    },
+    {
+      "trigger": "clovegame",
+      "contents": "fn love_load() {\n\tlet self = {};\n\t$0\n\treturn self;\n}\n\nfn love_update(dt, self) {\n}\n\nfn love_draw(self) {\n}\n\nfn main() {}\n",
+      "annotation": "skeleton",
+      "kind": [
+        "snippet",
+        "s",
+        "CLove"
+      ],
+      "details": "a complete main.fh skeleton"
+    }
+  ]
+}

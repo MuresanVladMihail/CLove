@@ -1,0 +1,33 @@
+{
+	// CLove loads main.fh from the current working directory, so building runs
+	// the engine from the directory the current script lives in.
+	// If `clove` is not on your PATH, replace it with an absolute path
+	// (e.g. "../build/clove" or "/usr/local/bin/clove").
+	"shell_cmd": "clove",
+	"selector": "source.fh.clove",
+	"working_dir": "$file_path",
+
+	// Diagnostics reach stdout as `ERROR: file.fh:line:col: message`, from
+	// fh_get_error() by way of clove_error() in src/fh_mainactivity.c.
+	"file_regex": "([^\\s:]+\\.fh):([0-9]+):([0-9]+):\\s*(?:error:\\s*)?(.*)$",
+
+	"variants": [
+		{
+			// For a game whose main.fh sits at the project root while you are
+			// editing a script in a subdirectory.
+			"name": "Run from Project Root",
+			"working_dir": "$folder"
+		},
+		{
+			// A packaged game: `clove game.love`.
+			"name": "Run .love Archive",
+			"shell_cmd": "clove \"${file_path}/${file_base_name}.love\""
+		},
+		{
+			// The engine's own test suite, from a CLove checkout.
+			"name": "CLove Test Suite",
+			"working_dir": "$folder",
+			"shell_cmd": "./tests/run_tests.sh"
+		}
+	]
+}

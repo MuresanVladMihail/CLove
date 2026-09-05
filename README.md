@@ -170,6 +170,15 @@ function love.load()
 end
 ~~~
 
+Editor support
+--------------
+
+`tools/Sublime/CLove` is a Sublime Text package for CLove games: highlighting of
+the whole `love_*` API, completions for every binding and `config.fh` key, and
+a build system that runs `clove`. It builds on the FH package
+(`tools/Sublime/FH` in the [FH repository](https://github.com/MuresanVladMihail/FH)),
+which is required -- see `tools/Sublime/CLove/README.md`.
+
 Contact
 -------
 
