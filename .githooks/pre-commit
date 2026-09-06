@@ -1,0 +1,65 @@
+#!/bin/sh
+# CLove pre-commit hook: build the engine and run the end-to-end FH test suite.
+#
+# Installed with: .githooks/install.sh  (sets core.hooksPath to this directory)
+#
+# The working tree is what gets built and tested, not the staged snapshot --
+# stashing unstaged changes behind the author's back is how a hook loses work.
+# So: commit what you tested, and keep the tree clean.
+#
+# The tests drive the real engine, so a window flashes up per test. Set
+# CLOVE_HEADLESS=1 to force SDL's dummy video driver -- only the non-GL tests
+# are guaranteed to pass that way, so it is not the default.
+#
+# Escape hatches:
+#   git commit --no-verify         skip every hook
+#   CLOVE_SKIP_TESTS=1 git commit  skip just this one
+set -u
+
+[ "${CLOVE_SKIP_TESTS:-0}" = "1" ] && { echo "pre-commit: CLOVE_SKIP_TESTS=1, skipping tests."; exit 0; }
+
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+# Docs-only commits can't break the engine, so don't make the author wait.
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+if ! printf '%s\n' "$staged" | grep -qvE '\.(md|txt)$|^docs/|^licenses/|^LICENSE'; then
+    echo "pre-commit: docs-only change, skipping tests."
+    exit 0
+fi
+
+if [ ! -f build/CMakeCache.txt ]; then
+    echo "pre-commit: no configured build/ directory, so the tests can't run."
+    echo "            Configure it once with ./build_osx.sh (or ./build_linux.sh),"
+    echo "            then commits build incrementally from there."
+    echo "            Bypass: CLOVE_SKIP_TESTS=1 git commit ...  /  git commit --no-verify"
+    exit 1
+fi
+
+jobs=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)
+log=$(mktemp "${TMPDIR:-/tmp}/clove_precommit.XXXXXX")
+trap 'rm -f "$log"' EXIT
+
+printf 'pre-commit: building clove (cmake --build build -j%s)... ' "$jobs"
+if ! cmake --build build -j "$jobs" >"$log" 2>&1; then
+    echo "FAILED"
+    tail -40 "$log"
+    echo
+    echo "pre-commit: build failed, commit aborted."
+    exit 1
+fi
+echo "ok"
+
+echo "pre-commit: running tests..."
+if ! ./tests/run_tests.sh >"$log" 2>&1; then
+    grep -aE '^  FAIL|^passed:|^failed:' "$log"
+    echo
+    echo "pre-commit: tests failed, commit aborted."
+    echo "            full output: ./tests/run_tests.sh"
+    echo "            bypass:      git commit --no-verify"
+    exit 1
+fi
+
+grep -aE '^passed:' "$log"
+echo "pre-commit: all tests passed."
