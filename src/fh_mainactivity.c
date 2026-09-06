@@ -49,7 +49,6 @@
 
 typedef struct {
     bool called_quit;
-    bool lastFocus;
     struct fh_program *prog;
     struct fh_value delta;
     struct fh_value focus;
@@ -94,23 +93,23 @@ static void resize_function(int width, int height) {
     }
 }
 
-static void focus_function(void) {
-    // love_focus is an optional callback; calling a missing function would
-    // also pollute the program error state every frame
-    if (!fh_function_exists(loopData.prog, "love_focus"))
+/* love_focus(focused) and love_mousefocus(focused) -- dispatched from the SDL
+ * window events below, which is where LOVE dispatches love.focus too.
+ *
+ * This used to be polled: focus_function() ran at the top of every frame,
+ * called graphics_hasFocus() and invoked the callback unconditionally, so a
+ * game got sixty identical calls a second. Diffing against the last value
+ * would have fixed the flood but not the design -- a poll cannot see a
+ * transition that begins and ends inside one frame (alt-tab away and back
+ * quickly and the game never learns it lost focus), and it reports a change
+ * one frame after it happened, because the event pump runs at the end of the
+ * loop. Reading it off the event has neither problem. */
+static void focus_callback(char const *name, bool focused) {
+    if (!fh_function_exists(loopData.prog, name))
         return;
-
-    // It is an event, not a poll. This ran every frame, so a game that logged
-    // or reacted in love_focus() got sixty identical calls a second, and paid
-    // for a script call on each one.
-    bool focused = graphics_hasFocus();
-    if (focused == loopData.lastFocus) {
-        return;
-    }
-    loopData.lastFocus = focused;
 
     loopData.focus.data.b = focused;
-    if (fh_call_function(loopData.prog, "love_focus", &loopData.focus, 1, NULL) == -2) {
+    if (fh_call_function(loopData.prog, name, &loopData.focus, 1, NULL) == -2) {
         clove_error("Error: %s\n", fh_get_error(loopData.prog));
     }
 }
@@ -164,7 +163,6 @@ static struct fh_value update_args[2];
 
 void fh_main_loop(int argc, char **argv) {
     timer_step();
-    focus_function();
     matrixstack_origin();
     loopData.delta.data.num = (double) timer_getDelta();
 
@@ -205,15 +203,19 @@ void fh_main_loop(int argc, char **argv) {
             switch (event.window.event) {
                 case SDL_WINDOWEVENT_ENTER:
                     graphics_setMouseFocus(true);
+                    focus_callback("love_mousefocus", true);
                     break;
                 case SDL_WINDOWEVENT_LEAVE:
                     graphics_setMouseFocus(false);
+                    focus_callback("love_mousefocus", false);
                     break;
                 case SDL_WINDOWEVENT_FOCUS_LOST:
                     graphics_setFocus(false);
+                    focus_callback("love_focus", false);
                     break;
                 case SDL_WINDOWEVENT_FOCUS_GAINED:
                     graphics_setFocus(true);
+                    focus_callback("love_focus", true);
                     break;
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
                     /* SDL has already resized the window; only the drawing
@@ -330,9 +332,6 @@ int fh_main_activity_load(int argc, char *argv[]) {
     clove_reload = false;
     clove_running = true;
     loopData.called_quit = false;
-    // Seeded from the window's state, so the first love_focus() a game sees is
-    // a real change rather than an echo of how it started.
-    loopData.lastFocus = graphics_hasFocus();
     loopData.prog = fh_new_program();
     if (!loopData.prog) {
         clove_error("ERROR: out of memory for initializing language FH\n");

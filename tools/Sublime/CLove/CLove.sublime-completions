@@ -54,7 +54,18 @@
         "c",
         "CLove callback"
       ],
-      "details": "focused is a bool; called when the window gains or loses focus"
+      "details": "focused is a bool; fired when the window gains or loses focus"
+    },
+    {
+      "trigger": "love_mousefocus",
+      "contents": "fn love_mousefocus(focused) {\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "focused is a bool; fired when the pointer enters or leaves the window"
     },
     {
       "trigger": "love_resize",

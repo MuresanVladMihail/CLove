@@ -35,6 +35,11 @@ fn apply() {
 }
 
 fn love_load() {
+    # An event only tells you about a *change*, so the starting values come
+    # from the poll -- which is what love_window_hasFocus/hasMouseFocus are for.
+    W.focus = love_window_hasFocus();
+    W.mouseFocus = love_window_hasMouseFocus();
+
     love_window_setTitle(W.title);
     note("started at " + love_window_getWidth() + "x" + love_window_getHeight());
     return W;
@@ -46,9 +51,16 @@ fn love_resize(w, h) {
     note("resized to " + w + "x" + h);
 }
 
+# Both of these come off the SDL window event, the way LOVE dispatches
+# love.focus and love.mousefocus -- not from polling every frame.
 fn love_focus(focused) {
     W.focus = focused;
-    note("window focus: " + focused);
+    note("love_focus " + focused);
+}
+
+fn love_mousefocus(focused) {
+    W.mouseFocus = focused;
+    note("love_mousefocus " + focused);
 }
 
 fn love_keypressed(key) {
@@ -88,9 +100,7 @@ fn love_keypressed(key) {
 
 }
 
-fn love_update(dt, self) {
-    W.mouseFocus = love_window_hasMouseFocus();
-}
+fn love_update(dt, self) {}
 
 fn row(label, value, y) {
     love_graphics_setColor(150, 155, 170);
@@ -124,7 +134,7 @@ fn love_draw(self) {
     row("borderless", "" + W.borderless, 180);
     row("vsync", "" + W.vsync, 202);
     row("has focus", "" + W.focus, 224);
-    row("mouse over", "" + W.mouseFocus, 246);
+    row("mouse over", "" + W.mouseFocus + "   (" + love_window_hasMouseFocus() + " polled)", 246);
     row("love_resize calls", "" + W.resizes, 268);
     row("fps", "" + love_timer_getFPS(), 290);
 

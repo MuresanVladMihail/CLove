@@ -56,9 +56,15 @@ version 0.8.0 not yet released
 * fixed: love_window_setTitle() kept the caller's string, which a script can
 	collect the moment the call returns; love_window_getTitle() handed that
 	pointer back.
-* fixed: love_focus() was called every frame rather than when the focus
-	changed. It is an event in LOVE, and a game that logged or reacted in it
-	got sixty identical calls a second.
+* fixed: love_focus() was polled, not dispatched. It ran at the top of every
+	frame and fired unconditionally, so a game got sixty identical calls a
+	second. It now comes off the SDL window event, where LOVE dispatches
+	love.focus -- which also means it cannot miss a transition that begins and
+	ends inside one frame, and reports the change on the frame it happened
+	rather than the next one.
+* added: love_mousefocus(focused), the callback for the pointer entering or
+	leaving the window. The engine already tracked the state
+	(love_window_hasMouseFocus) but never told the game about it.
 * fixed: the wav decoder rejected every valid wav file. It wrote a NUL over
 	the last byte of the "RIFF" tag before comparing it to "RIFF", so the
 	comparison could never succeed. Rewritten to walk the RIFF chunks, which

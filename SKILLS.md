@@ -45,7 +45,7 @@ fn love_config(c) {
 ## Lifecycle & input callbacks (all optional — define the ones you need)
 
 - `love_load()` / `love_update(dt, self)` / `love_draw(self)`
-- `love_focus(focused)` , `love_quit()`
+- `love_focus(focused)` , `love_mousefocus(focused)` , `love_quit()`
 - `love_keypressed(key)` , `love_keyreleased(key)` , `love_textinput(text)`
 - `love_resize(w, h)` — the window was resized; two real arguments
 - `love_mousepressed(m)` , `love_mousereleased(m)` , `love_wheelmoved(y)`
@@ -54,6 +54,16 @@ fn love_config(c) {
 The two mouse-button callbacks take **one** argument, an array `[x, y, button]`
 — not three — with `button` one of `"l"`, `"r"`, `"m"`, `"wu"`, `"wd"`.
 `love_resize` takes two, the way LÖVE's does.
+
+`love_focus` and `love_mousefocus` come off the SDL window event, the way
+LÖVE dispatches `love.focus` and `love.mousefocus`. `love_focus` used to be
+*polled*: it ran at the top of every frame and fired unconditionally, so a
+game got sixty identical calls a second. Diffing the value would have stopped
+the flood but not fixed the design — a poll cannot see a transition that
+begins and ends inside one frame (alt-tab away and back quickly), and it
+reports the change a frame late, because the event pump runs at the end of
+the loop. `love_window_hasFocus()` / `hasMouseFocus()` still answer the
+current state when that is what you want.
 
 A resizable window (`c.window_resizable` in `config.fh`) now updates the 2D
 projection and the GL viewport for you when the user drags its edge — before,
