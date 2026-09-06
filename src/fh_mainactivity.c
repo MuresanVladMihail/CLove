@@ -56,15 +56,24 @@ typedef struct {
 
 static MainLoopData loopData;
 
-static void quit_function(void) {
-    // love_quit is an optional callback
-    if (fh_function_exists(loopData.prog, "love_quit") &&
-        fh_call_function(loopData.prog, "love_quit", NULL, 0, NULL) < 0) {
-        clove_error("Error: %s\n", fh_get_error(loopData.prog));
+/* Runs the optional love_quit callback and answers whether the quit should go
+ * ahead. Returning true from love_quit aborts it, the way LOVE's love.quit
+ * does -- without that a tool has no way to ask "save first?" when the window's
+ * close button is pressed, because SDL_QUIT is not something a script sees. */
+static bool quit_function(void) {
+    bool allow = true;
+    if (fh_function_exists(loopData.prog, "love_quit")) {
+        struct fh_value ret = fh_new_null();
+        if (fh_call_function(loopData.prog, "love_quit", NULL, 0, &ret) < 0) {
+            clove_error("Error: %s\n", fh_get_error(loopData.prog));
+        } else if (fh_is_bool(&ret) && fh_get_bool(&ret)) {
+            allow = false;
+        }
     }
 #ifdef USE_NATIVE
     game_quit();
 #endif
+    return allow;
 }
 
 static void focus_function(void) {
@@ -264,9 +273,10 @@ void fh_main_loop(int argc, char **argv) {
                 break;
 #ifdef CLOVE_DESKTOP
             case SDL_QUIT: {
-                loopData.called_quit = true;
-                quit_function();
-                clove_running = false;
+                if (quit_function()) {
+                    loopData.called_quit = true;
+                    clove_running = false;
+                }
                 break;
             }
 #endif
@@ -418,7 +428,9 @@ int fh_main_activity_load(int argc, char *argv[]) {
     }
 
     if (!loopData.called_quit) {
-        quit_function();
+        /* The loop is already over, so love_quit() gets its chance to clean up
+         * but no longer gets a say in whether we stop. */
+        (void) quit_function();
     }
     return clove_finish(exit_code);
 }

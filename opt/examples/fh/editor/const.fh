@@ -30,6 +30,24 @@ let VP_H = 654;
 
 let HIER_H = 400;
 
+# --- modal dialogs ----------------------------------------------------------
+# A modal is sized from the number of content rows it holds rather than by a
+# hand-tuned number, so adding a line of text does not leave the window with a
+# third of it empty (or clip the buttons). The constants are microui's own
+# metrics: title_height, and a default row of style.size.y + 2*padding with
+# spacing under it.
+let DIALOG_W       = 400;
+let DIALOG_TITLE_H = 24;
+let DIALOG_ROW_H   = 24;
+let DIALOG_PAD     = 14;
+
+fn dialog_height(rows) {
+	return DIALOG_TITLE_H + DIALOG_PAD + rows * DIALOG_ROW_H;
+}
+
+fn dialog_x(w) { return math_floor((SCREEN_W - w) * 0.5); }
+fn dialog_y(h) { return math_floor((SCREEN_H - h) * 0.5); }
+
 # --- toolbar metrics --------------------------------------------------------
 # Both toolbar rows share these so their groups line up: one action button is
 # always TB_BTN wide, a menu button TB_MENU, and TB_GAP separates two groups.

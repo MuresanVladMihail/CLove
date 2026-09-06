@@ -74,10 +74,11 @@ include "panels.fh"
 # and dropping the selection.
 #
 # CLove hands these callbacks a single array, [x, y, button], not three
-# arguments, and no state map -- hence this queue. It is a map rather than two
+# arguments, and no state map -- hence this queue. It is a map rather than
 # plain globals because a global `let` in FH is a constant binding: the name
-# cannot be reassigned, though the map it points at is free to change.
-let INPUT = { "press": null, "released": false };
+# cannot be reassigned, though the map it points at is free to change. `app` is
+# here for the same reason: love_quit() is handed nothing either.
+let INPUT = { "press": null, "released": false, "app": null };
 
 fn love_mousepressed(m) {
 	INPUT.press = m;
@@ -181,6 +182,8 @@ fn love_load() {
 	app.scene_files = [];     # the menu's listing, refreshed when it opens
 	app.scene_pending = null; # a switch waiting on the unsaved-changes modal
 	app.new_scene = null;     # the suggested name, while the New level modal is up
+	app.quitting = false;     # the quit modal is up
+	app.force_quit = false;   # the user answered it: stop asking
 	app.style_open = false;   # the Theme editor's microui container is open
 
 	app.pal_i = 0;
@@ -231,12 +234,24 @@ fn love_load() {
 	}
 
 	love_graphics_setBackgroundColor(30, 32, 38, 255);
+
+	# love_quit() is handed no state map, so it reaches it through here
+	INPUT.app = app;
 	return app;
 }
 
-# The OS cursor is ours to give back.
+# Returning true aborts the quit, the way LOVE's love.quit does -- which is the
+# only way to catch the window's close button, since SDL_QUIT never reaches a
+# script. Unsaved work puts the modal up instead of closing; scenes.fh finishes
+# the job, and app.force_quit is how it says "yes, really".
 fn love_quit() {
-	love_mouse_setVisible(true);
+	let app = INPUT.app;
+	if (app != null && !app.force_quit && app.dirty) {
+		app.quitting = true;
+		return true;
+	}
+	love_mouse_setVisible(true);   # the OS cursor is ours to give back
+	return false;
 }
 
 
@@ -336,7 +351,7 @@ fn viewport_input(app, dt) {
 	}
 
 	if (pressed && press_inside && !app.confirm && app.browser == null &&
-	    app.scene_pending == null && app.new_scene == null) {
+	    app.scene_pending == null && app.new_scene == null && !app.quitting) {
 		if (app.tool == "select") {
 			# a grip of the current selection wins over picking something new,
 			# so a handle that overhangs another entity still works
@@ -421,6 +436,10 @@ fn love_update(dt, app) {
 			app.scene_pending = null;
 		} else if (app.confirm) {
 			app.confirm = false;
+		} else if (app.quitting) {
+			app.quitting = false;
+		} else if (app.dirty) {
+			app.quitting = true;
 		} else {
 			love_mouse_setVisible(true);
 			love_event_quit();
@@ -461,6 +480,7 @@ fn love_update(dt, app) {
 	panels_confirm(app);
 	browser_panel(app);
 	scenes_dialogs(app);
+	scenes_quit_dialog(app);
 	love_ui_end();
 }
 
