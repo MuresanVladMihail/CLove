@@ -48,6 +48,19 @@ version 0.8.0 not yet released
 	numbers 1..5 as well as CLove's "l"/"r"/"m"/"x1"/"x2".
 * fixed: love_geometry_points() reinterpreted whatever it was handed as an
 	array without checking that it was one.
+* fixed: bitmap fonts drew as a solid black block. love_font_setFilter() built
+	a graphics_Filter on the stack and set only minMode, magMode and
+	maxAnisotropy, leaving mipmapMode and mipmapLodBias as whatever was on the
+	stack; a garbage mipmapMode sent the texture down graphics_Texture_setFilter's
+	mipmap branch. The image bindings had always read the current filter first.
+* fixed: love_font_getWrap() broke lines in the middle of a word, wherever the
+	pixel limit happened to fall, instead of at the last space. It also wrote
+	each codepoint back as a single char, so anything outside ASCII came out
+	mangled, and grew its buffer against the *input* length while writing up to
+	two bytes a step -- with the caller's malloc(strlen(line)) one byte short of
+	holding even an unwrapped copy. Both fonts share one implementation now
+	(src/graphics/textwrap.c), and the bitmap version no longer writes the
+	terminator through a null pointer on an empty string.
 * fixed: the particle system leaked and could corrupt the heap.
 	love_particleSystem_setBufferSize() malloc'd a new particle buffer without
 	freeing the old one (200 systems resized twice leaked ~4.9 MB) and left the

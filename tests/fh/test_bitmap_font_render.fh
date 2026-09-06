@@ -1,0 +1,64 @@
+# A bitmap font has to actually draw its glyphs.
+#
+# love_font_setFilter() built a graphics_Filter on the stack and set only
+# minMode, magMode and maxAnisotropy -- mipmapMode and mipmapLodBias kept
+# whatever bytes were there. A garbage mipmapMode sent the texture down
+# graphics_Texture_setFilter's mipmap branch, and the font came out as a
+# solid black block. The image bindings had always read the current filter
+# first; this one did not.
+#
+# So this renders a glyph and reads the pixels back through a screenshot.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+let T = {"n": 0, "font": null, "done": false};
+
+fn love_load() {
+    T.font = love_graphics_newBitmapFont("assets/bitmapfont.png", " abcd\n", 9);
+    love_font_setFilter(T.font, "nearest", "nearest", 1.0);
+    return T;
+}
+
+fn love_draw(self) {
+    # A mid-grey ground, so both the glyph's black outline and its white
+    # interior stand out from it.
+    love_graphics_setBackgroundColor(128, 128, 128);
+    love_graphics_setColor(255, 255, 255);
+    love_graphics_setFont(T.font);
+    # 'a' fills the cell; at 8x it covers roughly 72x136 pixels from (0, 0).
+    love_graphics_print("a", 0, 0, 0, 8, 8);
+}
+
+fn love_update(dt, self) {
+    T.n++;
+    if (T.n == 3) {
+        love_graphics_captureScreenshot("bitmapfont_shot.png");
+    }
+    if (T.n == 5) {
+        let shot = love_graphics_newImage("bitmapfont_shot.png");
+
+        # Walk the glyph's box and count what is there. A black block -- the
+        # bug -- has no light pixels at all inside it.
+        let light = 0;
+        let dark = 0;
+        for (let y = 8; y < 120; y = y + 8) {
+            for (let x = 8; x < 64; x = x + 8) {
+                let p = love_image_getPixel(shot, x, y);
+                if (p[0] > 200 && p[1] > 200 && p[2] > 200) { light++; }
+                elif (p[0] < 60 && p[1] < 60 && p[2] < 60) { dark++; }
+            }
+        }
+
+        check(dark > 0, "the glyph's outline should be there");
+        check(light > 0, "the glyph's interior should be there -- an all-dark box is the bug");
+
+        T.done = true;
+        println("CLOVE_TEST_OK");
+        love_event_quit();
+    }
+    if (T.n > 40) {
+        error("the screenshot never came back");
+    }
+}
+
+fn main() {}
