@@ -260,7 +260,7 @@ fn panels_hierarchy(app) {
 			love_ui_layout_row(1, [-1], 0);
 
 			let entities = doc_entities(app);
-			for (let i = 0; i < len(entities); i = i + 1) {
+			for (let i = 0; i < len(entities); i++) {
 				let e = entities[i];
 
 				# microui derives a widget id from its label, so two
@@ -404,7 +404,7 @@ fn panels_console(app) {
 		love_ui_layout_row(1, [-1], -30);
 		love_ui_begin_panel(app.console_panel, "log", 0);
 		love_ui_layout_row(1, [-1], 0);
-		for (let i = 0; i < len(app.log); i = i + 1) { love_ui_text(app.log[i]); }
+		for (let i = 0; i < len(app.log); i++) { love_ui_text(app.log[i]); }
 		love_ui_end_panel();
 
 		# the Theme editor moved into Settings, with the rest of the switches

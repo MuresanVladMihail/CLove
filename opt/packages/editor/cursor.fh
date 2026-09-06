@@ -218,7 +218,7 @@ fn cursor_update(app, inside) {
 
 fn cursor_draw_glyph(app, name, x, y) {
 	let rows = GLYPHS[name];
-	for (let r = 0; r < len(rows); r = r + 1) {
+	for (let r = 0; r < len(rows); r++) {
 		let row = rows[r];
 		let c = 0;
 		while (c < len(row)) {

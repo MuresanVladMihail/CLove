@@ -5,7 +5,7 @@
 fn check(cond, msg) { if (!cond) { error(msg); } }
 
 fn find(entries, name) {
-    for (let i = 0; i < len(entries); i = i + 1) {
+    for (let i = 0; i < len(entries); i++) {
         if (entries[i].name == name) { return entries[i]; }
     }
     return null;
@@ -32,7 +32,7 @@ fn love_load() {
 
     # directories sort before files
     let seen_file = false;
-    for (let i = 0; i < len(entries); i = i + 1) {
+    for (let i = 0; i < len(entries); i++) {
         if (!entries[i].dir) { seen_file = true; }
         if (entries[i].dir && seen_file) {
             error("directories must be listed before files");

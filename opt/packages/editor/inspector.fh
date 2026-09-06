@@ -20,7 +20,7 @@
 
 fn panels_groups_to_text(app, e) {
 	let out = "";
-	for (let i = 0; i < len(e.groups); i = i + 1) {
+	for (let i = 0; i < len(e.groups); i++) {
 		if (i > 0) { out = out + ", "; }
 		out = out + e.groups[i];
 	}
@@ -30,7 +30,7 @@ fn panels_groups_to_text(app, e) {
 fn panels_text_to_groups(app, text) {
 	let out = [];
 	let parts = string_split(text, ",");
-	for (let i = 0; i < len(parts); i = i + 1) {
+	for (let i = 0; i < len(parts); i++) {
 		let g = string_trim(parts[i]);
 		if (len(g) > 0) { append(out, g); }
 	}
@@ -154,12 +154,12 @@ fn inspector_bit_row(app, label, value, id_base) {
 	love_ui_label(label);
 
 	let widths = [];
-	for (let i = 0; i < FILTER_BITS; i = i + 1) { append(widths, 22); }
+	for (let i = 0; i < FILTER_BITS; i++) { append(widths, 22); }
 	append(widths, -1);
 	love_ui_layout_row(FILTER_BITS + 1, widths, 0);
 
 	let out = value;
-	for (let i = 0; i < FILTER_BITS; i = i + 1) {
+	for (let i = 0; i < FILTER_BITS; i++) {
 		let mark = "" + (i + 1);
 		if (bit_has(value, i)) { mark = "[" + (i + 1) + "]"; }
 
@@ -225,7 +225,7 @@ fn inspector_joints(app, e) {
 		return 0;
 	}
 
-	for (let i = 0; i < len(mine); i = i + 1) {
+	for (let i = 0; i < len(mine); i++) {
 		let j = mine[i];
 		let other_id = j.b;
 		if (j.b == e.id) { other_id = j.a; }

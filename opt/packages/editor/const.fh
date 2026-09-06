@@ -198,7 +198,7 @@ let THEME_DEFAULT = [
 ];
 
 fn theme_apply(app, table) {
-	for (let i = 0; i < len(table); i = i + 1) {
+	for (let i = 0; i < len(table); i++) {
 		let name = table[i][0];
 		let rgb = table[i][1];
 		let c = love_ui_getColor(name);
@@ -212,7 +212,7 @@ fn theme_apply(app, table) {
 # written to editor.json and read back.
 fn theme_current(app) {
 	let out = [];
-	for (let i = 0; i < len(THEME_DEFAULT); i = i + 1) {
+	for (let i = 0; i < len(THEME_DEFAULT); i++) {
 		let name = THEME_DEFAULT[i][0];
 		let c = love_ui_getColor(name);
 		append(out, [name, [c[0], c[1], c[2]]]);
@@ -292,13 +292,13 @@ fn point_in(x, y, rx, ry, rw, rh) {
 
 fn drop_first(arr) {
 	let out = [];
-	for (let i = 1; i < len(arr); i = i + 1) { append(out, arr[i]); }
+	for (let i = 1; i < len(arr); i++) { append(out, arr[i]); }
 	return out;
 }
 
 fn drop_last(arr) {
 	let out = [];
-	for (let i = 0; i < len(arr) - 1; i = i + 1) { append(out, arr[i]); }
+	for (let i = 0; i < len(arr) - 1; i++) { append(out, arr[i]); }
 	return out;
 }
 
@@ -321,7 +321,7 @@ fn path_join(dir, name) {
 # the directory holding `path`, or `path` itself once it is the root
 fn path_parent(path) {
 	let cut = -1;
-	for (let i = 0; i < len(path); i = i + 1) {
+	for (let i = 0; i < len(path); i++) {
 		if (path_is_sep(string_substr(path, i, 1))) { cut = i; }
 	}
 	if (cut < 0) { return path; }
@@ -331,7 +331,7 @@ fn path_parent(path) {
 
 fn path_name(path) {
 	let cut = -1;
-	for (let i = 0; i < len(path); i = i + 1) {
+	for (let i = 0; i < len(path); i++) {
 		if (path_is_sep(string_substr(path, i, 1))) { cut = i; }
 	}
 	if (cut < 0) { return path; }
@@ -368,7 +368,7 @@ fn log_line(app, msg) {
 	append(app.log, msg);
 	if (len(app.log) > 80) {
 		let trimmed = [];
-		for (let i = 20; i < len(app.log); i = i + 1) { append(trimmed, app.log[i]); }
+		for (let i = 20; i < len(app.log); i++) { append(trimmed, app.log[i]); }
 		app.log = trimmed;
 	}
 	return 0;

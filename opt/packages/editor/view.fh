@@ -41,7 +41,7 @@ fn view_fill_polygon(app, e, cx, cy, angle) {
 
 	let ca = math_cos(angle);
 	let sa = math_sin(angle);
-	for (let p = 0; p < len(pieces); p = p + 1) {
+	for (let p = 0; p < len(pieces); p++) {
 		let piece = pieces[p];
 		let pts = [];
 		for (let i = 0; i + 1 < len(piece); i = i + 2) {
@@ -69,7 +69,7 @@ fn view_draw_traced_outline(app, e, cx, cy, angle) {
 
 	let ca = math_cos(angle);
 	let sa = math_sin(angle);
-	for (let p = 0; p < len(pieces); p = p + 1) {
+	for (let p = 0; p < len(pieces); p++) {
 		let piece = pieces[p];
 		let line = [];
 		for (let i = 0; i + 1 < len(piece); i = i + 2) {
@@ -151,7 +151,7 @@ fn view_draw_entity(app, e) {
 # the camera transform: the points are world coordinates. What the fixture
 # overlay says about the shapes, this says about what they did.
 fn view_draw_contacts(app) {
-	for (let i = 0; i < len(app.contacts); i = i + 1) {
+	for (let i = 0; i < len(app.contacts); i++) {
 		let c = app.contacts[i];
 		let fade = c.life / CONTACT_LIFE;
 
@@ -229,7 +229,7 @@ fn view_draw_vertices(app, e) {
 # lives -- unlike the gizmo, which is screen space.
 fn view_draw_joints(app) {
 	let joints = doc_joints(app);
-	for (let i = 0; i < len(joints); i = i + 1) {
+	for (let i = 0; i < len(joints); i++) {
 		let j = joints[i];
 		let ea = doc_find(app, j.a);
 		let eb = doc_find(app, j.b);
@@ -268,7 +268,7 @@ fn view_draw_selection(app) {
 	if (len(sel) < 2) { return 0; }
 
 	cam_push(app);
-	for (let i = 0; i < len(sel); i = i + 1) {
+	for (let i = 0; i < len(sel); i++) {
 		let e = sel[i];
 		let b = doc_bounds(app, e);
 		if (e.id == app.selected_id) {
@@ -308,7 +308,7 @@ fn view_draw(app) {
 	if (app.show_grid) { view_draw_grid(app); }
 
 	let entities = doc_entities(app);
-	for (let i = 0; i < len(entities); i = i + 1) { view_draw_entity(app, entities[i]); }
+	for (let i = 0; i < len(entities); i++) { view_draw_entity(app, entities[i]); }
 
 	view_draw_joints(app);
 	if (len(app.draft) > 0) { view_draw_draft(app); }

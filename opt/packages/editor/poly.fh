@@ -81,7 +81,7 @@ fn poly_triangulate(points) {
 		let n = len(ring);
 		let clipped = false;
 
-		for (let i = 0; i < n; i = i + 1) {
+		for (let i = 0; i < n; i++) {
 			let a = ring[(i + n - 1) % n];
 			let b = ring[i];
 			let c = ring[(i + 1) % n];
@@ -90,7 +90,7 @@ fn poly_triangulate(points) {
 			if (poly_cross(a[0], a[1], b[0], b[1], c[0], c[1]) <= 0.0) { continue; }
 
 			let clean = true;
-			for (let k = 0; k < n; k = k + 1) {
+			for (let k = 0; k < n; k++) {
 				if (k == i || k == (i + n - 1) % n || k == (i + 1) % n) { continue; }
 				let p = ring[k];
 				if (poly_in_triangle(p[0], p[1], a[0], a[1], b[0], b[1], c[0], c[1])) {
@@ -102,7 +102,7 @@ fn poly_triangulate(points) {
 			append(out, [a[0], a[1], b[0], b[1], c[0], c[1]]);
 
 			let rest = [];
-			for (let k = 0; k < n; k = k + 1) {
+			for (let k = 0; k < n; k++) {
 				if (k != i) { append(rest, ring[k]); }
 			}
 			ring = rest;
@@ -138,11 +138,11 @@ fn poly_merge(a, b) {
 	let na = tointeger(len(a) / 2);
 	let nb = tointeger(len(b) / 2);
 
-	for (let i = 0; i < na; i = i + 1) {
+	for (let i = 0; i < na; i++) {
 		let a0 = i * 2;
 		let a1 = ((i + 1) % na) * 2;
 
-		for (let j = 0; j < nb; j = j + 1) {
+		for (let j = 0; j < nb; j++) {
 			let b0 = j * 2;
 			let b1 = ((j + 1) % nb) * 2;
 
@@ -152,13 +152,13 @@ fn poly_merge(a, b) {
 
 			let out = [];
 			# a, from a1 all the way round to a0
-			for (let k = 0; k < na; k = k + 1) {
+			for (let k = 0; k < na; k++) {
 				let idx = ((i + 1 + k) % na) * 2;
 				append(out, a[idx]);
 				append(out, a[idx + 1]);
 			}
 			# b, skipping the two vertices the shared edge already contributed
-			for (let k = 1; k < nb; k = k + 1) {
+			for (let k = 1; k < nb; k++) {
 				let idx = ((j + 1 + k) % nb) * 2;
 				append(out, b[idx]);
 				append(out, b[idx + 1]);
@@ -184,15 +184,15 @@ fn poly_convex_pieces(points) {
 		guard = guard - 1;
 		merged = false;
 
-		for (let i = 0; i < len(pieces) && !merged; i = i + 1) {
-			for (let j = i + 1; j < len(pieces) && !merged; j = j + 1) {
+		for (let i = 0; i < len(pieces) && !merged; i++) {
+			for (let j = i + 1; j < len(pieces) && !merged; j++) {
 				let joined = poly_merge(pieces[i], pieces[j]);
 				if (joined == null) { continue; }
 				if (tointeger(len(joined) / 2) > MAX_HULL_POINTS) { continue; }
 				if (!poly_is_convex(joined)) { continue; }
 
 				let rest = [];
-				for (let k = 0; k < len(pieces); k = k + 1) {
+				for (let k = 0; k < len(pieces); k++) {
 					if (k != i && k != j) { append(rest, pieces[k]); }
 				}
 				append(rest, joined);

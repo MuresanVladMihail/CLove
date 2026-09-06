@@ -182,7 +182,7 @@ fn drag_begin(app, wx, wy) {
 	app.drag_start = [];
 
 	let sel = doc_selected_entities(app);
-	for (let i = 0; i < len(sel); i = i + 1) {
+	for (let i = 0; i < len(sel); i++) {
 		append(app.drag_start, [sel[i].id, sel[i].transform.x, sel[i].transform.y]);
 	}
 	return 0;
@@ -194,7 +194,7 @@ fn drag_apply(app) {
 	# The primary is what snaps; the rest keep their offset from it, so a row
 	# of crates dragged together stays a row.
 	let lead = app.drag_start[0];
-	for (let i = 0; i < len(app.drag_start); i = i + 1) {
+	for (let i = 0; i < len(app.drag_start); i++) {
 		if (app.drag_start[i][0] == app.selected_id) { lead = app.drag_start[i]; }
 	}
 	let nx = snap_value(app, lead[1] + app.wx - app.drag_from[0]);
@@ -202,7 +202,7 @@ fn drag_apply(app) {
 	let dx = nx - lead[1];
 	let dy = ny - lead[2];
 
-	for (let i = 0; i < len(app.drag_start); i = i + 1) {
+	for (let i = 0; i < len(app.drag_start); i++) {
 		let start = app.drag_start[i];
 		let e = doc_find(app, start[0]);
 		if (e != null) {
@@ -236,7 +236,7 @@ fn marquee_finish(app) {
 	if (!app.marquee_add) { doc_select_none(app); }
 
 	let entities = doc_entities(app);
-	for (let i = 0; i < len(entities); i = i + 1) {
+	for (let i = 0; i < len(entities); i++) {
 		let e = entities[i];
 		let b = doc_bounds(app, e);
 		let hits = e.visible &&
@@ -628,7 +628,7 @@ fn shortcuts(app) {
 	# naming an entity would fire every shortcut the name happens to contain.
 	if (love_ui_capturesKeyboard()) { return 0; }
 
-	for (let i = 0; i < len(keys); i = i + 1) {
+	for (let i = 0; i < len(keys); i++) {
 		shortcut(app, keys[i][0], keys[i][1]);
 	}
 	return 0;

@@ -130,7 +130,7 @@ fn doc_entities(app) { return app.doc_data.entities; }
 fn doc_count(app) { return len(app.doc_data.entities); }
 
 fn doc_find(app, id) {
-	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+	for (let i = 0; i < len(app.doc_data.entities); i++) {
 		if (app.doc_data.entities[i].id == id) { return app.doc_data.entities[i]; }
 	}
 	return null;
@@ -251,7 +251,7 @@ fn doc_delete_joint(app, id) {
 	doc_begin_edit(app);
 	let kept = [];
 	let joints = doc_joints(app);
-	for (let i = 0; i < len(joints); i = i + 1) {
+	for (let i = 0; i < len(joints); i++) {
 		if (joints[i].id != id) { append(kept, joints[i]); }
 	}
 	app.doc_data.joints = kept;
@@ -263,7 +263,7 @@ fn doc_delete_joint(app, id) {
 fn doc_joints_of(app, id) {
 	let out = [];
 	let joints = doc_joints(app);
-	for (let i = 0; i < len(joints); i = i + 1) {
+	for (let i = 0; i < len(joints); i++) {
 		if (joints[i].a == id || joints[i].b == id) { append(out, joints[i]); }
 	}
 	return out;
@@ -274,7 +274,7 @@ fn doc_joints_of(app, id) {
 # has no way to tell that from a typo.
 fn doc_prune_links(app) {
 	let entities = doc_entities(app);
-	for (let i = 0; i < len(entities); i = i + 1) {
+	for (let i = 0; i < len(entities); i++) {
 		let links = doc_links(app, entities[i]);
 		let k = next_key(links, null);
 		let dead = [];
@@ -282,7 +282,7 @@ fn doc_prune_links(app) {
 			if (doc_find(app, links[k]) == null) { append(dead, k); }
 			k = next_key(links, k);
 		}
-		for (let j = 0; j < len(dead); j = j + 1) { delete(links, dead[j]); }
+		for (let j = 0; j < len(dead); j++) { delete(links, dead[j]); }
 	}
 	return 0;
 }
@@ -295,7 +295,7 @@ fn doc_links(app, e) {
 fn doc_prune_joints(app) {
 	let kept = [];
 	let joints = doc_joints(app);
-	for (let i = 0; i < len(joints); i = i + 1) {
+	for (let i = 0; i < len(joints); i++) {
 		let j = joints[i];
 		if (doc_find(app, j.a) != null && doc_find(app, j.b) != null) {
 			append(kept, j);
@@ -314,7 +314,7 @@ fn doc_prune_joints(app) {
 # working unchanged, while moving, deleting and duplicating take the lot.
 
 fn doc_is_selected(app, id) {
-	for (let i = 0; i < len(app.selection); i = i + 1) {
+	for (let i = 0; i < len(app.selection); i++) {
 		if (app.selection[i] == id) { return true; }
 	}
 	return false;
@@ -345,7 +345,7 @@ fn doc_select_toggle(app, id) {
 	}
 
 	let kept = [];
-	for (let i = 0; i < len(app.selection); i = i + 1) {
+	for (let i = 0; i < len(app.selection); i++) {
 		if (app.selection[i] != id) { append(kept, app.selection[i]); }
 	}
 	app.selection = kept;
@@ -359,7 +359,7 @@ fn doc_select_toggle(app, id) {
 
 fn doc_selected_entities(app) {
 	let out = [];
-	for (let i = 0; i < len(app.selection); i = i + 1) {
+	for (let i = 0; i < len(app.selection); i++) {
 		let e = doc_find(app, app.selection[i]);
 		if (e != null) { append(out, e); }
 	}
@@ -370,7 +370,7 @@ fn doc_selected_entities(app) {
 # undo, or a delete.
 fn doc_prune_selection(app) {
 	let kept = [];
-	for (let i = 0; i < len(app.selection); i = i + 1) {
+	for (let i = 0; i < len(app.selection); i++) {
 		if (doc_find(app, app.selection[i]) != null) { append(kept, app.selection[i]); }
 	}
 	app.selection = kept;
@@ -477,7 +477,7 @@ fn doc_duplicate(app) {
 	doc_begin_edit(app);
 
 	let made = [];
-	for (let i = 0; i < len(originals); i = i + 1) {
+	for (let i = 0; i < len(originals); i++) {
 		let e = originals[i];
 		let copy = doc_clone_entity(app, e);
 		copy.id = app.doc_data.next_id;
@@ -505,7 +505,7 @@ fn doc_duplicate(app) {
 
 fn doc_index_of(app, id) {
 	let entities = app.doc_data.entities;
-	for (let i = 0; i < len(entities); i = i + 1) {
+	for (let i = 0; i < len(entities); i++) {
 		if (entities[i].id == id) { return i; }
 	}
 	return -1;
@@ -526,11 +526,11 @@ fn doc_move_to(app, id, to) {
 	# operation as a move of one
 	let e = app.doc_data.entities[from];
 	let rest = [];
-	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+	for (let i = 0; i < len(app.doc_data.entities); i++) {
 		if (i != from) { append(rest, app.doc_data.entities[i]); }
 	}
 	let out = [];
-	for (let i = 0; i < len(rest); i = i + 1) {
+	for (let i = 0; i < len(rest); i++) {
 		if (i == to) { append(out, e); }
 		append(out, rest[i]);
 	}
@@ -552,7 +552,7 @@ fn doc_delete_selected(app) {
 	doc_begin_edit(app);
 
 	let kept = [];
-	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+	for (let i = 0; i < len(app.doc_data.entities); i++) {
 		if (!doc_is_selected(app, app.doc_data.entities[i].id)) {
 			append(kept, app.doc_data.entities[i]);
 		}
@@ -599,13 +599,13 @@ fn doc_migrate(app, parsed) {
 	if (!contains_key(parsed, "gravity")) { parsed.gravity = [0, 900]; }
 	if (!contains_key(parsed, "entities")) { parsed.entities = []; }
 	if (!contains_key(parsed, "joints")) { parsed.joints = []; }
-	for (let i = 0; i < len(parsed.entities); i = i + 1) {
+	for (let i = 0; i < len(parsed.entities); i++) {
 		if (!contains_key(parsed.entities[i], "groups")) { parsed.entities[i].groups = []; }
 		if (!contains_key(parsed.entities[i], "props")) { parsed.entities[i].props = {}; }
 		if (!contains_key(parsed.entities[i], "links")) { parsed.entities[i].links = {}; }
 
 		let fixtures = parsed.entities[i].fixtures;
-		for (let k = 0; k < len(fixtures); k = k + 1) {
+		for (let k = 0; k < len(fixtures); k++) {
 			if (!contains_key(fixtures[k], "category")) { fixtures[k].category = 1; }
 			if (!contains_key(fixtures[k], "mask")) { fixtures[k].mask = 65535; }
 			if (!contains_key(fixtures[k], "group")) { fixtures[k].group = 0; }
@@ -613,7 +613,7 @@ fn doc_migrate(app, parsed) {
 	}
 	if (!contains_key(parsed, "next_id")) {
 		let highest = 0;
-		for (let i = 0; i < len(parsed.entities); i = i + 1) {
+		for (let i = 0; i < len(parsed.entities); i++) {
 			if (parsed.entities[i].id > highest) { highest = parsed.entities[i].id; }
 		}
 		parsed.next_id = highest + 1;

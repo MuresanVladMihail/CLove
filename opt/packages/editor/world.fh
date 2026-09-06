@@ -27,7 +27,7 @@ fn sim_pieces(app, e) {
 }
 
 fn sim_body_of(app, id) {
-	for (let i = 0; i < len(app.runtime); i = i + 1) {
+	for (let i = 0; i < len(app.runtime); i++) {
 		if (app.runtime[i][0] == id) { return app.runtime[i][1]; }
 	}
 	return null;
@@ -39,7 +39,7 @@ fn sim_build(app) {
 	app.runtime = [];
 
 	let entities = doc_entities(app);
-	for (let i = 0; i < len(entities); i = i + 1) {
+	for (let i = 0; i < len(entities); i++) {
 		let e = entities[i];
 		let f = doc_shape(app, e);
 
@@ -60,7 +60,7 @@ fn sim_build(app) {
 			append(shapes, love_physics_newCircleShape(f.w * 0.5));
 		} else if (f.shape == "traced" || f.shape == "polygon") {
 			let pieces = sim_pieces(app, e);
-			for (let k = 0; k < len(pieces); k = k + 1) {
+			for (let k = 0; k < len(pieces); k++) {
 				append(shapes, love_physics_newPolygonShape(pieces[k]));
 			}
 			if (len(shapes) == 0) {
@@ -71,7 +71,7 @@ fn sim_build(app) {
 			append(shapes, love_physics_newRectangleShape(f.w, f.h));
 		}
 
-		for (let k = 0; k < len(shapes); k = k + 1) {
+		for (let k = 0; k < len(shapes); k++) {
 			let fixture = love_physics_newFixture(body, shapes[k], f.density);
 			love_fixture_setFriction(fixture, f.friction);
 			love_fixture_setRestitution(fixture, f.restitution);
@@ -107,7 +107,7 @@ fn sim_build(app) {
 # hand-edited, and a level that will not play is worse than one missing a hinge.
 fn sim_build_joints(app) {
 	let joints = doc_joints(app);
-	for (let i = 0; i < len(joints); i = i + 1) {
+	for (let i = 0; i < len(joints); i++) {
 		let j = joints[i];
 		let a = sim_body_of(app, j.a);
 		let b = sim_body_of(app, j.b);
@@ -158,7 +158,7 @@ fn sim_begin_contact(a, b, contact) {
 
 fn sim_age_contacts(app, dt) {
 	let kept = [];
-	for (let i = 0; i < len(app.contacts); i = i + 1) {
+	for (let i = 0; i < len(app.contacts); i++) {
 		let c = app.contacts[i];
 		c.life = c.life - dt;
 		if (c.life > 0) { append(kept, c); }

@@ -41,7 +41,7 @@ fn cam_frame_all(app) {
 
 	let first = doc_bounds(app, entities[0]);
 	let b = [first[0], first[1], first[0] + first[2], first[1] + first[3]];
-	for (let i = 1; i < len(entities); i = i + 1) {
+	for (let i = 1; i < len(entities); i++) {
 		let e = doc_bounds(app, entities[i]);
 		if (e[0] < b[0]) { b[0] = e[0]; }
 		if (e[1] < b[1]) { b[1] = e[1]; }

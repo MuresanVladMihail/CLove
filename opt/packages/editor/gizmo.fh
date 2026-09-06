@@ -59,7 +59,7 @@ fn gizmo_handles(app, e) {
 		dirs = [[-1.0,-1.0], [1.0,-1.0], [1.0,1.0], [-1.0,1.0],
 		        [0.0,-1.0], [1.0,0.0], [0.0,1.0], [-1.0,0.0]];
 	}
-	for (let i = 0; i < len(dirs); i = i + 1) {
+	for (let i = 0; i < len(dirs); i++) {
 		let p = gizmo_handle_screen(app, e, dirs[i][0], dirs[i][1]);
 		append(out, { "id": "scale", "hx": dirs[i][0], "hy": dirs[i][1],
 		              "x": p[0], "y": p[1], "r": HANDLE_HALF });
@@ -82,7 +82,7 @@ fn gizmo_handles(app, e) {
 
 fn gizmo_hit(app, e, sx, sy) {
 	let handles = gizmo_handles(app, e);
-	for (let i = 0; i < len(handles); i = i + 1) {
+	for (let i = 0; i < len(handles); i++) {
 		let h = handles[i];
 		if (math_abs(sx - h.x) <= h.r && math_abs(sy - h.y) <= h.r) { return h; }
 	}
@@ -223,7 +223,7 @@ fn gizmo_draw(app, e) {
 	love_geometry_circle("fill", c[0] - sa * ARROW_LEN, c[1] + ca * ARROW_LEN, 4, 10);
 
 	let handles = gizmo_handles(app, e);
-	for (let i = 0; i < len(handles); i = i + 1) {
+	for (let i = 0; i < len(handles); i++) {
 		let h = handles[i];
 		if (h.id == "scale") {
 			love_graphics_setColor(235, 235, 240, 255);
