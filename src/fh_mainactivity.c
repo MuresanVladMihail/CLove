@@ -35,6 +35,7 @@
 #include "fhapi/love.h"
 #include "fhapi/ui.h"
 #include "fhapi/tween.h"
+#include "fhapi/system.h"
 #include "fhapi/graphics_canvas.h"
 #include "fhapi/config.h"
 #include "fhapi/physics.h"
@@ -388,6 +389,7 @@ int fh_main_activity_load(int argc, char *argv[]) {
     fh_graphics_particlesystem_register(loopData.prog);
     fh_ui_register(loopData.prog);
     fh_tween_register(loopData.prog);
+    fh_system_register(loopData.prog);
     fh_graphics_canvas_register(loopData.prog);
     fh_physics_register(loopData.prog);
     fh_love_register(loopData.prog);

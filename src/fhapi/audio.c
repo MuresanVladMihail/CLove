@@ -411,6 +411,74 @@ static int fn_love_audio_setGlobalVolume(struct fh_program *prog,
     return 0;
 }
 
+/* love_audio_getDuration(source) -> seconds
+ * love_audio_tell(source)        -> seconds played so far
+ * love_audio_seek(source, secs)
+ *
+ * A source had no notion of position at all before this, which ruled out
+ * anything that has to line up with the music -- a rhythm game most obviously,
+ * but also a cutscene, a replay, or a loop point.
+ *
+ * A static source asks OpenAL, which owns the whole buffer. A stream counts
+ * the samples of the buffers it has already unqueued, because the decoder runs
+ * ahead of the speaker by whatever is still queued. */
+static int fn_love_audio_getDuration(struct fh_program *prog,
+                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_getDuration(): expected 1 argument, got %d", n_args);
+
+    if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
+        audio_StaticSource *src = fh_get_c_obj_value(&args[0]);
+        *ret = fh_new_number((double) audio_StaticSource_getDuration(src));
+    } else if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STREAM_SOURCE_TYPE)) {
+        audio_StreamSource *src = fh_get_c_obj_value(&args[0]);
+        *ret = fh_new_number((double) audio_StreamSource_getDuration(src));
+    } else {
+        return fh_set_error(prog, "Expected stream or static audio source");
+    }
+    return 0;
+}
+
+static int fn_love_audio_tell(struct fh_program *prog,
+                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_audio_tell(): expected 1 argument, got %d", n_args);
+
+    if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
+        audio_StaticSource *src = fh_get_c_obj_value(&args[0]);
+        *ret = fh_new_number((double) audio_StaticSource_tell(src));
+    } else if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STREAM_SOURCE_TYPE)) {
+        audio_StreamSource *src = fh_get_c_obj_value(&args[0]);
+        *ret = fh_new_number((double) audio_StreamSource_tell(src));
+    } else {
+        return fh_set_error(prog, "Expected stream or static audio source");
+    }
+    return 0;
+}
+
+static int fn_love_audio_seek(struct fh_program *prog,
+                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_audio_seek(): expected 2 arguments (source, seconds), got %d", n_args);
+    if (!fh_is_number(&args[1]))
+        return fh_set_error(prog, "love_audio_seek(): the position must be a number of seconds");
+
+    float secs = (float) fh_get_number(&args[1]);
+
+    if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STATIC_SOURCE_TYPE)) {
+        audio_StaticSource *src = fh_get_c_obj_value(&args[0]);
+        audio_StaticSource_seek(src, secs);
+    } else if (fh_is_c_obj_of_type(&args[0], FH_AUDIO_STREAM_SOURCE_TYPE)) {
+        audio_StreamSource *src = fh_get_c_obj_value(&args[0]);
+        audio_StreamSource_seek(src, secs);
+    } else {
+        return fh_set_error(prog, "Expected stream or static audio source");
+    }
+
+    *ret = fh_new_null();
+    return 0;
+}
+
 #define DEF_FN(name) { #name, fn_##name }
 static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_audio_newSource),
@@ -420,6 +488,9 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_audio_stop),
     DEF_FN(love_audio_resume),
     DEF_FN(love_audio_getType),
+    DEF_FN(love_audio_getDuration),
+    DEF_FN(love_audio_tell),
+    DEF_FN(love_audio_seek),
     DEF_FN(love_audio_isStopped),
     DEF_FN(love_audio_isPlaying),
     DEF_FN(love_audio_isPaused),

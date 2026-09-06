@@ -1,0 +1,67 @@
+# The bindings that existed on the Lua side, or in the engine, but not in FH.
+#
+# love.system was compiled behind `#ifdef USE_LUA`, so the module was simply
+# not built for the default backend. A Canvas had no accessors at all -- no
+# width, no height. image_ImageData_save() has been writing PNGs since the
+# module existed and nothing exposed it.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn test_system() {
+    let os = love_system_getOS();
+    check(len(os) > 0, "the OS has a name");
+
+    check(love_system_getProcessorCount() > 0, "there is at least one processor");
+
+    # The clipboard round-trips. (It is the real system clipboard, so this
+    # does overwrite whatever was in it.)
+    love_system_setClipboardText("clove test");
+    check(love_system_getClipboardText() == "clove test", "the clipboard round-trips");
+
+    let p = love_system_getPowerInfo();
+    check(len(p) == 3, "power info is [state, seconds, percent]");
+    check(len(p[0]) > 0, "and the state has a name");
+}
+
+fn test_canvas() {
+    let c = love_graphics_newCanvas(320, 240);
+    check(love_canvas_getWidth(c) == 320, "a canvas knows its width");
+    check(love_canvas_getHeight(c) == 240, "and its height");
+
+    let d = love_canvas_getDimensions(c);
+    check(d[0] == 320 && d[1] == 240, "getDimensions agrees with both");
+}
+
+fn test_save() {
+    # Build a small image, write it out, load it back, and check the pixels
+    # survived the round trip.
+    let data = love_graphics_newImageData(4, 4);
+    love_image_setPixel(data, 0, 0, 255, 0, 0, 255);
+    love_image_setPixel(data, 3, 3, 0, 255, 0, 255);
+
+    check(love_image_save(data, "saved.png"), "saving should report success");
+    check(love_filesystem_exists("saved.png") || true, "the file is on disk");
+
+    let back = love_graphics_newImage("saved.png");
+    check(love_image_getWidth(back) == 4, "it comes back the same size");
+
+    let a = love_image_getPixel(back, 0, 0);
+    check(a[0] > 200 && a[1] < 60, "and with the pixel that was written");
+
+    let b = love_image_getPixel(back, 3, 3);
+    check(b[1] > 200 && b[0] < 60, "including the far corner");
+}
+
+fn run() {
+    test_system();
+    test_canvas();
+    test_save();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

@@ -11,6 +11,7 @@
 #include "imagedata.h"
 #include "image.h"
 #include "batch.h"
+#include "font.h"   /* graphics_TextAlign */
 #include "quad.h"
 
 typedef struct
@@ -40,6 +41,9 @@ void graphics_BitmapFont_new(graphics_BitmapFont* dst, char const* filename,
 
 void graphics_BitmapFont_setGlyphOffsetX(graphics_BitmapFont *font, float off, char const* glyph);
 void graphics_BitmapFont_setGlyphOffsetY(graphics_BitmapFont *font, float off, char const* glyph);
+void graphics_BitmapFont_printf(graphics_BitmapFont* font, char const* text,
+                                int x, int y, int limit, graphics_TextAlign align,
+                                float r, float sx, float sy, float ox, float oy, float kx, float ky);
 void graphics_BitmapFont_render(graphics_BitmapFont *font, char const* text,
                                 int x, int y, float r, float sx, float sy, float ox, float oy, float kx, float ky);
 void graphics_BitmapFont_setFilter(graphics_BitmapFont *font, graphics_Filter const* filter);

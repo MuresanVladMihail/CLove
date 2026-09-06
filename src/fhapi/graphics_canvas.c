@@ -67,10 +67,65 @@ static int fn_love_graphics_setCanvas(struct fh_program *prog, struct fh_value *
     return 0;
 }
 
+/* A canvas had no accessors at all: no width, no height, no way to get the
+ * pixels back out. LOVE's Canvas has getWidth/getHeight/getDimensions and
+ * newImageData, and a game that renders to a texture generally needs at least
+ * to know how big it is. */
+static int fn_love_canvas_getWidth(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_canvas_getWidth(): expected 1 argument, got %d", n_args);
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_CANVAS))
+        return fh_set_error(prog, "Expected a canvas");
+
+    graphics_Canvas *c = fh_get_c_obj_value(&args[0]);
+    *ret = fh_new_number(graphics_Canvas_getWidth(c));
+    return 0;
+}
+
+static int fn_love_canvas_getHeight(struct fh_program *prog,
+                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_canvas_getHeight(): expected 1 argument, got %d", n_args);
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_CANVAS))
+        return fh_set_error(prog, "Expected a canvas");
+
+    graphics_Canvas *c = fh_get_c_obj_value(&args[0]);
+    *ret = fh_new_number(graphics_Canvas_getHeight(c));
+    return 0;
+}
+
+static int fn_love_canvas_getDimensions(struct fh_program *prog,
+                                        struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_canvas_getDimensions(): expected 1 argument, got %d", n_args);
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_CANVAS))
+        return fh_set_error(prog, "Expected a canvas");
+
+    graphics_Canvas *c = fh_get_c_obj_value(&args[0]);
+
+    int pin_state = fh_get_pin_state(prog);
+    struct fh_array *arr = fh_make_array(prog, true);
+    if (!fh_grow_array_object(prog, arr, 2))
+        return fh_set_error(prog, "out of memory");
+
+    struct fh_value out = fh_new_array(prog);
+    arr->items[0] = fh_new_number(graphics_Canvas_getWidth(c));
+    arr->items[1] = fh_new_number(graphics_Canvas_getHeight(c));
+
+    fh_restore_pin_state(prog, pin_state);
+    out.data.obj = arr;
+    *ret = out;
+    return 0;
+}
+
 #define DEF_FN(name) { #name, fn_##name }
 static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_graphics_newCanvas),
-    DEF_FN(love_graphics_setCanvas)
+    DEF_FN(love_graphics_setCanvas),
+    DEF_FN(love_canvas_getWidth),
+    DEF_FN(love_canvas_getHeight),
+    DEF_FN(love_canvas_getDimensions),
 };
 
 void fh_graphics_canvas_register(struct fh_program *prog) {

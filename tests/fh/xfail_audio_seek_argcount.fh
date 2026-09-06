@@ -1,0 +1,8 @@
+# love_audio_seek() needs the source and the position.
+fn love_load() {
+    let s = love_audio_newSource("assets/tone_stereo16.wav", "static");
+    love_audio_seek(s);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

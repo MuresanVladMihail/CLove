@@ -25,6 +25,34 @@ version 0.8.0 not yet released
 	the Lua ones: getCount, getName, isConnected, isGamepad, isDown (by name
 	or by LOVE's number), getAxis, getGamepadAxis, getAxisCount,
 	getButtonCount, getBallCount, getHatCount, getHat.
+* fixed: love_geometry_polygon("fill") did not fill. It handed the raw vertex
+	list to GL_TRIANGLE_STRIP, which is only ever right for a triangle or a
+	strip-ordered quad -- a hexagon came out with a bite taken from it and a
+	twelve-sided polygon came out hollow, a ring. It ear-clips the outline now,
+	the way LOVE does.
+* added: love_math_triangulate(points), and math_triangulate() in the engine
+	beside math_isConvex(). The editor package had sixty lines of ear clipping
+	in FH because there was nothing to call.
+* added: love_graphics_printf(text, x, y, limit [, align, ...]) -- wrapped,
+	aligned text. graphics_Font_printf() existed as a `//TODO make me` stub
+	that drew nothing, and had no binding; it is implemented for both TTF and
+	bitmap fonts now, with "left", "center" and "right" ("justify" behaves as
+	left until per-space stretching exists).
+* added: love_audio_getDuration(), love_audio_tell() and love_audio_seek().
+	A source had no notion of position at all, which ruled out anything that
+	has to line up with the music. This needed AL_SEC_OFFSET/SAMPLE_OFFSET/
+	BYTE_OFFSET, which the vendored mojoAL left as FIXME in all four of its
+	get/set paths -- see CLAUDE.md, the patch has to be re-applied if mojoAL
+	is re-synced.
+* added: love.system for FH -- getOS, getProcessorCount, getClipboardText,
+	setClipboardText, getPowerInfo. src/system.c was compiled behind
+	`#ifdef USE_LUA`, so the module existed on the Lua side and was simply not
+	built for the default backend.
+* added: love_canvas_getWidth/getHeight/getDimensions. A canvas had no
+	accessors at all.
+* added: love_image_save(imageData, path), writing a PNG.
+	image_ImageData_save() has been in the engine since the module existed and
+	nothing exposed it.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

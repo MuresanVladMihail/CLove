@@ -1,0 +1,7 @@
+# An alignment that does not exist is an error, not a silent fall back to left.
+fn love_load() {
+    love_graphics_printf("hello", 0, 0, 100, "centre");
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

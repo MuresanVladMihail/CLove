@@ -1,0 +1,105 @@
+# love_graphics_printf(): wrapped, aligned text.
+#
+# graphics_Font_printf() was a `//TODO make me` stub -- declared, called
+# nothing, drew nothing -- and had no binding either, so wrapped or aligned
+# text was simply not available. This draws the same paragraph three ways and
+# reads the pixels back, because alignment is only visible in where the ink
+# lands.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+let T = {"n": 0, "font": null};
+let TXT = "wrapping and alignment, several lines of it, so that the last line is short";
+
+fn love_load() {
+    T.font = love_graphics_newFont("assets/vera.ttf", 16);
+    return T;
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(0, 0, 0);
+    love_graphics_setColor(255, 255, 255);
+    love_graphics_setFont(T.font);
+
+    love_graphics_printf(TXT, 20, 20, 200, "left");
+    love_graphics_printf(TXT, 20, 160, 200, "right");
+    love_graphics_printf(TXT, 20, 300, 200, "center");
+}
+
+# Ink is "differs from the background", sampled from a corner the text can
+# never reach -- more robust than a fixed brightness, and it does not care
+# which way round the colours came out.
+fn differs(a, b) {
+    let d = 0;
+    for (let i = 0; i < 3; i++) {
+        let x = a[i] - b[i];
+        if (x < 0) { x = 0 - x; }
+        d = d + x;
+    }
+    return d > 60;
+}
+
+# The x range of the ink on the rows y..y+h, or null if the band is empty.
+fn ink_span(shot, bg, x0, x1, y, h) {
+    let lo = -1;
+    let hi = -1;
+    for (let yy = y; yy < y + h; yy++) {
+        for (let xx = x0; xx < x1; xx++) {
+            if (differs(love_image_getPixel(shot, xx, yy), bg)) {
+                if (lo < 0 || xx < lo) { lo = xx; }
+                if (xx > hi) { hi = xx; }
+            }
+        }
+    }
+    if (lo < 0) { return null; }
+    return [lo, hi];
+}
+
+# The last row band that has ink, inside a block -- the short final line, which
+# is the only one where alignment is visible at all.
+fn last_line_span(shot, bg, x0, x1, y0, y1) {
+    let lastRow = -1;
+    for (let yy = y0; yy < y1; yy++) {
+        if (ink_span(shot, bg, x0, x1, yy, 1) != null) { lastRow = yy; }
+    }
+    if (lastRow < 0) { return null; }
+    # walk back up to the top of that line
+    let top = lastRow;
+    while (top > y0 && ink_span(shot, bg, x0, x1, top - 1, 1) != null) { top = top - 1; }
+    return ink_span(shot, bg, x0, x1, top, lastRow - top + 1);
+}
+
+fn love_update(dt, self) {
+    T.n++;
+    if (T.n == 3) { love_graphics_captureScreenshot("printf_shot.png"); }
+    if (T.n == 5) {
+        let shot = love_graphics_newImage("printf_shot.png");
+        let bg = love_image_getPixel(shot, 700, 500);
+
+        # Something was drawn, it wrapped onto several lines, and no line ran
+        # past the 200px limit.
+        let all = ink_span(shot, bg, 0, 400, 18, 130);
+        check(all != null, "text should be drawn");
+        check(all[0] >= 18, "no ink left of where it was asked to start");
+        check(all[1] <= 222, "no line may run past the wrap limit");
+
+        let left   = last_line_span(shot, bg, 0, 400, 18, 130);
+        let right  = last_line_span(shot, bg, 0, 400, 158, 270);
+        let centre = last_line_span(shot, bg, 0, 400, 298, 410);
+
+        check(left != null && right != null && centre != null,
+              "each of the three blocks should have a last line");
+
+        # The short last line is what makes alignment visible.
+        check(left[0] < centre[0], "centred starts further right than left-aligned");
+        check(centre[0] < right[0], "right-aligned starts further right still");
+        check(right[1] > centre[1], "and right-aligned ends closest to the limit");
+        check(left[1] < centre[1], "while left-aligned ends soonest");
+
+        println("CLOVE_TEST_OK");
+        love_event_quit();
+    }
+    if (T.n > 40) { error("the screenshot never came back"); }
+}
+
+fn main() {}

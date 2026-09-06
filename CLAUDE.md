@@ -153,6 +153,50 @@ upstream first).
   `world:update()`). It now starts at `prev_frame->stack_top`, which is the
   right bound for both frame kinds.
 
+## The vendored mojoAL is patched — offsets
+
+`src/3rdparty/mojoAL/mojoal.c` is upstream
+(https://github.com/icculus/mojoAL) **plus an implementation of
+`AL_SEC_OFFSET` / `AL_SAMPLE_OFFSET` / `AL_BYTE_OFFSET`**, which upstream
+leaves as `FIXME("offsets")` in all four places (get and set, float and int).
+Without them a source cannot say where it is or be moved, so
+`love_audio_tell()` and `love_audio_seek()` have nothing to stand on — and
+that rules out anything that lines up with the audio: a rhythm game, a
+cutscene, a replay, a loop point.
+
+The patch is `source_current_buffer()`, `source_offset_units()`,
+`source_get_offset()` and `source_set_offset()` just above `alSourcefv()`,
+plus the four case bodies that call them. It leans on state the mixer already
+keeps: `src->offset` (bytes into the *converted* float32 data, at the
+buffer's channel count) and `src->offset_latched`, which `source_play()`
+already honours. `tests/fh/test_audio_wav.fh` fails without it.
+
+**Upstream has since implemented this itself**, with the same two function
+names — so the patch is a backport, not a divergence, and it is written to
+match upstream's semantics so that dropping it later is clean: an offset out
+of range is `AL_INVALID_VALUE` rather than a clamp (CLove clamps in
+`audio_StaticSource_seek()` instead), and seeking a *streaming* source is
+`AL_INVALID_OPERATION`, which is what upstream does too — only CLove knows
+about the vorbis decoder behind the queue, so `audio_StreamSource_seek()`
+moves the decoder and rebuilds the queue itself.
+
+What blocks simply taking upstream is that **mojoAL has moved to SDL3**
+(`SDL_PutAudioStreamData` and friends) while CLove vendors SDL 2.32.10. So
+the upgrade is an SDL3 port of the engine, not a file copy. When that
+happens, delete this patch — do not merge it.
+
+One thing the patch does *not* copy from upstream: their streaming getter
+assumes every queued buffer is the same length
+(`processed * buffer->len + offset`). CLove counts each buffer's real size as
+it is unqueued, in `audio_StreamSource`'s `samplesPlayed`, which is where the
+decoder lives anyway.
+
+One upstream quirk the patch does **not** change: `alGetBufferi(AL_SIZE)`
+reports mojoAL's float32 length while `AL_BITS` reports the source file's
+depth, so the two do not divide into each other. That is why
+`audio_StaticSource_getDuration()` takes the length from the decoders
+(`audio_wav_load` / `audio_vorbis_load` report it) instead of asking OpenAL.
+
 ## Writing bindings (conventions)
 
 A binding has the signature

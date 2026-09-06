@@ -15,6 +15,7 @@ typedef struct {
   audio_SourceCommon common;
   ALuint buffer;
   audio_Type audio_type;
+    float duration;   /* seconds, from the decoder -- see audio_loadStatic */
 } audio_StaticSource;
 
 
@@ -23,6 +24,9 @@ void audio_StaticSource_play(audio_StaticSource *source);
 void audio_StaticSource_setLooping(audio_StaticSource *source, bool loop);
 void audio_StaticSource_stop(audio_StaticSource *source);
 void audio_StaticSource_rewind(audio_StaticSource *source);
+float audio_StaticSource_getDuration(audio_StaticSource *source);
+float audio_StaticSource_tell(audio_StaticSource *source);
+void audio_StaticSource_seek(audio_StaticSource *source, float seconds);
 void audio_StaticSource_pause(audio_StaticSource *source);
 void audio_StaticSource_resume(audio_StaticSource *source);
 void audio_StaticSource_free(audio_StaticSource *source);

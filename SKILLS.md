@@ -109,14 +109,20 @@ panning a camera.
   `love_quad_getViewport(q) -> [x,y,w,h]`.
 - **Text** (`graphics_font.c`, `graphics_bitmapfont.c`): `love_graphics_newFont`,
   `love_graphics_setFont` / `getFont`, `love_graphics_print(text, x, y, ...)`.
+  `love_graphics_printf(text, x, y, limit [, align [, r, sx, sy, ...]])` wraps
+  to `limit` pixels and aligns each line inside that width — `"left"`,
+  `"center"`, `"right"`. It works with a bitmap font too.
   Metrics work without a font of your own: `love_font_getWidth(text)` and
   `love_font_getHeight()` measure with the default font, and
   `love_graphics_print` loads it on demand. Pass a font first
   (`love_font_getWidth(font, text)`) to measure with that one instead.
+- **Saving an image**: `love_image_save(imageData, "out.png")` writes a PNG.
+  `love_graphics_captureScreenshot(path)` writes the framebuffer instead.
 - **Sprite batches** (`graphics_batch.c`): `newSpriteBatch` + `batch_add` /
   `batch_set` / `batch_bind` / `batch_unbind` / `batch_flush` / `batch_clear`.
 - **Canvas / render-to-texture** (`graphics_canvas.c`): `love_graphics_newCanvas`,
-  `love_graphics_setCanvas`.
+  `love_graphics_setCanvas` (with no argument to go back to the screen), and
+  `love_canvas_getWidth` / `getHeight` / `getDimensions`.
 - **Shaders** (`graphics_shader.c`): `love_graphics_newShader(vertexSrc,
   fragmentSrc)` — either argument may be GLSL source or a path to a file
   holding it, and a fragment shader may be passed on its own. Uniforms are
@@ -349,6 +355,13 @@ next to the automatic one, zooming in and out).
 
 ## Audio — `src/fhapi/audio.c`
 
+`love_audio_getDuration(src)`, `love_audio_tell(src)` and
+`love_audio_seek(src, seconds)` are all in seconds. They work for both static
+and streaming sources, though a stream's `tell` is only as fine-grained as
+its buffers between the offsets the mixer reports. Seeking a stream tears the
+queue down and re-decodes from the new point, so it is not free — a rhythm
+game should seek once and then read `tell`, not seek every frame.
+
 `love_audio_newSource(path, "static" | "stream")` then `love_audio_play`,
 `pause`, `resume`, `stop`. Vorbis (.ogg) and Wav are supported; streaming is for
 .ogg. (mojoAL/OpenAL over SDL.)
@@ -367,6 +380,14 @@ Poll state with `love_keyboard_isDown(key)`, `love_mouse_getX/getY`,
 `love_mouse_isDown(button)`, `love_joystick_*`, or react via the callbacks above.
 
 ## Math — `src/fhapi/math.c`
+
+`love_math_triangulate(points)` ear-clips a flat `[x, y, x, y, ...]` outline
+into an array of triangles, each `[x,y, x,y, x,y]`. `love_geometry_polygon`
+uses it internally, so a script needs it only when it wants the triangles
+themselves — to hand them to Box2D, which takes convex shapes only, or to
+build a mesh. The outline has to be simple: ear clipping cannot detect a
+self-crossing one in general, so a bowtie comes back wrong rather than as an
+error.
 
 `love_math_noise(x [, y, z, w])` — simplex noise in [-1, 1], 1–4 dimensions.
 (General arithmetic, arrays, maps, closures, strings come from the FH language
@@ -598,6 +619,16 @@ from the module's own scale/rotation state rather than composing into it (see
 `translate(); scale();` therefore loses the translation: scale first, then
 translate by the offset divided by the scale. `opt/examples/fh/editor` builds
 its camera that way.
+
+## System — `src/fhapi/system.c`
+
+`love_system_getOS()`, `love_system_getProcessorCount()`,
+`love_system_getClipboardText()` / `setClipboardText(text)`, and
+`love_system_getPowerInfo()` → `[state, seconds, percent]` (SDL's words;
+`seconds` and `percent` are `-1` when the platform will not say).
+
+`src/system.c` was compiled behind `#ifdef USE_LUA`, so this module existed
+on the Lua side and simply was not built for FH.
 
 ## System / misc — `src/fhapi/love.c`
 
