@@ -59,9 +59,62 @@ fn sim_build(app) {
 		append(app.runtime, [e.id, body]);
 	}
 
+	# Collision callbacks are looked up by *name* from C and handed no state
+	# map, which is what EDITOR_INPUT.app is for.
+	love_world_setCallbacks(app.world, "sim_begin_contact", null);
+	app.contacts = [];
+
 	log_line(app, "play: " + len(app.runtime) + " bodies, gravity " +
 		app.doc_data.gravity[0] + ", " + app.doc_data.gravity[1]);
 	return 0;
+}
+
+# --- contacts ------------------------------------------------------
+#
+# Every fixture carries its entity id in user data, so a contact can say which
+# two things in the level touched -- which is the whole reason the id is there.
+# The points are kept for a moment and drawn fading, because a contact that
+# lasts one step is exactly the one you are trying to see.
+
+let CONTACT_LIFE = 0.6;   # seconds a contact mark stays on screen
+
+fn sim_begin_contact(a, b, contact) {
+	let app = EDITOR_INPUT.app;
+	if (app == null || app.mode != "play") { return 0; }
+
+	let ida = love_fixture_getUserData(a);
+	let idb = love_fixture_getUserData(b);
+	let points = love_contact_getPositions(contact);
+
+	for (let i = 0; i + 1 < len(points); i = i + 2) {
+		append(app.contacts, {
+			"x": points[i], "y": points[i + 1],
+			"a": ida, "b": idb,
+			"life": CONTACT_LIFE
+		});
+	}
+	return 0;
+}
+
+fn sim_age_contacts(app, dt) {
+	let kept = [];
+	for (let i = 0; i < len(app.contacts); i = i + 1) {
+		let c = app.contacts[i];
+		c.life = c.life - dt;
+		if (c.life > 0) { append(kept, c); }
+	}
+	app.contacts = kept;
+	return 0;
+}
+
+fn sim_contact_names(app, c) {
+	let ea = doc_find(app, c.a);
+	let eb = doc_find(app, c.b);
+	let na = "?";
+	let nb = "?";
+	if (ea != null) { na = ea.name; }
+	if (eb != null) { nb = eb.name; }
+	return na + " / " + nb;
 }
 
 fn sim_destroy(app) {
@@ -83,6 +136,7 @@ fn sim_play(app) {
 }
 
 fn sim_stop(app) {
+	app.contacts = [];
 	if (app.mode == "edit") { return 0; }
 	sim_destroy(app);
 	app.mode = "edit";
@@ -95,6 +149,7 @@ fn sim_update(app) {
 	if (app.mode != "play") { return 0; }
 	# a fixed step keeps the simulation stable when a frame runs long
 	love_world_update(app.world, 1.0 / 60.0);
+	sim_age_contacts(app, 1.0 / 60.0);
 	return 0;
 }
 

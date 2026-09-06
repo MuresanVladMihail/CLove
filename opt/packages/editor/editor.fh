@@ -81,8 +81,6 @@ include "inspector.fh"
 include "panels.fh"
 
 
-let EDITOR_INPUT = { "press": null, "released": false, "app": null, "keys": [] };
-
 fn editor_mousepressed(m) {
 	EDITOR_INPUT.press = m;
 	return 0;
@@ -388,6 +386,7 @@ fn editor_new(opts) {
 	app.mode = "edit";
 	app.world = null;
 	app.runtime = [];
+	app.contacts = [];        # contact marks, while Play is running
 
 	app.cam = { "x": 0, "y": 0, "zoom": 1 };
 	app.panning = false;

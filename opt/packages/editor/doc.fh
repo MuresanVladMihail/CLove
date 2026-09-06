@@ -219,6 +219,55 @@ fn doc_duplicate(app) {
 	return 0;
 }
 
+# --- z-order -------------------------------------------------------
+#
+# Document order *is* draw order: view_draw_entity() walks the list forwards,
+# and hit_test() walks it backwards so the topmost thing is picked first. So
+# reordering the list is the whole of z-order, and it costs the format nothing.
+
+fn doc_index_of(app, id) {
+	let entities = app.doc_data.entities;
+	for (let i = 0; i < len(entities); i = i + 1) {
+		if (entities[i].id == id) { return i; }
+	}
+	return -1;
+}
+
+fn doc_move_to(app, id, to) {
+	let from = doc_index_of(app, id);
+	if (from < 0) { return false; }
+
+	let last = len(app.doc_data.entities) - 1;
+	if (to < 0) { to = 0; }
+	if (to > last) { to = last; }
+	if (to == from) { return false; }
+
+	doc_begin_edit(app);
+
+	# rebuild rather than swap, so a move of more than one step is the same
+	# operation as a move of one
+	let e = app.doc_data.entities[from];
+	let rest = [];
+	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+		if (i != from) { append(rest, app.doc_data.entities[i]); }
+	}
+	let out = [];
+	for (let i = 0; i < len(rest); i = i + 1) {
+		if (i == to) { append(out, e); }
+		append(out, rest[i]);
+	}
+	if (to >= len(rest)) { append(out, e); }
+
+	app.doc_data.entities = out;
+	return true;
+}
+
+fn doc_raise(app, id)    { return doc_move_to(app, id, doc_index_of(app, id) + 1); }
+fn doc_lower(app, id)    { return doc_move_to(app, id, doc_index_of(app, id) - 1); }
+fn doc_to_front(app, id) { return doc_move_to(app, id, len(app.doc_data.entities) - 1); }
+fn doc_to_back(app, id)  { return doc_move_to(app, id, 0); }
+
+
 fn doc_delete_selected(app) {
 	let e = doc_selected(app);
 	if (e == null) { return 0; }

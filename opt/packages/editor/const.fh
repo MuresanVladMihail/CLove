@@ -5,6 +5,14 @@
 #  global where it is declared, and every other module reads these.
 # ============================================================================
 
+# The engine hands several callbacks no state map at all -- the input ones, and
+# the collision ones, which are looked up by *name* from C. What they can do is
+# park what they were told here until the next update picks it up, and reach
+# the editor through `app`. A map rather than plain globals because a global
+# `let` in FH is a constant binding: the name cannot be reassigned, though the
+# map it points at is free to change.
+let EDITOR_INPUT = { "press": null, "released": false, "app": null, "keys": [] };
+
 # --- microui flags ----------------------------------------------------------
 # love_ui_opt() and love_ui_align() name some of microui's MU_OPT_* flags; the
 # rest are plain bit values from src/3rdparty/microui/src/microui.h, and they

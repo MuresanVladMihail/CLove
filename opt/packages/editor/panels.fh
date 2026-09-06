@@ -168,8 +168,9 @@ fn panels_hierarchy(app) {
 		love_ui_label("HIERARCHY");
 
 		if (love_ui_header("Scene", OPT_EXPANDED)) {
-			# negative height = "fill the rest of the panel, minus 30px"
-			love_ui_layout_row(1, [-1], -30);
+			# negative height = "fill the rest of the panel, minus the two
+			# rows below it"
+			love_ui_layout_row(1, [-1], -54);
 			love_ui_begin_panel(app.hierarchy_panel, "scene_list", 0);
 			love_ui_layout_row(1, [-1], 0);
 
@@ -195,6 +196,28 @@ fn panels_hierarchy(app) {
 			}
 
 			love_ui_end_panel();
+		}
+
+		# Z-order. The list above is the draw order, front last, so these
+		# move the selection through it -- which is all z-order is here.
+		let sel = doc_selected(app);
+		let has = sel != null;
+		let idx = -1;
+		if (has) { idx = doc_index_of(app, sel.id); }
+		let top = len(doc_entities(app)) - 1;
+
+		love_ui_layout_row(4, [58, 58, 58, -1], 0);
+		if (ui_button_enabled("Back", has && idx > 0, ALIGN_CENTER)) {
+			doc_to_back(app, sel.id);
+		}
+		if (ui_button_enabled("Down", has && idx > 0, ALIGN_CENTER)) {
+			doc_lower(app, sel.id);
+		}
+		if (ui_button_enabled("Up", has && idx < top, ALIGN_CENTER)) {
+			doc_raise(app, sel.id);
+		}
+		if (ui_button_enabled("Front", has && idx < top, ALIGN_CENTER)) {
+			doc_to_front(app, sel.id);
 		}
 
 		love_ui_layout_row(2, [-80, -1], 0);
@@ -232,6 +255,8 @@ fn panels_hierarchy(app) {
 				"editing; click it to switch, or for New / Save as / Rename / " +
 				"Delete. Every *.json beside the game is a level, editor.json " +
 				"excepted. Switching remembers where you were looking.");
+			love_ui_text("Z-order: the hierarchy list is the draw order, front " +
+				"last. Back / Down / Up / Front move the selection through it.");
 			love_ui_text("Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save, Ctrl+D " +
 				"duplicate, Ctrl+N new level, Delete removes the selection. " +
 				"Esc closes a dialog, or asks before quitting.");
@@ -281,7 +306,15 @@ fn panels_statusbar(app) {
 		love_ui_label("selected: " + name);
 		love_ui_label("zoom: " + app.cam.zoom + "x");
 		love_ui_label("meter: " + app.doc_data.meter);
-		love_ui_label("fps: " + tointeger(love_timer_getFPS()));
+
+		# While Play runs, the last contact is more use here than the frame
+		# rate: it names the two entities that touched.
+		if (app.mode == "play" && len(app.contacts) > 0) {
+			love_ui_label("hit: " +
+				sim_contact_names(app, app.contacts[len(app.contacts) - 1]));
+		} else {
+			love_ui_label("fps: " + tointeger(love_timer_getFPS()));
+		}
 
 		love_ui_end_window();
 	}
