@@ -391,6 +391,20 @@ const char* filesystem_getSource() {
 bool filesystem_setIdentity(const char* name)
 {
 #ifdef USE_PHYSFS
+    if (name == NULL || name[0] == '\0') {
+        clove_error("Error in filesystem set identity: the identity must be a folder name\n");
+        return false;
+    }
+
+    // PhysFS rejects "." and anything with a separator in it as an unsafe
+    // filename, and the message it gives back ("filename is illegal or
+    // insecure") does not say which of the two calls below produced it.
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0
+            || strchr(name, '/') != NULL || strchr(name, '\\') != NULL) {
+        clove_error("Error in filesystem set identity: '%s' is not a plain folder name\n", name);
+        return false;
+    }
+
     const char* save_dir = filesystem_getUsrDir();
 
     if (! PHYSFS_setWriteDir(save_dir)) {
@@ -404,16 +418,34 @@ bool filesystem_setIdentity(const char* name)
         return false;
     }
 
-    if (! PHYSFS_setWriteDir(name)) {
+    // setWriteDir and mount both take a real path on disk, not a name
+    // relative to the write directory -- which is what they used to be given,
+    // so this function could never get past its third step and every game
+    // with an identity failed to boot.
+    size_t len = strlen(save_dir) + strlen(name) + 2;
+    char* full = malloc(len);
+    if (!full) {
+        PHYSFS_setWriteDir(NULL);
+        clove_error("Error in filesystem set identity: out of memory\n");
+        return false;
+    }
+    snprintf(full, len, "%s%s%s", save_dir,
+             (save_dir[0] != '\0' && save_dir[strlen(save_dir) - 1] == '/') ? "" : "/", name);
+
+    if (! PHYSFS_setWriteDir(full)) {
         clove_error("Error in fileystem set identity, cannot set write dir, %s",PHYSFS_getLastError());
+        free(full);
         return false;
     }
 
-    if (! PHYSFS_mount(name, NULL, 0)) {
+    if (! PHYSFS_mount(full, NULL, 0)) {
         PHYSFS_setWriteDir(NULL);
         clove_error("Error in fileystem set identity,cannot mount, %s", PHYSFS_getLastError());
+        free(full);
         return false;
     }
+
+    free(full);
     moduleData.hasIdentitySet = true;
     return true;
 #else
