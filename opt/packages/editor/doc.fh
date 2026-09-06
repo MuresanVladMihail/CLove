@@ -46,6 +46,15 @@
 # selection: a game should not rebuild its world because someone scrolled.
 fn doc_touch(app) {
 	app.revision = app.revision + 1;
+
+	# Anything derived from the document and cached is now stale. The convex
+	# decomposition of a drawn polygon is the one that bites: it used to be
+	# keyed by the entity id and its first and last vertex, so dragging any
+	# vertex in between left the key unchanged -- the handles moved and the
+	# shape, the outline and what Box2D collided with all stayed where they
+	# were. A revision is exactly the thing that says "recompute", so it says
+	# it here rather than every cache trying to guess.
+	if (contains_key(app, "piece_cache")) { app.piece_cache = {}; }
 	return 0;
 }
 

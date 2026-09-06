@@ -14,8 +14,11 @@ fn sim_pieces(app, e) {
 	let points = doc_polygon(app, e);
 	if (points == null || len(points) < 6) { return []; }
 
-	let key = e.id + "|" + len(points) + "|" + points[0] + "," + points[1] +
-		"|" + points[len(points) - 2] + "," + points[len(points) - 1];
+	# Keyed by the entity alone: doc_touch() empties this whole cache on every
+	# change to the document, so anything still in it is current. The cache is
+	# only here because the fill, the outline, the overlay and the inspector
+	# all ask within one frame.
+	let key = "" + e.id;
 	if (contains_key(app.piece_cache, key)) { return app.piece_cache[key]; }
 
 	let pieces = poly_convex_pieces(points);
