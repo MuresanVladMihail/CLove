@@ -1,0 +1,57 @@
+# A sprite batch has to hold more than 16384 quads.
+#
+# The shared index buffer was uint16_t, and a quad's first vertex is 4 * i --
+# so from quad 16384 on the index wrapped, and every sprite past that drew
+# some earlier sprite's geometry instead of its own. The benchmark example
+# asks for 150 000 sprites; it was drawing the first 16384, nine times over.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+let T = {"n": 0, "batch": null};
+
+fn love_load() {
+    let img = love_graphics_newImage("assets/vector.svg");
+    T.batch = love_graphics_newSpriteBatch(img, 20000);
+
+    love_graphics_batch_clear(T.batch);
+    # 16384 quads parked well off-screen...
+    for (let i = 0; i < 16384; i++) {
+        love_graphics_batch_add(T.batch, -500, -500);
+    }
+    # ...then one on screen, at exactly the index that used to wrap to 0.
+    love_graphics_batch_add(T.batch, 200, 200);
+    love_graphics_batch_flush(T.batch);
+
+    return T;
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(0, 0, 0);
+    love_graphics_setColor(255, 255, 255);
+    love_graphics_draw(T.batch);
+}
+
+fn love_update(dt, self) {
+    T.n++;
+    if (T.n == 3) { love_graphics_captureScreenshot("batch_shot.png"); }
+    if (T.n == 5) {
+        let shot = love_graphics_newImage("batch_shot.png");
+
+        # The 80x40 drawing sits at (200, 200). Nothing else is on screen, so
+        # any lit pixel there is quad 16384 having been drawn where it was put.
+        let lit = 0;
+        for (let y = 202; y < 238; y = y + 4) {
+            for (let x = 202; x < 278; x = x + 4) {
+                let p = love_image_getPixel(shot, x, y);
+                if (p[0] + p[1] + p[2] > 60) { lit++; }
+            }
+        }
+        check(lit > 0, "quad 16384 should draw where it was added, not vanish");
+
+        println("CLOVE_TEST_OK");
+        love_event_quit();
+    }
+    if (T.n > 40) { error("the screenshot never came back"); }
+}
+
+fn main() {}

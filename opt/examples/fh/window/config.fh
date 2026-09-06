@@ -1,0 +1,8 @@
+fn love_config(c) {
+    c.window_title = "CLove -- love.window";
+    c.window_width = 820;
+    c.window_height = 620;
+    c.window_resizable = true;
+    c.window_min_width = 400;
+    c.window_min_height = 300;
+}

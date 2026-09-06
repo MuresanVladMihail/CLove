@@ -45,7 +45,7 @@ fn love_config(c) {
 ## Lifecycle & input callbacks (all optional — define the ones you need)
 
 - `love_load()` / `love_update(dt, self)` / `love_draw(self)`
-- `love_focus(focused)` , `love_quit()`
+- `love_focus(focused)` , `love_mousefocus(focused)` , `love_quit()`
 - `love_keypressed(key)` , `love_keyreleased(key)` , `love_textinput(text)`
 - `love_resize(w, h)` — the window was resized; two real arguments
 - `love_mousepressed(m)` , `love_mousereleased(m)` , `love_wheelmoved(y)`
@@ -54,6 +54,16 @@ fn love_config(c) {
 The two mouse-button callbacks take **one** argument, an array `[x, y, button]`
 — not three — with `button` one of `"l"`, `"r"`, `"m"`, `"wu"`, `"wd"`.
 `love_resize` takes two, the way LÖVE's does.
+
+`love_focus` and `love_mousefocus` come off the SDL window event, the way
+LÖVE dispatches `love.focus` and `love.mousefocus`. `love_focus` used to be
+*polled*: it ran at the top of every frame and fired unconditionally, so a
+game got sixty identical calls a second. Diffing the value would have stopped
+the flood but not fixed the design — a poll cannot see a transition that
+begins and ends inside one frame (alt-tab away and back quickly), and it
+reports the change a frame late, because the event pump runs at the end of
+the loop. `love_window_hasFocus()` / `hasMouseFocus()` still answer the
+current state when that is what you want.
 
 A resizable window (`c.window_resizable` in `config.fh`) now updates the 2D
 projection and the GL viewport for you when the user drags its edge — before,
@@ -194,6 +204,67 @@ Differences from LOVE 11: colour and size curves are flat FH arrays rather
 than tables of tables, and there is no cap of eight entries; `clone` takes
 just the system and returns a new one.
 
+## Tweening — `src/tween/tween.c`
+
+```fh
+let t = love_tween_new(0, 100, 1.5, "outBack");   # from, to, seconds, easing
+love_tween_update(t, dt);                          # true once it is finished
+let v = love_tween_get(t);
+```
+
+A tween carries a number **or an array of them**, and reports back in the
+shape it was given — so a point, a colour or a rectangle is one tween, not
+four:
+
+```fh
+let move = love_tween_new([x, y], [x2, y2], 0.8, "outCubic");
+let fade = love_tween_new([255, 255, 255, 255], [255, 90, 60, 0], 1.2);
+```
+
+- `love_tween_new(from, to, duration [, easing [, delay]])`. The delay comes
+  before the movement and counts toward the duration.
+- `love_tween_then(t, to, duration [, easing [, delay]])` queues another leg
+  and returns the tween, so a chain reads as one expression. The next leg
+  starts from where the last one ended.
+- `love_tween_update(t, dt)` advances it and returns `true` on the frame it
+  finishes; `love_tween_isDone`, `love_tween_getProgress` (0..1 across the
+  whole chain) and `love_tween_getDuration` ask without advancing.
+- `love_tween_setLoops(t, n [, yoyo])` — `n` more passes, `-1` for forever.
+  With `yoyo` every other pass runs backwards, retracing the chain rather
+  than jumping to the far end.
+- `love_tween_seek(t, 0..1)`, `love_tween_reset`, `love_tween_setPaused` /
+  `isPaused`.
+- `love_tween_ease(name, t)` is the curve on its own, for when you want the
+  shape without a tween — a shader uniform, a camera shake, a bar that fills.
+  `love_tween_getEasings()` lists the 31 names.
+
+The easings are the usual Penner set: `linear`, then `in`/`out`/`inOut` of
+`Quad`, `Cubic`, `Quart`, `Quint`, `Sine`, `Expo`, `Circ`, `Back`, `Elastic`
+and `Bounce`. `Back` and `Elastic` deliberately leave 0..1 in the middle,
+which is what makes them read as overshoot. Anything outside 0..1 going in is
+clamped, so a caller that overshoots the duration cannot walk off the end of
+a curve.
+
+LOVE has no `love.tween` — this is CLove's, and it is deliberately small. See
+`opt/examples/fh/tweens`.
+
+## Gamepads — `src/joystick.c`
+
+```fh
+if (love_joystick_getCount() > 0 && love_joystick_isConnected(0)) {
+    let x = love_joystick_getAxis(0, 0);      # -1..1
+    if (love_joystick_isDown(0, "a")) { ... }
+}
+```
+
+Every call takes the joystick id the `love_joystickpressed(j)` /
+`love_joystickreleased(j)` callbacks report as `j[0]`. `getCount`,
+`isConnected`, `getName`, `isGamepad`, `isDown` (by name or number),
+`getAxis`, `getGamepadAxis`, `getAxisCount`, `getButtonCount`,
+`getBallCount`, `getHatCount`, `getHat`. Asking about an id that is not
+plugged in is a script error rather than a crash, except `isConnected`, which
+answers `false` — that is the question it is being asked.
+
 ## Vector art (SVG) — `src/graphics/svg.c`
 
 ```fh
@@ -283,6 +354,14 @@ next to the automatic one, zooming in and out).
 .ogg. (mojoAL/OpenAL over SDL.)
 
 ## Input — `src/fhapi/{keyboard,mouse,joystick}.c`
+
+Gamepads have their own section above. For the rest, the thing worth
+remembering is that polling and events are different tools:
+`love_keyboard_isDown("left")` answers *is it held now*, which is right for
+movement and wrong for a toggle; `love_keypressed(key)` fires once per press.
+And the input callbacks do **not** receive `love_load`'s state — they take
+only their own arguments — so anything they touch has to live in a
+module-level map. See `opt/examples/fh/input`.
 
 Poll state with `love_keyboard_isDown(key)`, `love_mouse_getX/getY`,
 `love_mouse_isDown(button)`, `love_joystick_*`, or react via the callbacks above.

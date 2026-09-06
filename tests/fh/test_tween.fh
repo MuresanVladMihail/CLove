@@ -1,0 +1,165 @@
+# love.tween: interpolation with easing, chaining and looping.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn near(a, b, tol) {
+    let d = a - b;
+    if (d < 0) { d = 0 - d; }
+    return d <= tol;
+}
+
+fn test_number() {
+    let t = love_tween_new(0, 100, 1.0);
+    check(love_tween_get(t) == 0, "a tween starts at `from`");
+    check(!love_tween_isDone(t), "and is not finished");
+    check(near(love_tween_getDuration(t), 1.0, 0.001), "the duration is what was asked for");
+
+    love_tween_update(t, 0.5);
+    check(near(love_tween_get(t), 50, 0.001), "linear is halfway at half the time");
+    check(near(love_tween_getProgress(t), 0.5, 0.001), "progress agrees");
+
+    let done = love_tween_update(t, 0.5);
+    check(done, "update returns true on the last step");
+    check(love_tween_isDone(t), "and the tween reports done");
+    check(near(love_tween_get(t), 100, 0.001), "it lands exactly on `to`");
+
+    # Overshooting cannot push it past the target.
+    love_tween_update(t, 10.0);
+    check(near(love_tween_get(t), 100, 0.001), "a finished tween stays put");
+}
+
+fn test_array() {
+    # Several channels at once: a point, a colour, a rectangle.
+    let t = love_tween_new([0, 10], [100, 20], 2.0);
+    let v = love_tween_get(t);
+    check(len(v) == 2, "an array in, an array out");
+    check(v[0] == 0 && v[1] == 10, "both channels start at `from`");
+
+    love_tween_update(t, 1.0);
+    let h = love_tween_get(t);
+    check(near(h[0], 50, 0.001) && near(h[1], 15, 0.001), "both channels move together");
+}
+
+fn test_easing() {
+    let names = love_tween_getEasings();
+    check(len(names) == 31, "linear plus ten curves in three flavours");
+
+    # Every easing has to pin both ends, whatever it does in between.
+    for (let i = 0; i < len(names); i++) {
+        let n = names[i];
+        check(near(love_tween_ease(n, 0.0), 0.0, 0.0001), "" + n + " must start at 0");
+        check(near(love_tween_ease(n, 1.0), 1.0, 0.0001), "" + n + " must end at 1");
+        # Out of range is clamped, not extrapolated off the end of the curve.
+        check(love_tween_ease(n, -5.0) == 0.0, "" + n + " clamps below 0");
+        check(love_tween_ease(n, 5.0) == 1.0, "" + n + " clamps above 1");
+    }
+
+    check(near(love_tween_ease("linear", 0.25), 0.25, 0.0001), "linear is the identity");
+    check(love_tween_ease("inQuad", 0.5) < 0.5, "an ease-in starts slow");
+    check(love_tween_ease("outQuad", 0.5) > 0.5, "an ease-out starts fast");
+    # Back and elastic deliberately leave the 0..1 range in the middle.
+    check(love_tween_ease("outBack", 0.7) > 1.0, "outBack overshoots");
+}
+
+fn test_chain() {
+    # 0 -> 10 over a second, then 10 -> 30 over two more.
+    let t = love_tween_new(0, 10, 1.0);
+    love_tween_then(t, 30, 2.0, "linear");
+    check(near(love_tween_getDuration(t), 3.0, 0.001), "the duration is the whole chain");
+
+    love_tween_update(t, 1.0);
+    check(near(love_tween_get(t), 10, 0.001), "the first leg lands on its target");
+
+    love_tween_update(t, 1.0);
+    check(near(love_tween_get(t), 20, 0.001), "the second leg carries on from there");
+
+    check(love_tween_update(t, 1.0), "the chain finishes on the last leg");
+    check(near(love_tween_get(t), 30, 0.001), "at the last target");
+}
+
+fn test_delay() {
+    let t = love_tween_new(0, 10, 1.0, "linear", 0.5);
+    love_tween_update(t, 0.4);
+    check(love_tween_get(t) == 0, "nothing moves during the delay");
+    # 1.0s of updates minus the 0.5s delay is halfway into a 1s tween.
+    love_tween_update(t, 0.6);
+    check(near(love_tween_get(t), 5.0, 0.001), "the clock starts only after the delay");
+    check(near(love_tween_getDuration(t), 1.5, 0.001), "and the delay counts toward the duration");
+}
+
+fn test_loops() {
+    let t = love_tween_new(0, 10, 1.0);
+    love_tween_setLoops(t, 1, false);
+
+    love_tween_update(t, 1.0);
+    check(!love_tween_isDone(t), "a loop left means it is not done");
+    check(near(love_tween_get(t), 0, 0.001), "and it is back at the start");
+
+    check(love_tween_update(t, 1.0), "the second pass finishes it");
+    check(near(love_tween_get(t), 10, 0.001), "at the target");
+}
+
+fn test_yoyo() {
+    let t = love_tween_new(0, 10, 1.0);
+    love_tween_setLoops(t, 1, true);
+
+    love_tween_update(t, 1.0);
+    check(near(love_tween_get(t), 10, 0.001), "the forward pass ends at `to`");
+
+    love_tween_update(t, 0.5);
+    check(near(love_tween_get(t), 5, 0.001), "the return pass runs backwards");
+
+    love_tween_update(t, 0.5);
+    check(near(love_tween_get(t), 0, 0.001), "and lands back at `from`");
+}
+
+fn test_seek_and_reset() {
+    let t = love_tween_new(0, 100, 4.0);
+    love_tween_seek(t, 0.25);
+    check(near(love_tween_get(t), 25, 0.01), "seek jumps to a fraction of the whole");
+
+    love_tween_seek(t, 1.0);
+    check(near(love_tween_get(t), 100, 0.01), "seeking to the end lands on `to`");
+
+    love_tween_reset(t);
+    check(near(love_tween_get(t), 0, 0.001), "reset goes back to the start");
+    check(!love_tween_isDone(t), "and un-finishes it");
+
+    # Seeking must not eat a loop.
+    let l = love_tween_new(0, 10, 1.0);
+    love_tween_setLoops(l, 2, false);
+    love_tween_seek(l, 1.0);
+    check(!love_tween_isDone(l), "seeking to the end leaves the loops alone");
+}
+
+fn test_paused() {
+    let t = love_tween_new(0, 10, 1.0);
+    love_tween_setPaused(t, true);
+    check(love_tween_isPaused(t), "it reports paused");
+    love_tween_update(t, 0.5);
+    check(love_tween_get(t) == 0, "a paused tween does not advance");
+
+    love_tween_setPaused(t, false);
+    love_tween_update(t, 0.5);
+    check(near(love_tween_get(t), 5, 0.001), "and picks up where it left off");
+}
+
+fn run() {
+    test_number();
+    test_array();
+    test_easing();
+    test_chain();
+    test_delay();
+    test_loops();
+    test_yoyo();
+    test_seek_and_reset();
+    test_paused();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

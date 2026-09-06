@@ -1,0 +1,6 @@
+fn love_config(c) {
+    c.window_title = "CLove -- love.filesystem";
+    c.window_width = 960;
+    c.window_height = 540;
+    c.window_resizable = true;
+}

@@ -1,0 +1,8 @@
+# joystick_get() returns NULL for an id that is not plugged in, and every
+# engine call below it dereferences that pointer.
+fn love_load() {
+    love_joystick_getName(9999);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

@@ -1,0 +1,8 @@
+# An easing name that does not exist is an error, not a silent fall back to
+# linear -- a typo in a curve name is invisible otherwise.
+fn love_load() {
+    love_tween_new(0, 1, 1.0, "outQuadratic");
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

@@ -1,0 +1,136 @@
+# love.tween: interpolation with easing.
+#
+# A tween holds one number or a whole array of them -- a point, a colour, a
+# rectangle -- and walks from `from` to `to` over a duration, following an
+# easing curve. Steps can be chained, delayed, looped and run backwards.
+#
+#   let t = love_tween_new(from, to, duration [, easing [, delay]]);
+#   love_tween_update(t, dt);       # true once it is finished
+#   let v = love_tween_get(t);      # a number in, a number out
+#
+#   SPACE  replay      L  loop the chained one      escape  quit
+#
+#   cd opt/examples/fh/tweens && ../../../../build/clove
+
+let T = {};
+
+fn make_all() {
+    # One tween per easing, all running together, so the curves can be
+    # compared side by side.
+    T.names = love_tween_getEasings();
+    T.bars = [];
+    for (let i = 0; i < len(T.names); i++) {
+        let t = love_tween_new(0.0, 1.0, 2.2, T.names[i]);
+        love_tween_setLoops(t, -1, true);   # forever, and back again
+        append(T.bars, t);
+    }
+
+    # A chained tween: three legs with different curves, plus a delay before
+    # the last one. love_tween_then() returns the tween, so it reads as one
+    # expression.
+    # Coordinates are the box on the right: x 540..920, y 380..540.
+    T.path = love_tween_new([565.0, 520.0], [700.0, 400.0], 0.9, "outCubic");
+    love_tween_then(T.path, [790.0, 520.0], 0.7, "inQuad");
+    love_tween_then(T.path, [895.0, 415.0], 0.9, "outBack", 0.25);
+
+    # A colour is just four more channels.
+    T.tint = love_tween_new([90, 200, 255, 255], [255, 120, 90, 255], 1.4, "inOutSine");
+    love_tween_setLoops(T.tint, -1, true);
+
+    # And a scalar for the pulsing ring.
+    T.pulse = love_tween_new(0.0, 1.0, 0.8, "outElastic");
+    love_tween_setLoops(T.pulse, -1, false);
+}
+
+fn love_load() {
+    T.looping = false;
+    make_all();
+    return T;
+}
+
+fn love_keypressed(key) {
+    let k = key[0];
+    if (k == "escape") { love_event_quit(); }
+    elif (k == "space") { love_tween_reset(T.path); }
+    elif (k == "l") {
+        T.looping = !T.looping;
+        love_tween_reset(T.path);
+        if (T.looping) { love_tween_setLoops(T.path, -1, true); }
+        else { love_tween_setLoops(T.path, 0, false); }
+    }
+}
+
+fn love_update(dt, self) {
+    for (let i = 0; i < len(T.bars); i++) { love_tween_update(T.bars[i], dt); }
+    love_tween_update(T.path, dt);
+    love_tween_update(T.tint, dt);
+    love_tween_update(T.pulse, dt);
+}
+
+fn draw_curve(name, x, y, w, h) {
+    # The curve itself, sampled straight from love_tween_ease() -- no tween
+    # needed when all you want is the shape.
+    love_graphics_setColor(60, 64, 78);
+    love_geometry_rectangle("line", x, y, w, h);
+
+    love_graphics_setColor(120, 200, 255);
+    let pts = [];
+    for (let i = 0; i <= 24; i++) {
+        let u = i / 24.0;
+        append(pts, x + u * w);
+        append(pts, y + h - love_tween_ease(name, u) * h);
+    }
+    love_geometry_polygon("line", pts);
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(22, 24, 32);
+
+    # Left: every easing as a curve with a marker riding it.
+    let cols = 4;
+    let cw = 118;
+    let ch = 62;
+    for (let i = 0; i < len(T.names); i++) {
+        let x = 20 + (i % cols) * cw;
+        let y = 60 + tointeger(i / cols) * ch;
+
+        draw_curve(T.names[i], x, y, 92, 40);
+
+        let u = love_tween_get(T.bars[i]);
+        love_graphics_setColor(255, 200, 110);
+        love_geometry_circle("fill", x + u * 92, y + 40 - love_tween_ease(T.names[i], u) * 40, 3);
+
+        love_graphics_setColor(150, 155, 170);
+        love_graphics_print(T.names[i], x, y + 42);
+    }
+
+    # Right: what a tween is actually for.
+    let p = love_tween_get(T.path);
+    let c = love_tween_get(T.tint);
+
+    love_graphics_setColor(60, 64, 78);
+    love_geometry_rectangle("line", 520, 360, 420, 200);
+
+    love_graphics_setColor(c[0], c[1], c[2], c[3]);
+    let r = 14 + love_tween_get(T.pulse) * 8;
+    love_geometry_circle("fill", p[0], p[1], r);
+
+    # The ring is a second tween on the same clock -- outElastic on a radius
+    # is the whole of a "pop" effect.
+    love_graphics_setColor(90, 96, 112);
+    love_geometry_circle("line", p[0], p[1], r + 8 + love_tween_get(T.pulse) * 14);
+
+    love_graphics_setColor(200, 205, 215);
+    love_graphics_print("a chained tween: outCubic, then inQuad, then outBack after a delay", 520, 330);
+    love_graphics_print("progress " + tointeger(love_tween_getProgress(T.path) * 100) + "%"
+                        + "   of " + love_tween_getDuration(T.path) + "s", 520, 570);
+
+    love_graphics_setColor(235, 235, 245);
+    love_graphics_print("love.tween -- 31 easings, chaining, looping, yoyo", 20, 16);
+    love_graphics_setColor(150, 155, 170);
+    let mode = "once";
+    if (T.looping) { mode = "looping (yoyo)"; }
+    love_graphics_print("SPACE replay    L loop: " + mode + "    escape quit", 20, 36);
+}
+
+fn main() {}

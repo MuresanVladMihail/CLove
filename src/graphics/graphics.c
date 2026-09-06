@@ -45,6 +45,7 @@ static struct {
 
     mat4x4 projectionMatrix;
     const char *title;
+    char *ownedTitle;   // the copy setTitle() made, if any
     int x;
     int y;
     bool isCreated;
@@ -350,9 +351,21 @@ const char *graphics_getDisplayName(int indx) {
 
 void graphics_setTitle(const char *title) {
 #ifndef CLOVE_WEB
-    if (moduleData.hasWindow) {
-        moduleData.title = title;
-        SDL_SetWindowTitle(moduleData.window, title);
+    if (moduleData.hasWindow && title != NULL) {
+        // SDL keeps its own copy, and so must this: the caller's string is a
+        // script value that can be collected the moment the call returns, and
+        // graphics_getTitle() used to hand that pointer straight back.
+        char *copy = malloc(strlen(title) + 1);
+        if (copy == NULL) {
+            return;
+        }
+        strcpy(copy, title);
+
+        free(moduleData.ownedTitle);
+        moduleData.ownedTitle = copy;
+        moduleData.title = copy;
+
+        SDL_SetWindowTitle(moduleData.window, copy);
     }
 #endif
 }

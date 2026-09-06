@@ -1,66 +1,113 @@
 # Sprite batches: one draw call for many copies of the same image.
 #
-# Drawing 50 000 sprites one at a time is 50 000 draw calls. A batch packs
-# them all into one vertex buffer and hands the GPU a single one. Press SPACE
-# to watch the difference against the naive loop.
+# Drawing 150 000 sprites one at a time is 150 000 draw calls. A batch packs
+# them all into one vertex buffer and hands the GPU a single one.
+#
+# The three modes here are the three things people actually do, and the gap
+# between the first two is the point: a batch is meant to be *filled once*.
+# Refilling it every frame still beats drawing one at a time by a wide
+# margin, but it puts every sprite back through the script on every frame.
+#
+#   1  fill once, draw every frame     3  no batch: one draw call each
+#   2  refill every frame              +/-  more or fewer sprites
+#   escape  quit
 #
 #   cd opt/examples/fh/batch && ../../../../build/clove
 
-fn fill_batch(self) {
+let B = {"mode": 0, "count": 100000, "samples": [0.0, 0.0, 0.0], "dirty": true};
+
+fn fill(self) {
     love_graphics_batch_clear(self.batch);
-    for (let i = 0; i < self.count; i++) {
+    for (let i = 0; i < B.count; i++) {
+        # x, y, rotation, scale -- a small scale keeps the GPU's fill rate out
+        # of the measurement, so what is left is the cost of batching.
         love_graphics_batch_add(self.batch,
-                                math_random(0, love_window_getWidth()),
-                                math_random(0, love_window_getHeight()));
+                                math_random(0, self.w),
+                                math_random(0, self.h),
+                                0, 0.12, 0.12);
     }
+    # flush uploads what was added. draw() would do it too, but doing it here
+    # keeps the cost where it belongs when you are measuring.
     love_graphics_batch_flush(self.batch);
 }
 
 fn love_load() {
     let self = {};
-    self.count = 50000;
-    self.image = love_graphics_newImage("../assets/sprite.png");
+    self.image = love_graphics_newImage("../assets/icon.png");
+    self.w = love_window_getWidth();
+    self.h = love_window_getHeight();
 
     # The second argument is the capacity: a batch cannot hold more than it
     # was created for, so size it for the worst case.
-    self.batch = love_graphics_newSpriteBatch(self.image, self.count);
-    self.batched = true;
-    fill_batch(self);
+    self.batch = love_graphics_newSpriteBatch(self.image, 400000);
+    fill(self);
     return self;
 }
 
 fn love_keypressed(key) {
-    if (key[0] == "escape") { love_event_quit(); }
+    let k = key[0];
+    if (k == "escape") { love_event_quit(); }
+    elif (k == "1") { B.mode = 0; B.dirty = true; }
+    elif (k == "2") { B.mode = 1; }
+    elif (k == "3") { B.mode = 2; }
+    elif (k == "=" || k == "+") { B.count = B.count * 2; if (B.count > 400000) { B.count = 400000; } B.dirty = true; }
+    elif (k == "-") { B.count = tointeger(B.count / 2); if (B.count < 1000) { B.count = 1000; } B.dirty = true; }
 }
 
+# The batch holds absolute positions, so a resize means refilling it.
+fn love_resize(w, h) { B.dirty = true; }
+
 fn love_update(dt, self) {
-    self.batched = !love_keyboard_isDown("space");
-    if (self.batched) {
-        # Refilling every frame is the worst case for a batch and still beats
-        # the loop below by a wide margin.
-        fill_batch(self);
+    self.w = love_window_getWidth();
+    self.h = love_window_getHeight();
+
+    if (B.mode == 1) {
+        fill(self);
+    } elif (B.dirty) {
+        fill(self);
+        B.dirty = false;
     }
+
+    B.samples[B.mode] = love_timer_getFPS();
 }
 
 fn love_draw(self) {
-    love_graphics_setBackgroundColor(20, 22, 30);
+    love_graphics_setBackgroundColor(18, 20, 28);
+    love_graphics_setColor(255, 255, 255);
 
-    if (self.batched) {
+    if (B.mode < 2) {
         love_graphics_draw(self.batch);
     } else {
-        # The same sprites, one draw call each.
-        for (let i = 0; i < self.count; i++) {
-            love_graphics_draw(self.image,
-                               math_random(0, love_window_getWidth()),
-                               math_random(0, love_window_getHeight()));
+        # The same sprites, one draw call each. A tenth as many, because
+        # otherwise the frame takes seconds.
+        let n = tointeger(B.count / 10);
+        for (let i = 0; i < n; i++) {
+            love_graphics_draw(self.image, math_random(0, self.w), math_random(0, self.h),
+                               0, 0.12, 0.12);
         }
     }
 
-    love_graphics_setColor(255, 255, 255);
-    let mode = "batched (one draw call)";
-    if (!self.batched) { mode = "one draw call per sprite"; }
-    love_graphics_print("" + self.count + " sprites, " + mode, 10, 10);
-    love_graphics_print("" + love_timer_getFPS() + " fps -- hold SPACE to compare, escape to quit", 10, 30);
+    let names = ["1  filled once at load, drawn every frame",
+                 "2  refilled every frame (worst case for a batch)",
+                 "3  no batch: one draw call per sprite, at a tenth the count"];
+
+    # a readable panel over the confetti
+    love_graphics_setColor(10, 12, 18, 220);
+    love_geometry_rectangle("fill", 10, 10, 640, 118);
+
+    love_graphics_setColor(235, 235, 245);
+    love_graphics_print(names[B.mode], 22, 22);
+
+    love_graphics_setColor(200, 205, 218);
+    let drawn = B.count;
+    if (B.mode == 2) { drawn = tointeger(B.count / 10); }
+    love_graphics_print("" + drawn + " sprites    " + love_timer_getFPS() + " fps", 22, 46);
+
+    love_graphics_setColor(150, 155, 170);
+    love_graphics_print("last seen:  batched-once " + B.samples[0]
+                        + "    refilled " + B.samples[1]
+                        + "    unbatched " + B.samples[2], 22, 74);
+    love_graphics_print("1/2/3 mode    +/- count    escape quit", 22, 98);
 }
 
 fn main() {}

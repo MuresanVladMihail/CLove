@@ -1,0 +1,9 @@
+# An identity has to be a plain folder name. "." is not one, and PhysFS's own
+# answer ("filename is illegal or insecure") does not say which step failed.
+fn love_load() {
+    let ok = love_filesystem_setIdentity(".");
+    if (!ok) { error("setIdentity refused '.', as it should"); }
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

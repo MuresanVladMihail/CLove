@@ -1,0 +1,7 @@
+# love_window_setMode() read args[0] and args[1] before looking at n_args.
+fn love_load() {
+    love_window_setMode();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

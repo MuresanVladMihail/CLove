@@ -1,0 +1,7 @@
+fn love_config(c) {
+    c.window_title = "CLove -- love.tween";
+    c.window_width = 980;
+    c.window_height = 620;
+    c.window_vsync = true;
+    c.window_resizable = true;
+}

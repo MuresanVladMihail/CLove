@@ -89,5 +89,5 @@ bool filesystem_setIdentity(const char* path);
 bool filesystem_mount(const char* path, const char* mountPoint, int appendToPath);
 bool filesystem_unmount(const char* path);
 
-void filesystem_setSource(const char* source);
+bool filesystem_setSource(const char* source);
 const char* filesystem_getSource(void);

@@ -13,7 +13,58 @@ version 0.8.0 not yet released
 * added: love_window_setMaxSize.
 * added: New scripting language, FH.
 * added: Misc math utilities.
+* added: love.tween, a small tweening module (src/tween/tween.c). A tween
+	carries a number or an array of them and reports back in the shape it was
+	given, so a point, a colour or a rectangle is one tween rather than four.
+	31 Penner easings, chained steps with per-step delays and curves, looping
+	with an optional yoyo, seek, pause, and love_tween_ease() for the curve on
+	its own. LOVE has no love.tween; this is CLove's.
+* added: love.joystick for FH. The module registered zero functions -- a game
+	could receive the press and release callbacks but never ask what was
+	connected, read an axis or poll a button. Twelve bindings now, mirroring
+	the Lua ones: getCount, getName, isConnected, isGamepad, isDown (by name
+	or by LOVE's number), getAxis, getGamepadAxis, getAxisCount,
+	getButtonCount, getBallCount, getHatCount, getHat.
 * added: Very powerful particle system.
+* fixed: a sprite batch could not hold more than 16384 quads. The shared index
+	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384
+	on the index wrapped and every sprite past that drew some earlier sprite's
+	geometry -- silently. The Lua benchmark asks for 150 000 sprites; it was
+	drawing the first 16384, nine times over. The indices are 32-bit now.
+* fixed: love_filesystem_read() wrote '\n' where the string terminator belongs,
+	so the buffer was never terminated: every caller ran off the end of the
+	allocation, and the text came back with a newline and whatever followed it
+	in the heap.
+* fixed: love_filesystem_setSource() passed its arguments to PHYSFS_mount() the
+	wrong way round -- it mounted the *previous* source and used the new one as
+	the mount point, an absolute host path -- so it never mounted what it was
+	given, and could take PhysFS somewhere it aborts. It also kept the caller's
+	string rather than a copy.
+* fixed: love_filesystem_getSource() free()d the pointer it returned, which
+	belongs either to the filesystem module or to SDL.
+* fixed: love_filesystem_remove() called C's remove(), which addresses the real
+	filesystem relative to the process's working directory -- a different place
+	from where write() puts files -- and returned remove()'s 0-for-success
+	straight back as a bool, so the answer was inverted as well. Same for
+	rename(), which is now a copy and a delete inside the write directory.
+* fixed: FH_GRAPHICS_CANVAS and FH_GRAPHICS_QUAD were both type id 7, so a
+	canvas satisfied every "is this a quad?" check and vice versa --
+	love_quad_getViewport(canvas) read four floats out of a graphics_Canvas.
+* fixed: love_window_setMode() read args[0] and args[1] before looking at
+	n_args, and love_window_getDisplayName() passed &args[0] to fh_optnumber(),
+	which takes the array and an index.
+* fixed: love_window_setTitle() kept the caller's string, which a script can
+	collect the moment the call returns; love_window_getTitle() handed that
+	pointer back.
+* fixed: love_focus() was polled, not dispatched. It ran at the top of every
+	frame and fired unconditionally, so a game got sixty identical calls a
+	second. It now comes off the SDL window event, where LOVE dispatches
+	love.focus -- which also means it cannot miss a transition that begins and
+	ends inside one frame, and reports the change on the frame it happened
+	rather than the next one.
+* added: love_mousefocus(focused), the callback for the pointer entering or
+	leaving the window. The engine already tracked the state
+	(love_window_hasMouseFocus) but never told the game about it.
 * fixed: the wav decoder rejected every valid wav file. It wrote a NUL over
 	the last byte of the "RIFF" tag before comparing it to "RIFF", so the
 	comparison could never succeed. Rewritten to walk the RIFF chunks, which
