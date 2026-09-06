@@ -1,0 +1,54 @@
+# Canvases: render to a texture, then draw that texture.
+#
+# The 10 000 sprites below are drawn once, into a canvas, at load time. After
+# that every frame is a single draw of one texture -- which is why the frame
+# rate does not care how many sprites went into it. Hold SPACE to draw them
+# straight to the screen instead and watch it collapse.
+#
+#   cd opt/examples/fh/canvas && ../../../../build/clove
+
+fn love_load() {
+    let self = {};
+    self.img = love_graphics_newImage("../assets/icon.png");
+    self.count = 10000;
+    self.canvas = love_graphics_newCanvas(400, 400);
+
+    # Everything drawn between setCanvas(c) and setCanvas() lands in the
+    # canvas rather than on the screen.
+    love_graphics_setCanvas(self.canvas);
+    love_graphics_setBackgroundColor(40, 60, 110);
+    love_graphics_clear();
+    for (let i = 0; i < self.count; i++) {
+        love_graphics_setColor(math_random(120, 255), math_random(120, 255), math_random(180, 255));
+        love_graphics_draw(self.img, math_random(-16, 400), math_random(-16, 400));
+    }
+    love_graphics_setColor(255, 255, 255);
+    love_graphics_setCanvas();
+
+    return self;
+}
+
+fn love_update(dt, self) {
+    if (love_keyboard_isDown("escape")) { love_event_quit(); }
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(26, 28, 36);
+
+    if (love_keyboard_isDown("space")) {
+        for (let i = 0; i < self.count; i++) {
+            love_graphics_draw(self.img, math_random(-16, 400) + 200, math_random(-16, 400) + 100);
+        }
+        love_graphics_setColor(255, 180, 120);
+        love_graphics_print("drawing all " + self.count + " sprites every frame", 10, 30);
+    } else {
+        love_graphics_draw(self.canvas, 200, 100);
+        love_graphics_setColor(150, 230, 180);
+        love_graphics_print("one canvas, drawn once at load", 10, 30);
+    }
+
+    love_graphics_setColor(235, 235, 245);
+    love_graphics_print("" + love_timer_getFPS() + " fps -- hold SPACE to compare, escape to quit", 10, 10);
+}
+
+fn main() {}

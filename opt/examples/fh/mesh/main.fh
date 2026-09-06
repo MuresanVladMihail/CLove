@@ -1,117 +1,67 @@
-fn love_joystick_pressed(j) {
-}
+# Meshes: your own vertices, with per-vertex colour and texture coordinates.
+#
+# A vertex is [x, y, u, v, r, g, b, a]. Texture coordinates run 0..1 across
+# the image. The index array says in what order the vertices are used.
+#
+#   T   texture the mesh        Y   drop the texture (vertex colours only)
+#   V   randomise the vertices  escape  quit
+#
+#   cd opt/examples/fh/mesh && ../../../../build/clove
 
-fn love_mousepressed(m) {
-}
+fn quad_vertices(w, h, jitter) {
+    let jx = 0;
+    let jy = 0;
+    if (jitter) { jx = math_random(-40, 40); jy = math_random(-40, 40); }
 
-fn love_mousereleased(m) {
-}
-
-fn love_wheelmoved(y) {
-}
-
-fn love_textinput(text) {
-}
-
-fn love_keypressed(key) {
-}
-
-fn love_keyreleased(key) {
-}
-
-fn love_quit() {
-}
-
-fn love_focus(focused) {
-}
-
-fn love_load()  {
-    let self = {};
-
-    self.image = love_graphics_newImage("../hey.png");
-
-    let  vertices = [
-        [
-            # top-left corner 
-            0, 0, # position of the vertex
-            0, 0, # texture coordinate at the vertex position
-            math_random(0,255), math_random(0,255), math_random(0,255), 255 # color of the vertex
-        ],
-        [
-            # top-right corner 
-            love_image_getWidth(self.image), 0,
-            1, 0, # texture coordinates are in the range of [0, 1]
-            math_random(0,255), math_random(0,255), math_random(0,255), 255
-        ],
-        [
-            # bottom-right corner 
-            love_image_getWidth(self.image), love_image_getHeight(self.image),
-            1, 1,
-            math_random(0,255), math_random(0,155), math_random(0,255), 255
-        ],
-        [
-            # bottom-left corner 
-            0, love_image_getHeight(self.image),
-            0, 1,
-            math_random(0,255), math_random(0,255), math_random(0,255), 255
-        ],
+    return [
+        # x, y            u, v    r, g, b, a
+        [jx,     jy,      0, 0,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
+        [w + jx, 0,       1, 0,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
+        [w,      h + jy,  1, 1,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
+        [0,      h,       0, 1,   math_random(0,255), math_random(0,255), math_random(0,255), 255]
     ];
-    let indices = [ 0, 1, 2, 3 ];
+}
 
-    self.mesh = love_graphics_newMesh(vertices, indices);
+fn love_load() {
+    let self = {};
+    self.image = love_graphics_newImage("../assets/sprite.png");
+    self.w = love_image_getWidth(self.image) * 6;
+    self.h = love_image_getHeight(self.image) * 6;
 
-    love_draw(self);
-    love_update(1, self);
-
+    # Two triangles making a quad.
+    self.mesh = love_graphics_newMesh(quad_vertices(self.w, self.h, false), [0, 1, 2, 3]);
+    love_mesh_setTexture(self.mesh, self.image);
+    self.textured = true;
     return self;
 }
 
+fn love_keypressed(key) {
+    if (key[0] == "escape") { love_event_quit(); }
+}
+
 fn love_update(dt, self) {
-    if (love_keyboard_isDown("esc")) {
-        love_event_quit();
-    }
-    if (love_keyboard_isDown('t')) {
+    if (love_keyboard_isDown("t")) {
         love_mesh_setTexture(self.mesh, self.image);
-    } elif (love_keyboard_isDown('y')) {
+        self.textured = true;
+    } elif (love_keyboard_isDown("y")) {
         love_mesh_setTexture(self.mesh, null);
-    } elif (love_keyboard_isDown('v')) {
-        let  vertices = [
-            [
-            # top-left corner 
-            math_random(-45, 56), math_random(-123,22), # position of the vertex
-            0, 0, # texture coordinate at the vertex position
-            math_random(0,255), math_random(0,255), math_random(0,255), 255 # color of the vertex
-            ],
-            [
-# top-right corner 
-                love_image_getWidth(self.image), math_random(64),
-            1, 0, # texture coordinates are in the range of [0, 1]
-                math_random(0,255), math_random(0,255), math_random(0,255), 255
-                ],
-            [
-# bottom-right corner 
-                love_image_getWidth(self.image), love_image_getHeight(self.image),
-            1, 1,
-            math_random(0,255), math_random(0,155), math_random(0,255), 255
-                ],
-            [
-# bottom-left corner 
-                0, love_image_getHeight(self.image),
-            0, 1,
-            math_random(0,255), math_random(0,255), math_random(0,255), 255
-                ],
-            ];
-            love_mesh_setVertices(self.mesh, vertices);
+        self.textured = false;
+    } elif (love_keyboard_isDown("v")) {
+        love_mesh_setVertices(self.mesh, quad_vertices(self.w, self.h, true));
     }
-
-
 }
 
 fn love_draw(self) {
-    love_graphics_draw(self.mesh, 40, 40);
-    love_graphics_print("" + love_timer_getFPS(), 10, 10);
+    love_graphics_setBackgroundColor(24, 26, 34);
+    love_graphics_setColor(255, 255, 255);
+    love_graphics_draw(self.mesh, 180, 120);
+
+    love_graphics_setColor(200, 205, 215);
+    let state = "textured";
+    if (!self.textured) { state = "vertex colours only"; }
+    love_graphics_print("mesh: " + state, 10, 10);
+    love_graphics_print("T texture   Y untexture   V new vertices   escape quit", 10, 30);
+    love_graphics_print("" + love_timer_getFPS() + " fps", 10, 50);
 }
 
-fn main() {
-
-}
+fn main() {}

@@ -11,11 +11,11 @@ fn love_load() {
     let self = {};
 
     # Vector art: re-rasterized on demand as it is drawn.
-    self.badge = love_graphics_newImage("badge.svg");
+    self.badge = love_graphics_newImage("../assets/badge.svg");
 
     # The same drawing, pinned at its authored size: never re-rasterized, so it
     # blurs when magnified exactly like a .png would.
-    self.pinned = love_graphics_newImage("badge.svg", 1);
+    self.pinned = love_graphics_newImage("../assets/badge.svg", 1);
 
     self.font = love_graphics_newFont(14);
     love_graphics_setFont(self.font);
@@ -29,7 +29,7 @@ fn love_load() {
 }
 
 fn love_update(dt, self) {
-    if (love_keyboard_isDown("esc")) {
+    if (love_keyboard_isDown("escape")) {
         love_event_quit();
     }
 

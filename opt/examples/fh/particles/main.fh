@@ -1,0 +1,158 @@
+# Particle systems.
+#
+# A system is a texture, a buffer size, and a set of curves that a particle
+# follows over its life. Update it with the frame's dt and draw it like any
+# other drawable.
+#
+#   1..5    switch emitter        SPACE  burst 200 particles at the mouse
+#   click   move the emitter      escape quit
+#
+#   cd opt/examples/fh/particles && ../../../../build/clove
+
+fn spark(self) {
+    let ps = love_graphics_newParticleSystem(self.img, 2000);
+    love_particleSystem_setParticleLifetime(ps, 0.3, 1.0);
+    love_particleSystem_setEmissionRate(ps, 400);
+    love_particleSystem_setSpeed(ps, 60, 220);
+    love_particleSystem_setSpread(ps, 6.283);
+    love_particleSystem_setLinearAcceleration(ps, 0, 260, 0, 420);
+    love_particleSystem_setSizes(ps, [1.4, 0.9, 0.0]);
+    love_particleSystem_setColors(ps, [1, 0.95, 0.6, 1,   1, 0.45, 0.1, 0.9,   0.4, 0.1, 0.1, 0]);
+    love_particleSystem_setSpin(ps, 0.0, 6.0);
+    return ps;
+}
+
+fn smoke(self) {
+    let ps = love_graphics_newParticleSystem(self.img, 2000);
+    love_particleSystem_setParticleLifetime(ps, 1.5, 3.0);
+    love_particleSystem_setEmissionRate(ps, 90);
+    love_particleSystem_setSpeed(ps, 70, 130);
+    love_particleSystem_setDirection(ps, -1.5708);   # straight up (y grows downward)
+    love_particleSystem_setSpread(ps, 0.35);
+    love_particleSystem_setLinearAcceleration(ps, -25, -70, 25, -30);
+    love_particleSystem_setEmissionArea(ps, "uniform", 12, 4);
+    love_particleSystem_setSizes(ps, [0.5, 1.6, 2.8]);
+    love_particleSystem_setColors(ps, [0.8, 0.8, 0.85, 0.5,   0.5, 0.5, 0.55, 0.25,   0.3, 0.3, 0.35, 0]);
+    love_particleSystem_setSpin(ps, -0.6, 0.6);
+    love_particleSystem_setSpinVariation(ps, 1.0);
+    return ps;
+}
+
+fn ring(self) {
+    # "borderellipse" puts every particle on the outline, and
+    # directionRelativeToCenter aims it outward -- an explosion.
+    let ps = love_graphics_newParticleSystem(self.img, 2000);
+    love_particleSystem_setParticleLifetime(ps, 0.6, 1.1);
+    love_particleSystem_setEmissionRate(ps, 500);
+    love_particleSystem_setEmissionArea(ps, "borderellipse", 60, 60, 0, true);
+    love_particleSystem_setSpeed(ps, 40, 90);
+    love_particleSystem_setSpread(ps, 0.3);
+    love_particleSystem_setLinearDamping(ps, 1.5, 2.5);
+    love_particleSystem_setSizes(ps, [1.2, 0.6, 0.0]);
+    love_particleSystem_setColors(ps, [0.5, 0.9, 1, 1,   0.2, 0.4, 1, 0.8,   0.1, 0.1, 0.4, 0]);
+    return ps;
+}
+
+fn galaxy(self) {
+    # A filled ellipse plus tangential acceleration, so the cloud swirls.
+    let ps = love_graphics_newParticleSystem(self.img, 3000);
+    love_particleSystem_setParticleLifetime(ps, 2.0, 4.0);
+    love_particleSystem_setEmissionRate(ps, 600);
+    love_particleSystem_setEmissionArea(ps, "ellipse", 150, 90, 0.4, false);
+    love_particleSystem_setSpeed(ps, 0, 5);
+    love_particleSystem_setTangentialAcceleration(ps, 40, 90);
+    love_particleSystem_setRadialAcceleration(ps, -12, -4);
+    love_particleSystem_setSizes(ps, [0.5, 0.9, 0.0]);
+    love_particleSystem_setColors(ps, [1, 0.9, 0.7, 0.9,   0.9, 0.5, 0.9, 0.6,   0.3, 0.2, 0.6, 0]);
+    return ps;
+}
+
+fn trail(self) {
+    # setRelativeRotation aims each particle along its own velocity, and
+    # moveTo (in love_update) interpolates the ones spawned mid-step along
+    # the path, so a fast-moving emitter leaves a continuous streak.
+    let ps = love_graphics_newParticleSystem(self.img, 1500);
+    love_particleSystem_setParticleLifetime(ps, 0.5, 0.9);
+    love_particleSystem_setEmissionRate(ps, 500);
+    love_particleSystem_setSpeed(ps, 5, 25);
+    love_particleSystem_setSpread(ps, 6.283);
+    love_particleSystem_setRelativeRotation(ps, true);
+    love_particleSystem_setSizes(ps, [1.3, 0.2]);
+    love_particleSystem_setColors(ps, [0.6, 1, 0.7, 1,   0.1, 0.6, 0.3, 0]);
+    return ps;
+}
+
+fn love_load() {
+    let self = {};
+    # A particle texture wants to be a plain shape: the system tints every
+    # particle through the colour curve, so the sprite carries the falloff
+    # and nothing else.
+    self.img = love_graphics_newImage("../assets/particle.png");
+
+    self.systems = [spark(self), smoke(self), ring(self), galaxy(self), trail(self)];
+    self.names = ["spark -- gravity and a full-circle spread",
+                  "smoke -- a slow plume out of a small box",
+                  "ring -- borderellipse + directionRelativeToCenter",
+                  "galaxy -- a filled ellipse with tangential acceleration",
+                  "trail -- relative rotation, following the mouse"];
+    self.which = 0;
+
+    self.x = 400.0;
+    self.y = 400.0;
+    for (let i = 0; i < len(self.systems); i++) {
+        love_particleSystem_setPosition(self.systems[i], self.x, self.y);
+        love_particleSystem_start(self.systems[i]);
+    }
+    return self;
+}
+
+fn love_keypressed(key) {
+    if (key[0] == "escape") { love_event_quit(); }
+}
+
+fn love_update(dt, self) {
+    for (let i = 0; i < len(self.systems); i++) {
+        if (love_keyboard_isDown("" + (i + 1))) { self.which = i; }
+    }
+
+    let ps = self.systems[self.which];
+
+    # The trail emitter chases the mouse; the rest sit still.
+    if (self.which == 4) {
+        self.x = love_mouse_getX();
+        self.y = love_mouse_getY();
+    } elif (love_mouse_isDown("l")) {
+        self.x = love_mouse_getX();
+        self.y = love_mouse_getY();
+    }
+
+    # moveTo, not setPosition: it interpolates the particles born during this
+    # step along the way, so a fast emitter draws a line, not a dotted one.
+    love_particleSystem_moveTo(ps, self.x, self.y);
+
+    if (love_keyboard_isDown("space")) {
+        love_particleSystem_emit(ps, 200);
+    }
+
+    love_particleSystem_update(ps, dt);
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(12, 12, 20);
+    love_graphics_setColor(255, 255, 255);
+
+    # Additive blending is what makes overlapping particles glow instead of
+    # just stacking up. Smoke is the exception -- it should occlude.
+    if (self.which != 1) { love_graphics_setBlendMode("additive"); }
+    love_graphics_draw(self.systems[self.which]);
+    love_graphics_setBlendMode("alpha");
+
+    love_graphics_setColor(220, 225, 235);
+    love_graphics_print(self.names[self.which], 10, 10);
+    love_graphics_print("" + love_particleSystem_getCount(self.systems[self.which]) + " particles, "
+                        + love_timer_getFPS() + " fps", 10, 30);
+    love_graphics_setColor(150, 155, 170);
+    love_graphics_print("1..5 switch   click move   SPACE burst   escape quit", 10, 560);
+}
+
+fn main() {}

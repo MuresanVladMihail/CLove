@@ -1,0 +1,63 @@
+# love.geometry: the immediate-mode shapes.
+#
+# Every call takes "fill" or "line" as its first argument. Circles take an
+# optional segment count, and love_geometry_polygon draws a polygon (filled) or
+# a polyline (line) from a flat x,y array.
+#
+#   cd opt/examples/fh/shapes && ../../../../build/clove
+
+fn love_load() {
+    let self = {};
+    self.t = 0.0;
+    return self;
+}
+
+fn love_update(dt, self) {
+    self.t = self.t + dt;
+    if (love_keyboard_isDown("escape")) { love_event_quit(); }
+}
+
+fn label(text, x, y) {
+    love_graphics_setColor(190, 195, 205);
+    love_graphics_print(text, x, y);
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(26, 28, 36);
+
+    label("circles", 60, 60);
+    love_graphics_setColor(120, 200, 255);
+    love_geometry_circle("line", 90, 130, 34);
+    love_geometry_circle("fill", 180, 130, 34);
+    # Few segments turns a circle into a regular polygon.
+    love_graphics_setColor(255, 190, 100);
+    love_geometry_circle("fill", 270, 130, 34, 6);
+    love_geometry_circle("line", 360, 130, 34, 3);
+
+    label("rectangles -- the last argument is a rotation", 60, 220);
+    love_graphics_setColor(150, 230, 160);
+    love_geometry_rectangle("line", 70, 250, 60, 60);
+    love_geometry_rectangle("fill", 160, 250, 60, 60);
+    love_geometry_rectangle("fill", 280, 280, 60, 60, self.t);
+
+    label("points -- one flat x,y array, not one call per point", 60, 380);
+    love_graphics_setColor(255, 255, 255);
+    let pts = [];
+    for (let i = 0; i < 24; i++) {
+        append(pts, 70 + i * 8);
+        append(pts, 410 + 18 * math_sin(self.t + i * 0.4));
+    }
+    love_geometry_points(pts);
+
+    label("polygons from a flat x,y array", 460, 60);
+    love_graphics_setColor(200, 150, 255);
+    love_geometry_polygon("fill", [480, 90, 620, 90, 550, 200]);
+    love_graphics_setColor(255, 140, 170);
+    # A polyline has to repeat its first point to close.
+    love_geometry_polygon("line", [480, 240, 700, 240, 760, 400, 460, 400, 480, 240]);
+
+    love_graphics_setColor(230, 230, 240);
+    love_graphics_print("" + love_timer_getFPS() + " fps -- escape to quit", 10, 10);
+}
+
+fn main() {}

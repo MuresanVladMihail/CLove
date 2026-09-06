@@ -1,65 +1,66 @@
-fn love_joystick_pressed(j) {
-}
+# Sprite batches: one draw call for many copies of the same image.
+#
+# Drawing 50 000 sprites one at a time is 50 000 draw calls. A batch packs
+# them all into one vertex buffer and hands the GPU a single one. Press SPACE
+# to watch the difference against the naive loop.
+#
+#   cd opt/examples/fh/batch && ../../../../build/clove
 
-fn love_mousepressed(m) {
-}
-
-fn love_mousereleased(m) {
-}
-
-fn love_wheelmoved(y) {
-}
-
-fn love_textinput(text) {
-}
-
-fn love_keypressed(key) {
-    love_event_quit();
-}
-
-fn love_keyreleased(key) {
-}
-
-fn love_quit() {
-
-}
-
-fn love_focus(focused) {
-}
-
-fn setSpriteBatch(self) {
+fn fill_batch(self) {
     love_graphics_batch_clear(self.batch);
-    for (let i = 0; i < self.count; i = i + 1) {
-
+    for (let i = 0; i < self.count; i++) {
         love_graphics_batch_add(self.batch,
-                math_random(0, love_window_getWidth()+100),
-                math_random(0, love_window_getHeight()+100));
+                                math_random(0, love_window_getWidth()),
+                                math_random(0, love_window_getHeight()));
     }
     love_graphics_batch_flush(self.batch);
 }
 
-fn love_load()  {
+fn love_load() {
     let self = {};
     self.count = 50000;
+    self.image = love_graphics_newImage("../assets/sprite.png");
 
-    self.image = love_graphics_newImage("../hey.png");
+    # The second argument is the capacity: a batch cannot hold more than it
+    # was created for, so size it for the worst case.
     self.batch = love_graphics_newSpriteBatch(self.image, self.count);
-    setSpriteBatch(self);
-
-    love_draw(self);
-    love_update(1, self);
+    self.batched = true;
+    fill_batch(self);
     return self;
 }
 
+fn love_keypressed(key) {
+    if (key[0] == "escape") { love_event_quit(); }
+}
+
 fn love_update(dt, self) {
-    setSpriteBatch(self);
+    self.batched = !love_keyboard_isDown("space");
+    if (self.batched) {
+        # Refilling every frame is the worst case for a batch and still beats
+        # the loop below by a wide margin.
+        fill_batch(self);
+    }
 }
 
 fn love_draw(self) {
-    love_graphics_draw(self.batch);
-    love_graphics_print("" + love_timer_getFPS(), 10, 10);
+    love_graphics_setBackgroundColor(20, 22, 30);
+
+    if (self.batched) {
+        love_graphics_draw(self.batch);
+    } else {
+        # The same sprites, one draw call each.
+        for (let i = 0; i < self.count; i++) {
+            love_graphics_draw(self.image,
+                               math_random(0, love_window_getWidth()),
+                               math_random(0, love_window_getHeight()));
+        }
+    }
+
+    love_graphics_setColor(255, 255, 255);
+    let mode = "batched (one draw call)";
+    if (!self.batched) { mode = "one draw call per sprite"; }
+    love_graphics_print("" + self.count + " sprites, " + mode, 10, 10);
+    love_graphics_print("" + love_timer_getFPS() + " fps -- hold SPACE to compare, escape to quit", 10, 30);
 }
 
-fn main() {
-
-}
+fn main() {}
