@@ -61,6 +61,23 @@ version 0.8.0 not yet released
 	holding even an unwrapped copy. Both fonts share one implementation now
 	(src/graphics/textwrap.c), and the bitmap version no longer writes the
 	terminator through a null pointer on an empty string.
+* fixed: the Lua backend did not compile. lua_mainactivity.c called SAFE_FREE,
+	which does not exist (the macro is CLOVE_SAFE_FREE), so USE_LUA=ON failed
+	to build. In the same function: luaL_dofile()'s return was compared against
+	1, which it never is, so a game that loaded cleanly was run a second time;
+	argv[2] was passed to atoi() without checking it was there; and the archive
+	loop leaked every script buffer but the last, then freed that one through a
+	pointer that had never been assigned when the count was zero.
+* fixed: a build with both USE_FH and USE_LUA ran the Lua game to completion
+	and then started the FH one as well, which reported "can't open 'main.fh'"
+	and returned 1 -- so a dual-backend build always exited with an error,
+	however well the game had run. main() now picks a backend from the entry
+	script present (or the argument given).
+* fixed: love.filesystem.setIdentity() could never succeed. After creating the
+	directory under the save dir it passed the bare name to PHYSFS_setWriteDir()
+	and PHYSFS_mount(), which want a real path, so every game that set an
+	identity failed to boot. It also now rejects "." and paths with separators
+	up front, instead of letting PhysFS answer "filename is illegal or insecure".
 * fixed: the particle system leaked and could corrupt the heap.
 	love_particleSystem_setBufferSize() malloc'd a new particle buffer without
 	freeing the old one (200 systems resized twice leaked ~4.9 MB) and left the
