@@ -1,0 +1,101 @@
+{
+	"gravity":	[0, 900],
+	"entities":	[{
+			"body":	{
+				"type":	"static",
+				"fixed_rotation":	false,
+				"gravity_scale":	1
+			},
+			"id":	1,
+			"props":	{
+			},
+			"color":	[92, 128, 84],
+			"name":	"Ground",
+			"fixtures":	[{
+					"friction":	0.4,
+					"h":	60,
+					"w":	980,
+					"shape":	"rect",
+					"density":	1,
+					"restitution":	0.1,
+					"sensor":	false
+				}],
+			"visible":	true,
+			"groups":	["terrain"],
+			"transform":	{
+				"sx":	1,
+				"x":	60,
+				"y":	520,
+				"angle":	0,
+				"sy":	1
+			},
+			"sprite":	null
+		}, {
+			"body":	{
+				"type":	"dynamic",
+				"fixed_rotation":	false,
+				"gravity_scale":	1
+			},
+			"id":	2,
+			"props":	{
+			},
+			"color":	[255, 255, 255],
+			"name":	"Crate",
+			"fixtures":	[{
+					"friction":	0.4,
+					"h":	90,
+					"w":	90,
+					"shape":	"rect",
+					"density":	1,
+					"restitution":	0.1,
+					"sensor":	false
+				}],
+			"visible":	true,
+			"groups":	["props"],
+			"transform":	{
+				"sx":	1,
+				"x":	300,
+				"y":	120,
+				"angle":	0,
+				"sy":	1
+			},
+			"sprite":	{
+				"path":	"art/crate.svg"
+			}
+		}, {
+			"body":	{
+				"type":	"dynamic",
+				"fixed_rotation":	false,
+				"gravity_scale":	1
+			},
+			"id":	3,
+			"props":	{
+			},
+			"color":	[255, 255, 255],
+			"name":	"Coin",
+			"fixtures":	[{
+					"friction":	0.4,
+					"h":	56,
+					"w":	56,
+					"shape":	"circle",
+					"density":	1,
+					"restitution":	0.6,
+					"sensor":	false
+				}],
+			"visible":	true,
+			"groups":	["pickups"],
+			"transform":	{
+				"sx":	1,
+				"x":	520,
+				"y":	60,
+				"angle":	0,
+				"sy":	1
+			},
+			"sprite":	{
+				"path":	"art/coin.svg"
+			}
+		}],
+	"next_id":	4,
+	"meter":	30,
+	"version":	1
+}

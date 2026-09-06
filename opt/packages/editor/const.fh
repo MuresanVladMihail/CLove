@@ -15,21 +15,35 @@ let OPT_EXPANDED = 4096;   # MU_OPT_EXPANDED -- headers and trees start open
 let OPT_DISABLED = 4;      # MU_OPT_NOINTERACT -- draws, never fires
 
 # --- layout -----------------------------------------------------------------
-# FH global initializers must be constant expressions, so the viewport numbers
-# are spelled out: VP_W = SCREEN_W - 2*PANEL_W, VP_H = SCREEN_H - TOOLBAR_H -
-# STATUS_H.
+# The panel metrics are fixed; the window is not. Everything else (the screen
+# size and the viewport the scene is drawn into) is recomputed each frame from
+# the actual window by editor_layout(), so the editor fits whatever it is
+# hosted in -- a game's window is not going to be 1280x760 because the editor
+# would like it to be.
 let PANEL_W   = 250;
 let TOOLBAR_H = 76;
 let STATUS_H  = 30;
-let SCREEN_W  = 1280;
-let SCREEN_H  = 760;
+let HIER_H    = 400;
 
-let VP_X = 250;
-let VP_Y = 76;
-let VP_W = 780;
-let VP_H = 654;
+# Below these the panels would leave nothing to draw into, so the viewport
+# stops shrinking and starts being covered instead. Better a cramped editor
+# than a negative-width one.
+let MIN_VP_W = 120;
+let MIN_VP_H = 120;
 
-let HIER_H = 400;
+fn editor_layout(app) {
+	app.screen_w = love_window_getWidth();
+	app.screen_h = love_window_getHeight();
+
+	app.vp_x = PANEL_W;
+	app.vp_y = TOOLBAR_H;
+	app.vp_w = app.screen_w - 2 * PANEL_W;
+	app.vp_h = app.screen_h - TOOLBAR_H - STATUS_H;
+
+	if (app.vp_w < MIN_VP_W) { app.vp_w = MIN_VP_W; }
+	if (app.vp_h < MIN_VP_H) { app.vp_h = MIN_VP_H; }
+	return 0;
+}
 
 # --- modal dialogs ----------------------------------------------------------
 # A modal is sized from the number of content rows it holds rather than by a
@@ -46,8 +60,8 @@ fn dialog_height(rows) {
 	return DIALOG_TITLE_H + DIALOG_PAD + rows * DIALOG_ROW_H;
 }
 
-fn dialog_x(w) { return math_floor((SCREEN_W - w) * 0.5); }
-fn dialog_y(h) { return math_floor((SCREEN_H - h) * 0.5); }
+fn dialog_x(app, w) { return math_floor((app.screen_w - w) * 0.5); }
+fn dialog_y(app, h) { return math_floor((app.screen_h - h) * 0.5); }
 
 # --- toolbar metrics --------------------------------------------------------
 # Both toolbar rows share these so their groups line up: one action button is
@@ -107,14 +121,6 @@ let ROT_OFFSET  = 30;   # rotate knob, screen pixels above the top edge
 let ROT_SNAP    = 15;   # degrees, when Snap is on
 
 let MAX_HULL_POINTS = 8;   # Box2D's polygon vertex limit
-
-# Mouse wheel arrives through a callback that is not handed the state map, so
-# the delta parks here until the camera consumes it.
-let g_wheel = 0;
-
-fn love_wheelmoved(y) {
-	g_wheel = g_wheel + y;
-}
 
 # microui works in `float` (mu_Real), so a value that has been through a slider
 # or a number field comes back as 0.40000000596046448 rather than 0.4.

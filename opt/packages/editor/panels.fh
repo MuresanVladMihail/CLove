@@ -62,7 +62,7 @@ fn panels_primitives_menu(app) {
 }
 
 fn panels_toolbar(app) {
-	if (love_ui_begin_window("Toolbar", 0, 0, SCREEN_W, TOOLBAR_H, panels_dock_opts(app))) {
+	if (love_ui_begin_window("Toolbar", 0, 0, app.screen_w, TOOLBAR_H, panels_dock_opts(app))) {
 
 		# Both rows use the same column widths for their first ten cells, so
 		# the groups line up vertically: one action button is always TB_BTN
@@ -248,7 +248,7 @@ fn panels_hierarchy(app) {
 
 fn panels_console(app) {
 	if (love_ui_begin_window("Console", 0, TOOLBAR_H + HIER_H,
-	                         PANEL_W, SCREEN_H - TOOLBAR_H - HIER_H, panels_dock_opts(app))) {
+	                         PANEL_W, app.screen_h - TOOLBAR_H - HIER_H, panels_dock_opts(app))) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("CONSOLE");
 
@@ -268,8 +268,8 @@ fn panels_console(app) {
 }
 
 fn panels_statusbar(app) {
-	if (love_ui_begin_window("Status", VP_X, SCREEN_H - STATUS_H,
-	                         VP_W, STATUS_H, panels_dock_opts(app))) {
+	if (love_ui_begin_window("Status", app.vp_x, app.screen_h - STATUS_H,
+	                         app.vp_w, STATUS_H, panels_dock_opts(app))) {
 		love_ui_layout_row(6, [90, 150, 170, 110, 100, -1], 0);
 
 		love_ui_label("mode: " + app.mode);
@@ -319,7 +319,8 @@ fn panels_theme(app) {
 	}
 	# No panels_dock_opts(app) here on purpose: this one has a title bar you can drag
 	# and a grip you can resize, which is a plain microui window.
-	if (love_ui_begin_window("Theme editor", 330, 160, 470, 300, 0)) {
+	if (love_ui_begin_window("Theme editor", dialog_x(app, 470), dialog_y(app, 300),
+	                         470, 300, 0)) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_text("Live microui style colours. This window is draggable and " +
 		             "resizable; the editor panels pass notitle + noresize so " +
@@ -348,7 +349,7 @@ fn panels_confirm(app) {
 	# A self-managed modal rather than a microui popup, because a popup can
 	# only be closed by clicking outside it.
 	let h = dialog_height(2);   # the question, then the buttons
-	if (love_ui_begin_window("Confirm", dialog_x(DIALOG_W), dialog_y(h),
+	if (love_ui_begin_window("Confirm", dialog_x(app, DIALOG_W), dialog_y(app, h),
 	                         DIALOG_W, h,
 	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
 		love_ui_layout_row(1, [-1], 0);

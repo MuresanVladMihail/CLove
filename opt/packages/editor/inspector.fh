@@ -58,8 +58,8 @@ fn panels_body_type_button(app, e, label) {
 }
 
 fn panels_inspector(app) {
-	if (love_ui_begin_window("Inspector", SCREEN_W - PANEL_W, TOOLBAR_H,
-	                         PANEL_W, SCREEN_H - TOOLBAR_H, panels_dock_opts(app))) {
+	if (love_ui_begin_window("Inspector", app.screen_w - PANEL_W, TOOLBAR_H,
+	                         PANEL_W, app.screen_h - TOOLBAR_H, panels_dock_opts(app))) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("INSPECTOR");
 

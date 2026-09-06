@@ -2,7 +2,7 @@
 # load is a bug, not a state every caller should have to poll for.
 # Runner expects a non-zero exit.
 
-include "packages/scene.fh"
+include "packages/scene/scene.fh"
 
 fn run() {
     let scene = Scene("no_such_level.json");

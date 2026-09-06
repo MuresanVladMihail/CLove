@@ -10,8 +10,8 @@ fn view_draw_grid(app) {
 	love_graphics_setColor(46, 50, 60, 255);
 
 	# only the visible span, so zooming out does not draw thousands of lines
-	let tl = cam_to_world(app, VP_X, VP_Y);
-	let br = cam_to_world(app, VP_X + VP_W, VP_Y + VP_H);
+	let tl = cam_to_world(app, app.vp_x, app.vp_y);
+	let br = cam_to_world(app, app.vp_x + app.vp_w, app.vp_y + app.vp_h);
 
 	let step = app.grid;
 	while ((br[0] - tl[0]) / step > 120) { step = step * 2; }
@@ -120,12 +120,12 @@ fn view_draw_entity(app, e) {
 
 fn view_draw(app) {
 	love_graphics_setColor(20, 22, 28, 255);
-	love_geometry_rectangle("fill", VP_X, VP_Y, VP_W, VP_H);
+	love_geometry_rectangle("fill", app.vp_x, app.vp_y, app.vp_w, app.vp_h);
 
 	# Keep the scene inside the viewport while it pans. Note the Y: unlike
 	# every other drawing call, love_graphics_setScissor() hands its
 	# rectangle straight to glScissor(), whose origin is the *bottom* left.
-	love_graphics_setScissor(VP_X, SCREEN_H - VP_Y - VP_H, VP_W, VP_H);
+	love_graphics_setScissor(app.vp_x, app.screen_h - app.vp_y - app.vp_h, app.vp_w, app.vp_h);
 	cam_push(app);
 
 	if (app.show_grid) { view_draw_grid(app); }
@@ -142,14 +142,14 @@ fn view_draw(app) {
 	}
 
 	# last inside the viewport, so it sits over the scene and the gizmo
-	if (point_in(app.mx, app.my, VP_X, VP_Y, VP_W, VP_H)) {
+	if (point_in(app.mx, app.my, app.vp_x, app.vp_y, app.vp_w, app.vp_h)) {
 		cursor_draw(app);
 	}
 
 	love_graphics_setScissor();
 
 	love_graphics_setColor(70, 76, 90, 255);
-	love_geometry_rectangle("line", VP_X, VP_Y, VP_W, VP_H);
+	love_geometry_rectangle("line", app.vp_x, app.vp_y, app.vp_w, app.vp_h);
 	love_graphics_setColor(255, 255, 255, 255);
 	return 0;
 }

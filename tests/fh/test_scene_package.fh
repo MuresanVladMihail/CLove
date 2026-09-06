@@ -2,7 +2,7 @@
 # Everything here is pure data, so the package is exercised without a window,
 # a physics world or any art.
 
-include "packages/scene.fh"
+include "packages/scene/scene.fh"
 
 fn check(cond, msg) { if (!cond) { error(msg); } }
 

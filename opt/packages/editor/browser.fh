@@ -111,7 +111,9 @@ fn browser_panel(app) {
 
 	let b = app.browser;
 
-	if (love_ui_begin_window("Choose an image", 330, 150, BROWSER_W, BROWSER_H, 0)) {
+	if (love_ui_begin_window("Choose an image",
+	                         dialog_x(app, BROWSER_W), dialog_y(app, BROWSER_H),
+	                         BROWSER_W, BROWSER_H, 0)) {
 		# where we are
 		love_ui_layout_row(2, [70, -1], 0);
 		if (love_ui_button("Up", ALIGN_CENTER)) {

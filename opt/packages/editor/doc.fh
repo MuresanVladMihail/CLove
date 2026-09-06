@@ -36,6 +36,16 @@
 
 # --- shape ---------------------------------------------------------
 
+# Every change to the document moves the revision, so a host embedding the
+# editor can tell that the level it derived a world from is out of date without
+# having to diff anything. It deliberately does not move for a camera pan or a
+# selection: a game should not rebuild its world because someone scrolled.
+fn doc_touch(app) {
+	app.revision = app.revision + 1;
+	return 0;
+}
+
+
 fn doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b) {
 	return {
 		"id": id,
@@ -79,6 +89,10 @@ fn doc_add(app, name, kind, x, y, w, h, r, g, b) {
 	app.doc_data.next_id = id + 1;
 	let e = doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b);
 	append(app.doc_data.entities, e);
+	# The rule is that anything which changes the document moves the revision,
+	# including this -- a host seeding a level calls it directly, without going
+	# through doc_begin_edit().
+	doc_touch(app);
 	return e;
 }
 
@@ -130,6 +144,7 @@ fn doc_push_undo(app) {
 # gesture, so dragging a number field for a second does not fill the stack
 # with a hundred nearly identical documents.
 fn doc_begin_edit(app) {
+	doc_touch(app);
 	if (app.edit_pushed) { return 0; }
 	doc_push_undo(app);
 	app.edit_pushed = true;
@@ -153,6 +168,7 @@ fn doc_undo(app) {
 	app.doc_data = json_parse(app.undo[len(app.undo) - 1]);
 	app.undo = drop_last(app.undo);
 	doc_keep_selection(app);
+	doc_touch(app);
 	app.dirty = true;
 	log_line(app, "undo");
 	return 0;
@@ -164,6 +180,7 @@ fn doc_redo(app) {
 	app.doc_data = json_parse(app.redo[len(app.redo) - 1]);
 	app.redo = drop_last(app.redo);
 	doc_keep_selection(app);
+	doc_touch(app);
 	app.dirty = true;
 	log_line(app, "redo");
 	return 0;
@@ -278,6 +295,7 @@ fn doc_load(app, path) {
 	app.undo = [];
 	app.redo = [];
 	app.dirty = false;
+	doc_touch(app);
 	log_line(app, "loaded " + path + " (" + len(parsed.entities) + " entities)");
 	return true;
 }

@@ -1,7 +1,7 @@
 # A document written by a newer editor must be refused rather than partly
 # understood. Runner expects a non-zero exit.
 
-include "packages/scene.fh"
+include "packages/scene/scene.fh"
 
 fn run() {
     let doc = {};
