@@ -29,6 +29,12 @@ version 0.8.0 not yet released
 	default) exactly as in LOVE. See SKILLS.md for the API and the handful of
 	places Box2D 3 forced a difference (no gear or pulley joints, callbacks are
 	function names, user data is a number or a string).
+* the editor gained multi-select (shift-click, a rubber band, and moving a
+	group as one), z-order (Back / Down / Up / Front over the draw order, which
+	is what the entity list already was), Box2D's collision filter as two rows
+	of layer toggles, joints (distance and revolute, from a two-entity
+	selection), and contact marks while Play runs that name the two entities
+	that touched.
 * the 2D editor became a package (opt/packages/editor) a game switches on and
 	off, rather than a program of its own. editor_new/update/draw/toggle, plus
 	editor_revision() -- a number that moves on every edit and on nothing else,

@@ -12,6 +12,8 @@
 #      "meter": 30,               # pixels per Box2D metre this map was authored at
 #      "gravity": [0, 900],       # pixels per second squared
 #      "next_id": 4,
+#      "joints": [ { "id": 5, "type": "distance", "a": 2, "b": 3,
+#                    "anchor": [300, 200], "collide": false } ],
 #      "entities": [
 #        { "id": 1, "name": "Ground", "visible": true, "groups": ["terrain"],
 #          "props":     { "damage": 0 },   # free-form, authored per entity
@@ -86,7 +88,12 @@ fn doc_empty(app) {
 		"meter": 30,
 		"gravity": [0, 900],
 		"next_id": 1,
-		"entities": []
+		"entities": [],
+		# Joints reference entities by id and live at the top level rather than
+		# on either entity: a joint belongs to neither of the two things it
+		# holds together, and hanging it off one of them would make deleting
+		# that one mean something different from deleting the other.
+		"joints": []
 	};
 }
 
@@ -127,6 +134,85 @@ fn doc_center(app, e) {
 	let f = e.fixtures[0];
 	return [e.transform.x + f.w * 0.5, e.transform.y + f.h * 0.5];
 }
+
+# --- joints --------------------------------------------------------
+#
+#   { "id": 1, "type": "distance", "a": 2, "b": 3,
+#     "anchor": [x, y],       # world units, where the joint is pinned
+#     "collide": false }      # do the two bodies still collide with each other
+#
+# Only the two Box2D joints a 2D level actually reaches for are here: distance
+# (a rigid link or a rope) and revolute (a hinge). The rest of Box2D's nine are
+# bound and can be built by hand; what they want from an editor is a panel each,
+# which is a different piece of work.
+
+fn doc_joints(app) {
+	if (!contains_key(app.doc_data, "joints")) { app.doc_data.joints = []; }
+	return app.doc_data.joints;
+}
+
+fn doc_add_joint(app, kind, a, b) {
+	if (a == b) { return null; }
+
+	let ea = doc_find(app, a);
+	let eb = doc_find(app, b);
+	if (ea == null || eb == null) { return null; }
+
+	doc_begin_edit(app);
+
+	# pinned midway between the two by default, which is where a hinge between
+	# them belongs and does no harm to a distance joint
+	let ca = doc_center(app, ea);
+	let cb = doc_center(app, eb);
+
+	let j = {
+		"id": app.doc_data.next_id,
+		"type": kind,
+		"a": a, "b": b,
+		"anchor": [(ca[0] + cb[0]) * 0.5, (ca[1] + cb[1]) * 0.5],
+		"collide": false
+	};
+	app.doc_data.next_id = j.id + 1;
+	append(doc_joints(app), j);
+	log_line(app, kind + " joint: " + ea.name + " - " + eb.name);
+	return j;
+}
+
+fn doc_delete_joint(app, id) {
+	doc_begin_edit(app);
+	let kept = [];
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		if (joints[i].id != id) { append(kept, joints[i]); }
+	}
+	app.doc_data.joints = kept;
+	return 0;
+}
+
+# Every joint touching this entity. Also what makes deleting an entity able to
+# take its joints with it -- a joint to something that is gone is not a joint.
+fn doc_joints_of(app, id) {
+	let out = [];
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		if (joints[i].a == id || joints[i].b == id) { append(out, joints[i]); }
+	}
+	return out;
+}
+
+fn doc_prune_joints(app) {
+	let kept = [];
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		let j = joints[i];
+		if (doc_find(app, j.a) != null && doc_find(app, j.b) != null) {
+			append(kept, j);
+		}
+	}
+	app.doc_data.joints = kept;
+	return 0;
+}
+
 
 # --- selection -----------------------------------------------------
 #
@@ -380,6 +466,7 @@ fn doc_delete_selected(app) {
 		}
 	}
 	app.doc_data.entities = kept;
+	doc_prune_joints(app);
 
 	let what = gone[0].name;
 	if (len(gone) > 1) { what = len(gone) + " entities"; }
@@ -418,6 +505,7 @@ fn doc_migrate(app, parsed) {
 	if (!contains_key(parsed, "meter")) { parsed.meter = 30; }
 	if (!contains_key(parsed, "gravity")) { parsed.gravity = [0, 900]; }
 	if (!contains_key(parsed, "entities")) { parsed.entities = []; }
+	if (!contains_key(parsed, "joints")) { parsed.joints = []; }
 	for (let i = 0; i < len(parsed.entities); i = i + 1) {
 		if (!contains_key(parsed.entities[i], "groups")) { parsed.entities[i].groups = []; }
 		if (!contains_key(parsed.entities[i], "props")) { parsed.entities[i].props = {}; }

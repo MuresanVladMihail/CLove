@@ -133,6 +133,43 @@ fn view_draw_contacts(app) {
 	return 0;
 }
 
+# A joint as a line between the two entities it holds, through its anchor. It
+# is drawn inside the camera transform with the scene, because that is where it
+# lives -- unlike the gizmo, which is screen space.
+fn view_draw_joints(app) {
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		let j = joints[i];
+		let ea = doc_find(app, j.a);
+		let eb = doc_find(app, j.b);
+		if (ea == null || eb == null) { continue; }
+
+		# sim_pose, not doc_center: in Play the two ends have moved, and a
+		# joint drawn between where they used to be is worse than none
+		let pa = sim_pose(app, ea);
+		let pb = sim_pose(app, eb);
+
+		# the authored anchor while editing; midway between the live ends
+		# while playing, since the bodies have taken it with them
+		let ax = j.anchor[0];
+		let ay = j.anchor[1];
+		if (app.mode == "play") {
+			ax = (pa[0] + pb[0]) * 0.5;
+			ay = (pa[1] + pb[1]) * 0.5;
+		}
+
+		if (j.type == "revolute") {
+			love_graphics_setColor(255, 170, 90, 200);
+		} else {
+			love_graphics_setColor(140, 210, 255, 200);
+		}
+		love_geometry_line([pa[0], pa[1], ax, ay, pb[0], pb[1]]);
+		love_geometry_circle("line", ax, ay, 5, 12);
+	}
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
 # An outline around everything selected. The primary is brighter, since it is
 # the one the inspector is showing.
 fn view_draw_selection(app) {
@@ -181,6 +218,8 @@ fn view_draw(app) {
 
 	let entities = doc_entities(app);
 	for (let i = 0; i < len(entities); i = i + 1) { view_draw_entity(app, entities[i]); }
+
+	view_draw_joints(app);
 
 	cam_pop(app);
 

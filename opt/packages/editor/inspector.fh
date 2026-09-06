@@ -107,6 +107,60 @@ fn inspector_filter(app, e, f) {
 	return 0;
 }
 
+# Joints, which is where multi-select earns its keep: pick two entities and
+# there is exactly one thing the button can mean. With one selected it lists
+# the joints already touching it, so a hinge can be found and removed from
+# either end.
+fn inspector_joints(app, e) {
+	if (!love_ui_header("Joints", 0)) { return 0; }
+
+	let mine = doc_joints_of(app, e.id);
+
+	love_ui_layout_row(1, [-1], 0);
+	if (len(app.selection) == 2) {
+		let a = app.selection[0];
+		let b = app.selection[1];
+		let other = doc_find(app, a);
+		if (a == e.id) { other = doc_find(app, b); }
+
+		love_ui_label("with " + other.name + ":");
+		love_ui_layout_row(2, [-95, -1], 0);
+		if (love_ui_button("Distance", ALIGN_CENTER)) {
+			doc_add_joint(app, "distance", a, b);
+		}
+		if (love_ui_button("Revolute", ALIGN_CENTER)) {
+			doc_add_joint(app, "revolute", a, b);
+		}
+	} else {
+		love_ui_label("select two entities to join them");
+	}
+
+	love_ui_layout_row(1, [-1], 0);
+	if (len(mine) == 0) {
+		love_ui_label("none on this one");
+		return 0;
+	}
+
+	for (let i = 0; i < len(mine); i = i + 1) {
+		let j = mine[i];
+		let other_id = j.b;
+		if (j.b == e.id) { other_id = j.a; }
+		let other = doc_find(app, other_id);
+		let name = "?";
+		if (other != null) { name = other.name; }
+
+		love_ui_layout_row(2, [-64, -1], 0);
+		love_ui_label(j.type + " to " + name);
+
+		# every row's button says the same thing, so the joint id keeps them
+		# apart on the id stack
+		love_ui_pushId(j.id);
+		if (love_ui_button("Remove", ALIGN_CENTER)) { doc_delete_joint(app, j.id); }
+		love_ui_popId();
+	}
+	return 0;
+}
+
 fn panels_inspector(app) {
 	if (love_ui_begin_window("Inspector", app.screen_w - PANEL_W, TOOLBAR_H,
 	                         PANEL_W, app.screen_h - TOOLBAR_H, panels_dock_opts(app))) {
@@ -290,6 +344,7 @@ fn panels_inspector(app) {
 		}
 
 		inspector_filter(app, e, f);
+		inspector_joints(app, e);
 
 		if (love_ui_header("Appearance", OPT_EXPANDED)) {
 			love_ui_layout_row(2, [56, -1], 0);

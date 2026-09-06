@@ -77,6 +77,21 @@ Groups say *what* a thing is, properties say *with what parameters*. Between
 them the behaviour stays in game code and the level stays data — which is why
 there is no scripting attached to an entity.
 
+## Joints
+
+`joints()` is every joint in the level; `joints_of(e)` those touching one
+entity. A joint holds two entities together and belongs to neither, so it lives
+at the top level and names its ends by id:
+
+```
+{ "id": 5, "type": "distance", "a": 2, "b": 3,
+  "anchor": [300, 200], "collide": false }
+```
+
+`"distance"` is a rigid link, `"revolute"` a hinge. Build them *after* the
+bodies — both ends have to exist first. A level written before joints existed
+reads as having none.
+
 ## Spatial queries
 
 | Call | Returns |

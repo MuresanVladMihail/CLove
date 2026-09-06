@@ -88,6 +88,44 @@ fn run() {
     check(len(ed.selection) == 0,
           "without reselecting it -- the selection only survives, never revives");
 
+    # --- joints ---
+    # They hold two entities together and belong to neither, so they live at
+    # the top level and name their ends by id.
+    doc_end_edit(ed);
+    let a = doc_add(ed, "Anchor", "rect", 0, 0, 40, 40, 200, 200, 200);
+    let b = doc_add(ed, "Swing", "rect", 100, 0, 40, 40, 200, 200, 200);
+
+    check(len(doc_joints(ed)) == 0, "a level starts with no joints");
+    check(doc_add_joint(ed, "revolute", a.id, a.id) == null,
+          "an entity cannot be joined to itself");
+
+    let j = doc_add_joint(ed, "distance", a.id, b.id);
+    check(j != null, "joining two entities works");
+    check(len(doc_joints(ed)) == 1, "and the document holds it");
+    check(len(doc_joints_of(ed, a.id)) == 1, "found from one end");
+    check(len(doc_joints_of(ed, b.id)) == 1, "and from the other");
+
+    # deleting an entity takes its joints: a joint to something gone is not one
+    doc_end_edit(ed);
+    doc_select_only(ed, b.id);
+    doc_delete_selected(ed);
+    check(len(doc_joints(ed)) == 0, "deleting an end removes the joint");
+
+    doc_end_edit(ed);
+    doc_undo(ed);
+    check(len(doc_joints(ed)) == 1, "and undo brings both back");
+
+    doc_end_edit(ed);
+    doc_delete_joint(ed, doc_joints(ed)[0].id);
+    check(len(doc_joints(ed)) == 0, "a joint can also be removed on its own");
+
+    doc_end_edit(ed);
+    doc_select_only(ed, a.id);
+    doc_delete_selected(ed);
+    doc_end_edit(ed);
+    doc_select_only(ed, b.id);
+    doc_delete_selected(ed);
+
     # --- what a host reads ---
     let doc = editor_document(ed);
     check(type(doc) == "map", "the document is a map");

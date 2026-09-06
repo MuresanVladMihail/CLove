@@ -60,6 +60,8 @@ fn sim_build(app) {
 		append(app.runtime, [e.id, body]);
 	}
 
+	sim_build_joints(app);
+
 	# Collision callbacks are looked up by *name* from C and handed no state
 	# map, which is what EDITOR_INPUT.app is for.
 	love_world_setCallbacks(app.world, "sim_begin_contact", null);
@@ -67,6 +69,33 @@ fn sim_build(app) {
 
 	log_line(app, "play: " + len(app.runtime) + " bodies, gravity " +
 		app.doc_data.gravity[0] + ", " + app.doc_data.gravity[1]);
+	return 0;
+}
+
+# Joints, once every body exists -- a joint needs both ends built. A joint
+# whose entities are gone is skipped rather than fatal: the document can be
+# hand-edited, and a level that will not play is worse than one missing a hinge.
+fn sim_build_joints(app) {
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		let j = joints[i];
+		let a = sim_body_of(app, j.a);
+		let b = sim_body_of(app, j.b);
+		if (a == null || b == null) {
+			log_line(app, "joint " + j.id + ": one end is missing, skipped");
+			continue;
+		}
+
+		if (j.type == "revolute") {
+			love_physics_newRevoluteJoint(a, b, j.anchor[0], j.anchor[1], j.collide);
+		} else {
+			# a distance joint takes an anchor per body; the rest length is
+			# whatever the two are apart when Play starts
+			let ca = love_body_getPosition(a);
+			let cb = love_body_getPosition(b);
+			love_physics_newDistanceJoint(a, b, ca[0], ca[1], cb[0], cb[1], j.collide);
+		}
+	}
 	return 0;
 }
 

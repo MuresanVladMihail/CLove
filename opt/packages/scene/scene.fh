@@ -243,6 +243,26 @@ fn Scene(source) {
 		return out;
 	};
 
+	# --- joints -------------------------------------------------------
+	#
+	# A joint holds two entities together and belongs to neither, so it lives
+	# at the top level and names them by id. Build them after the bodies:
+	# both ends have to exist first.
+
+	scene.joints = fn() {
+		if (!contains_key(doc, "joints")) { return []; }
+		return doc.joints;
+	};
+
+	scene.joints_of = fn(e) {
+		let out = [];
+		let all = scene.joints();
+		for (let i = 0; i < len(all); i = i + 1) {
+			if (all[i].a == e.id || all[i].b == e.id) { append(out, all[i]); }
+		}
+		return out;
+	};
+
 	# --- spatial queries ----------------------------------------------
 	#
 	#  Axis-aligned and rotation-agnostic: they test the fixture box as the
