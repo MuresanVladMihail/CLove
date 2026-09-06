@@ -248,6 +248,39 @@ fn marquee_finish(app) {
 	return 0;
 }
 
+# --- dragging the docks -----------------------------------------------------
+#
+# The grooves between the panels are the handles. They are outside every
+# microui container -- the one strip of the window no dock claims -- so the
+# press reaches here rather than being swallowed by a panel.
+
+fn splitter_begin(app, s, px, py) {
+	app.splitter = s[5];
+	if (s[4] == "x") {
+		app.splitter_from = px;
+	} else {
+		app.splitter_from = py;
+	}
+	app.splitter_size = app.panel_l;
+	if (s[5] == "right") { app.splitter_size = app.panel_r; }
+	if (s[5] == "hier") { app.splitter_size = app.hier_h; }
+	return 0;
+}
+
+fn splitter_apply(app) {
+	if (app.splitter == "left") {
+		app.panel_l = app.splitter_size + app.mx - app.splitter_from;
+	} else if (app.splitter == "right") {
+		# the right column grows as the pointer moves left
+		app.panel_r = app.splitter_size - (app.mx - app.splitter_from);
+	} else {
+		app.hier_h = app.splitter_size + app.my - app.splitter_from;
+	}
+	# editor_layout() clamps, so a drag past the end simply stops
+	editor_layout(app);
+	return 0;
+}
+
 # --- drawing a collision polygon -------------------------------------------
 #
 # The Polygon tool lays down points with the mouse: each click adds one, and
@@ -453,6 +486,28 @@ fn viewport_input(app, dt) {
 	let press_inside = point_in(px, py, app.vp_x, app.vp_y, app.vp_w, app.vp_h) &&
 		!love_ui_mouse_over();
 	app.hover_viewport = inside;   # read by the F shortcut
+
+	# A groove being dragged owns the mouse until it is let go.
+	if (app.splitter != null) {
+		if (down) {
+			splitter_apply(app);
+		} else {
+			app.splitter = null;
+			prefs_touch(app);
+		}
+		cursor_update(app, false);
+		return 0;
+	}
+
+	if (pressed && !app.confirm && app.browser == null) {
+		let groove = editor_splitter_at(app, px, py);
+		if (groove != null) {
+			splitter_begin(app, groove, px, py);
+			cursor_update(app, false);
+			return 0;
+		}
+	}
+
 	let panning = cam_input(app, dt, inside);
 
 	# the simulation owns the scene while it runs; only the camera stays live
@@ -653,8 +708,9 @@ fn editor_new(opts) {
 	app.revision = 0;
 	app.wheel = 0;
 
-	editor_layout(app);
-
+	# The layout is worked out from the dock sizes, which are preferences, so
+	# it cannot run before prefs_defaults() has put them there. It happens just
+	# below, once they exist.
 	app.log = [];
 	app.sprite_cache = {};
 	app.trace_cache = {};
@@ -680,7 +736,8 @@ fn editor_new(opts) {
 	app.pan_y = 0;
 
 	app.tool      = "select";
-	prefs_defaults(app);      # grid, snap, show_grid, show_fixtures
+	prefs_defaults(app);      # grid, snap, what is drawn, and the dock sizes
+	editor_layout(app);
 	app.show_style = false;
 	app.confirm   = false;
 
@@ -693,6 +750,9 @@ fn editor_new(opts) {
 	app.marquee = null;       # [x, y] of a rubber band's first corner
 	app.marquee_add = false;  # was Shift held when it started
 	app.vertex = -1;          # index into a polygon's points, while dragging one
+	app.splitter = null;      # which groove is being dragged, if any
+	app.splitter_from = 0;    # where the pointer was when it started
+	app.splitter_size = 0;    # and how big the dock was then
 	app.draft = [];           # the polygon being drawn, in world units
 
 	app.mouse_down = false;

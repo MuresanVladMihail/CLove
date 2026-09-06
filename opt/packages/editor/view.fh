@@ -347,5 +347,41 @@ fn view_draw(app) {
 	love_graphics_setColor(70, 76, 90, 255);
 	love_geometry_rectangle("line", app.vp_x, app.vp_y, app.vp_w, app.vp_h);
 	love_graphics_setColor(255, 255, 255, 255);
+
+	view_draw_splitters(app);
+	return 0;
+}
+
+# The grooves between the docks, drawn here because love_draw() runs before the
+# UI: anything drawn under a panel is covered by it, and the gap is the one
+# strip no panel claims. Lit when the pointer is on one, so it is findable
+# without a tooltip.
+fn view_draw_splitters(app) {
+	let hot = editor_splitter_at(app, app.mx, app.my);
+	let all = editor_splitters(app);
+
+	for (let i = 0; i < len(all); i++) {
+		let s = all[i];
+		let live = app.splitter == s[5];
+		let warm = hot != null && hot[5] == s[5];
+
+		if (live) {
+			love_graphics_setColor(120, 170, 255, 255);
+		} else if (warm) {
+			love_graphics_setColor(90, 120, 170, 255);
+		} else {
+			love_graphics_setColor(48, 52, 62, 255);
+		}
+		love_geometry_rectangle("fill", s[0], s[1], s[2], s[3]);
+
+		# a grip mark in the middle, so an untouched groove still reads as one
+		love_graphics_setColor(110, 118, 135, 255);
+		if (s[4] == "x") {
+			love_geometry_rectangle("fill", s[0] + 2, s[1] + s[3] * 0.5 - 12, 2, 24);
+		} else {
+			love_geometry_rectangle("fill", s[0] + s[2] * 0.5 - 12, s[1] + 2, 24, 2);
+		}
+	}
+	love_graphics_setColor(255, 255, 255, 255);
 	return 0;
 }

@@ -100,8 +100,8 @@ fn doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b) {
 fn doc_empty(app) {
 	return {
 		"version": DOC_VERSION,
-		"meter": 30,
-		"gravity": [0, 900],
+		"meter": LEVEL_METER,
+		"gravity": [LEVEL_GRAVITY[0], LEVEL_GRAVITY[1]],
 		"next_id": 1,
 		"entities": [],
 		# Joints reference entities by id and live at the top level rather than
@@ -595,8 +595,10 @@ fn doc_migrate(app, parsed) {
 			" is newer than this editor (" + DOC_VERSION + ")");
 		return null;
 	}
-	if (!contains_key(parsed, "meter")) { parsed.meter = 30; }
-	if (!contains_key(parsed, "gravity")) { parsed.gravity = [0, 900]; }
+	if (!contains_key(parsed, "meter")) { parsed.meter = LEVEL_METER; }
+	if (!contains_key(parsed, "gravity")) {
+		parsed.gravity = [LEVEL_GRAVITY[0], LEVEL_GRAVITY[1]];
+	}
 	if (!contains_key(parsed, "entities")) { parsed.entities = []; }
 	if (!contains_key(parsed, "joints")) { parsed.joints = []; }
 	for (let i = 0; i < len(parsed.entities); i++) {

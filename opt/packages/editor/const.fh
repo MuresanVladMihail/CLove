@@ -28,10 +28,17 @@ let OPT_DISABLED = 4;      # MU_OPT_NOINTERACT -- draws, never fires
 # the actual window by editor_layout(), so the editor fits whatever it is
 # hosted in -- a game's window is not going to be 1280x760 because the editor
 # would like it to be.
-let PANEL_W   = 250;
+let PANEL_W   = 250;   # the two side columns, by default
 let TOOLBAR_H = 76;
 let STATUS_H  = 30;
 let HIER_H    = 400;   # the hierarchy's share of the left column, by default
+
+# The groove between two docks. It is a real gap rather than a shared edge so
+# there is somewhere to draw the splitter: love_draw() runs before the UI, so
+# anything drawn under a panel is covered by it, and the gap is the one strip
+# of the window no panel claims.
+let SPLIT_W    = 6;
+let SPLIT_GRAB = 4;    # extra pixels either side, so it can be hit
 
 # Below these the panels would leave nothing to draw into, so the viewport
 # stops shrinking and starts being covered instead. Better a cramped editor
@@ -39,25 +46,67 @@ let HIER_H    = 400;   # the hierarchy's share of the left column, by default
 let MIN_VP_W = 120;
 let MIN_VP_H = 120;
 
+# and how small a dock may be dragged
+let MIN_PANEL_W = 140;
+let MIN_PANEL_H = 90;
+
+# The docks are sized in pixels, not as a share of the window: a hierarchy that
+# grew every time the window did would waste the space the viewport wanted. So
+# a wider window gives its extra width to the scene, and the columns are set by
+# dragging the groove between them -- app.panel_l, app.panel_r and app.hier_h,
+# all remembered in editor.json.
+#
+# Clamped here rather than where they are dragged, because a window that shrinks
+# has to push them back too.
 fn editor_layout(app) {
 	app.screen_w = love_window_getWidth();
 	app.screen_h = love_window_getHeight();
 
-	# The hierarchy keeps its height until the window is too short for it, and
-	# then gives way rather than pushing the console off the bottom.
-	app.hier_h = HIER_H;
-	let column = app.screen_h - TOOLBAR_H;
-	if (app.hier_h > column - MIN_VP_H) { app.hier_h = column - MIN_VP_H; }
-	if (app.hier_h < MIN_VP_H) { app.hier_h = MIN_VP_H; }
+	let room = app.screen_w - MIN_VP_W - 2 * SPLIT_W;
+	if (app.panel_l < MIN_PANEL_W) { app.panel_l = MIN_PANEL_W; }
+	if (app.panel_r < MIN_PANEL_W) { app.panel_r = MIN_PANEL_W; }
+	# neither column may squeeze the viewport out; the left one gives first
+	if (app.panel_r > room - MIN_PANEL_W) { app.panel_r = room - MIN_PANEL_W; }
+	if (app.panel_l > room - app.panel_r) { app.panel_l = room - app.panel_r; }
+	if (app.panel_l < MIN_PANEL_W) { app.panel_l = MIN_PANEL_W; }
+	if (app.panel_r < MIN_PANEL_W) { app.panel_r = MIN_PANEL_W; }
 
-	app.vp_x = PANEL_W;
+	# the hierarchy keeps its height until the column is too short for it
+	let column = app.screen_h - TOOLBAR_H - SPLIT_W;
+	if (app.hier_h > column - MIN_PANEL_H) { app.hier_h = column - MIN_PANEL_H; }
+	if (app.hier_h < MIN_PANEL_H) { app.hier_h = MIN_PANEL_H; }
+
+	app.vp_x = app.panel_l + SPLIT_W;
 	app.vp_y = TOOLBAR_H;
-	app.vp_w = app.screen_w - 2 * PANEL_W;
+	app.vp_w = app.screen_w - app.panel_l - app.panel_r - 2 * SPLIT_W;
 	app.vp_h = app.screen_h - TOOLBAR_H - STATUS_H;
 
 	if (app.vp_w < MIN_VP_W) { app.vp_w = MIN_VP_W; }
 	if (app.vp_h < MIN_VP_H) { app.vp_h = MIN_VP_H; }
 	return 0;
+}
+
+# The three grooves, as [x, y, w, h, "axis", "which"]. One list so the hit
+# test, the drawing and the drag all read the same geometry.
+fn editor_splitters(app) {
+	return [
+		[app.panel_l, TOOLBAR_H, SPLIT_W, app.screen_h - TOOLBAR_H, "x", "left"],
+		[app.screen_w - app.panel_r - SPLIT_W, TOOLBAR_H, SPLIT_W,
+		 app.screen_h - TOOLBAR_H, "x", "right"],
+		[0, TOOLBAR_H + app.hier_h, app.panel_l, SPLIT_W, "y", "hier"]
+	];
+}
+
+fn editor_splitter_at(app, x, y) {
+	let all = editor_splitters(app);
+	for (let i = 0; i < len(all); i++) {
+		let s = all[i];
+		if (point_in(x, y, s[0] - SPLIT_GRAB, s[1] - SPLIT_GRAB,
+		             s[2] + SPLIT_GRAB * 2, s[3] + SPLIT_GRAB * 2)) {
+			return s;
+		}
+	}
+	return null;
 }
 
 # --- modal dialogs ----------------------------------------------------------
@@ -87,6 +136,11 @@ let TB_GAP  = 14;
 
 # The level opened when there is nothing remembered in editor.json. Every
 # other level is discovered from the game directory -- see scenes.fh.
+# What a level starts as, and what the inspector's Reset puts back. Named so
+# that "the default" is one thing rather than a number repeated in two places.
+let LEVEL_GRAVITY = [0, 900];
+let LEVEL_METER   = 30;
+
 let SCENE_PATH  = "scene.json";
 let PREFS_PATH  = "editor.json";
 let DOC_VERSION = 1;

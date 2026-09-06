@@ -21,6 +21,9 @@ fn prefs_defaults(app) {
 	app.show_grid      = true;
 	app.show_fixtures  = true;
 	app.tips           = true;    # hover help; off for anyone who knows the tool
+	app.panel_l        = PANEL_W; # the docks, dragged by the grooves between
+	app.panel_r        = PANEL_W;
+	app.hier_h         = HIER_H;
 	theme_apply(app, THEME_DEFAULT);
 	app.scene_path     = SCENE_PATH;   # which level is open; see scenes.fh
 	app.prefs_dirty    = false;
@@ -63,6 +66,9 @@ fn prefs_load(app) {
 	if (contains_key(parsed, "show_grid")) { app.show_grid = parsed.show_grid; }
 	if (contains_key(parsed, "show_fixtures")) { app.show_fixtures = parsed.show_fixtures; }
 	if (contains_key(parsed, "tips")) { app.tips = parsed.tips; }
+	if (contains_key(parsed, "panel_l")) { app.panel_l = parsed.panel_l; }
+	if (contains_key(parsed, "panel_r")) { app.panel_r = parsed.panel_r; }
+	if (contains_key(parsed, "hier_h")) { app.hier_h = parsed.hier_h; }
 
 	# A theme is a list of [name, [r, g, b]] the same shape THEME_DEFAULT has,
 	# so a file written by an older editor -- or one Revert emptied -- simply
@@ -89,6 +95,9 @@ fn prefs_save(app) {
 		"show_grid": app.show_grid,
 		"show_fixtures": app.show_fixtures,
 		"tips": app.tips,
+		"panel_l": app.panel_l,
+		"panel_r": app.panel_r,
+		"hier_h": app.hier_h,
 		"theme": theme_current(app),
 		"scene": app.scene_path
 	}, true));

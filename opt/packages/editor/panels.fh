@@ -248,7 +248,7 @@ fn panels_toolbar(app) {
 }
 
 fn panels_hierarchy(app) {
-	if (panels_dock(app, "Hierarchy", 0, TOOLBAR_H, PANEL_W, app.hier_h)) {
+	if (panels_dock(app, "Hierarchy", 0, TOOLBAR_H, app.panel_l, app.hier_h)) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("HIERARCHY");
 
@@ -396,8 +396,9 @@ fn panels_hierarchy(app) {
 # --- inspector ------------------------------------------------------
 
 fn panels_console(app) {
-	if (panels_dock(app, "Console", 0, TOOLBAR_H + app.hier_h,
-	                PANEL_W, app.screen_h - TOOLBAR_H - app.hier_h)) {
+	if (panels_dock(app, "Console", 0, TOOLBAR_H + app.hier_h + SPLIT_W,
+	                app.panel_l,
+	                app.screen_h - TOOLBAR_H - app.hier_h - SPLIT_W)) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("CONSOLE");
 
