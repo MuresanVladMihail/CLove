@@ -1,0 +1,636 @@
+# ============================================================================
+#  doc.fh -- the scene document
+# ----------------------------------------------------------------------------
+#  The document is a plain FH map that round-trips through JSON, and it is the
+#  single source of truth: the panels, the viewport and the Box2D world are all
+#  derived from it. Entities are addressed by a stable `id`, never by their
+#  index, so deleting or reordering cannot silently retarget a selection.
+#
+#  Saved document (scene.json):
+#
+#    { "version": 1,
+#      "meter": 30,               # pixels per Box2D metre this map was authored at
+#      "gravity": [0, 900],       # pixels per second squared
+#      "next_id": 4,
+#      "joints": [ { "id": 5, "type": "distance", "a": 2, "b": 3,
+#                    "anchor": [300, 200], "collide": false } ],
+#      "entities": [
+#        { "id": 1, "name": "Ground", "visible": true, "groups": ["terrain"],
+#          "props":     { "damage": 0 },   # free-form, authored per entity
+#          "links":     { "exit": 7 },      # named references to other entities
+#          "transform": { "x": 290, "y": 600, "angle": 0, "sx": 1, "sy": 1 },
+#          "color":     [92, 128, 84],
+#          "sprite":    { "path": "art/crate.svg" },   # or null
+#          "body":      { "type": "static", "fixed_rotation": false,
+#                         "gravity_scale": 1 },
+#          "fixtures":  [ { "shape": "rect", "w": 700, "h": 90,
+#                           "density": 1, "friction": 0.4,
+#                           "restitution": 0.1, "sensor": false,
+#                           "category": 1, "mask": 65535, "group": 0 } ] } ] }
+#
+#  Only authored data goes in the file. A sprite is stored as a path and
+#  nothing else -- love_graphics_newImage() loads .svg and .png through the
+#  same call and love_image_isVector() tells them apart at runtime. Anything
+#  derived from an asset (a collision outline traced from an SVG) is recomputed
+#  on load rather than saved.
+#
+#  Reading a scene back from a game is opt/packages/scene.
+# ============================================================================
+
+
+# --- shape ---------------------------------------------------------
+
+# Every change to the document moves the revision, so a host embedding the
+# editor can tell that the level it derived a world from is out of date without
+# having to diff anything. It deliberately does not move for a camera pan or a
+# selection: a game should not rebuild its world because someone scrolled.
+fn doc_touch(app) {
+	app.revision = app.revision + 1;
+	return 0;
+}
+
+
+fn doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b) {
+	return {
+		"id": id,
+		"name": name,
+		"visible": true,
+		# Godot-style tags. The scene package queries on these, so game
+		# code can ask for "pickups" instead of hard-coding names.
+		"groups": [],
+		# Free-form authored data: whatever this particular entity needs that
+		# the editor has no field for -- a patrol radius, a door's target
+		# level, how much a pickup is worth. Values are typed (number, bool or
+		# string), see properties.fh. The game reads them with scene.props().
+		"props": {},
+		# Named references to other entities, by id: a door's exit, a lever's
+		# target. Kept apart from props because a props value is data and this
+		# is a pointer -- the editor has to keep it honest when the thing it
+		# points at goes away, and a game wants the entity back, not a number.
+		"links": {},
+		"transform": { "x": x, "y": y, "angle": 0, "sx": 1, "sy": 1 },
+		"color": [r, g, b],
+		"sprite": null,
+		"body": { "type": "static", "fixed_rotation": false, "gravity_scale": 1 },
+		# One fixture is enough for this skeleton, but the field stays an
+		# array so the format need not change for compound bodies.
+		"fixtures": [ {
+			"shape": kind,
+			"w": w, "h": h,
+			"density": 1, "friction": 0.4, "restitution": 0.1,
+			"sensor": false,
+			# Box2D's collision filter. category is what this thing *is*,
+			# mask is what it is willing to touch: two fixtures collide only
+			# if each one's category is in the other's mask. The defaults --
+			# layer 1, hits everything -- are what you want until they are not.
+			"category": 1, "mask": 65535, "group": 0
+		} ]
+	};
+}
+
+fn doc_empty(app) {
+	return {
+		"version": DOC_VERSION,
+		"meter": 30,
+		"gravity": [0, 900],
+		"next_id": 1,
+		"entities": [],
+		# Joints reference entities by id and live at the top level rather than
+		# on either entity: a joint belongs to neither of the two things it
+		# holds together, and hanging it off one of them would make deleting
+		# that one mean something different from deleting the other.
+		"joints": []
+	};
+}
+
+fn doc_add(app, name, kind, x, y, w, h, r, g, b) {
+	let id = app.doc_data.next_id;
+	app.doc_data.next_id = id + 1;
+	let e = doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b);
+	append(app.doc_data.entities, e);
+	# The rule is that anything which changes the document moves the revision,
+	# including this -- a host seeding a level calls it directly, without going
+	# through doc_begin_edit().
+	doc_touch(app);
+	return e;
+}
+
+# --- reading -------------------------------------------------------
+
+fn doc_entities(app) { return app.doc_data.entities; }
+fn doc_count(app) { return len(app.doc_data.entities); }
+
+fn doc_find(app, id) {
+	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+		if (app.doc_data.entities[i].id == id) { return app.doc_data.entities[i]; }
+	}
+	return null;
+}
+
+fn doc_shape(app, e) { return e.fixtures[0]; }
+
+# The local polygon for an entity, centred on its origin, flat [x0,y0,...] --
+# or null when it has none. "traced" comes from the artwork and is recomputed;
+# "polygon" is drawn by hand and lives in the document. Everything downstream
+# (Play, the outline, the vertex handles) goes through this, so the two are the
+# same thing from here on.
+fn doc_polygon(app, e) {
+	let f = doc_shape(app, e);
+	if (f.shape == "polygon") {
+		if (!contains_key(f, "points") || len(f.points) < 6) { return null; }
+		return f.points;
+	}
+	if (f.shape == "traced") { return trace_points(app, e); }
+	return null;
+}
+
+# The box a set of local points sits in, which is what the fixture's w/h has to
+# be for framing, picking and the gizmo to mean anything.
+fn doc_polygon_bounds(app, points) {
+	let minx = points[0];
+	let maxx = points[0];
+	let miny = points[1];
+	let maxy = points[1];
+	for (let i = 0; i + 1 < len(points); i = i + 2) {
+		if (points[i] < minx) { minx = points[i]; }
+		if (points[i] > maxx) { maxx = points[i]; }
+		if (points[i + 1] < miny) { miny = points[i + 1]; }
+		if (points[i + 1] > maxy) { maxy = points[i + 1]; }
+	}
+	return [minx, miny, maxx - minx, maxy - miny];
+}
+
+# Keeps the fixture box around the points and the points centred in it, so the
+# entity's position still means its top-left corner and picking still works.
+fn doc_polygon_recentre(app, e) {
+	let f = doc_shape(app, e);
+	if (f.shape != "polygon" || !contains_key(f, "points")) { return 0; }
+
+	let b = doc_polygon_bounds(app, f.points);
+	let cx = b[0] + b[2] * 0.5;
+	let cy = b[1] + b[3] * 0.5;
+
+	for (let i = 0; i + 1 < len(f.points); i = i + 2) {
+		f.points[i] = round_to(f.points[i] - cx, 2);
+		f.points[i + 1] = round_to(f.points[i + 1] - cy, 2);
+	}
+
+	# the box moved under the points, so the entity moves with it
+	e.transform.x = round_to(e.transform.x + cx + (f.w - b[2]) * 0.5, 2);
+	e.transform.y = round_to(e.transform.y + cy + (f.h - b[3]) * 0.5, 2);
+	f.w = round_to(b[2], 2);
+	f.h = round_to(b[3], 2);
+	return 0;
+}
+
+# Entities are positioned by their top-left corner in the document; Box2D
+# wants the body centre, so the two are converted at the boundary.
+fn doc_bounds(app, e) {
+	let f = e.fixtures[0];
+	return [e.transform.x, e.transform.y, f.w, f.h];
+}
+
+fn doc_center(app, e) {
+	let f = e.fixtures[0];
+	return [e.transform.x + f.w * 0.5, e.transform.y + f.h * 0.5];
+}
+
+# --- joints --------------------------------------------------------
+#
+#   { "id": 1, "type": "distance", "a": 2, "b": 3,
+#     "anchor": [x, y],       # world units, where the joint is pinned
+#     "collide": false }      # do the two bodies still collide with each other
+#
+# Only the two Box2D joints a 2D level actually reaches for are here: distance
+# (a rigid link or a rope) and revolute (a hinge). The rest of Box2D's nine are
+# bound and can be built by hand; what they want from an editor is a panel each,
+# which is a different piece of work.
+
+fn doc_joints(app) {
+	if (!contains_key(app.doc_data, "joints")) { app.doc_data.joints = []; }
+	return app.doc_data.joints;
+}
+
+fn doc_add_joint(app, kind, a, b) {
+	if (a == b) { return null; }
+
+	let ea = doc_find(app, a);
+	let eb = doc_find(app, b);
+	if (ea == null || eb == null) { return null; }
+
+	doc_begin_edit(app);
+
+	# pinned midway between the two by default, which is where a hinge between
+	# them belongs and does no harm to a distance joint
+	let ca = doc_center(app, ea);
+	let cb = doc_center(app, eb);
+
+	let j = {
+		"id": app.doc_data.next_id,
+		"type": kind,
+		"a": a, "b": b,
+		"anchor": [(ca[0] + cb[0]) * 0.5, (ca[1] + cb[1]) * 0.5],
+		"collide": false
+	};
+	app.doc_data.next_id = j.id + 1;
+	append(doc_joints(app), j);
+	log_line(app, kind + " joint: " + ea.name + " - " + eb.name);
+	return j;
+}
+
+fn doc_delete_joint(app, id) {
+	doc_begin_edit(app);
+	let kept = [];
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		if (joints[i].id != id) { append(kept, joints[i]); }
+	}
+	app.doc_data.joints = kept;
+	return 0;
+}
+
+# Every joint touching this entity. Also what makes deleting an entity able to
+# take its joints with it -- a joint to something that is gone is not a joint.
+fn doc_joints_of(app, id) {
+	let out = [];
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		if (joints[i].a == id || joints[i].b == id) { append(out, joints[i]); }
+	}
+	return out;
+}
+
+# Drops links pointing at entities that are gone. A dangling reference is worse
+# than a missing one: a game reading it gets an id that resolves to nothing and
+# has no way to tell that from a typo.
+fn doc_prune_links(app) {
+	let entities = doc_entities(app);
+	for (let i = 0; i < len(entities); i = i + 1) {
+		let links = doc_links(app, entities[i]);
+		let k = next_key(links, null);
+		let dead = [];
+		while (k != null) {
+			if (doc_find(app, links[k]) == null) { append(dead, k); }
+			k = next_key(links, k);
+		}
+		for (let j = 0; j < len(dead); j = j + 1) { delete(links, dead[j]); }
+	}
+	return 0;
+}
+
+fn doc_links(app, e) {
+	if (!contains_key(e, "links")) { e.links = {}; }
+	return e.links;
+}
+
+fn doc_prune_joints(app) {
+	let kept = [];
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		let j = joints[i];
+		if (doc_find(app, j.a) != null && doc_find(app, j.b) != null) {
+			append(kept, j);
+		}
+	}
+	app.doc_data.joints = kept;
+	return 0;
+}
+
+
+# --- selection -----------------------------------------------------
+#
+# app.selection is the whole selection, by id; app.selected_id is the primary,
+# the one the inspector edits. Keeping both means everything that only makes
+# sense for one entity -- the name, the sprite, a property -- carries on
+# working unchanged, while moving, deleting and duplicating take the lot.
+
+fn doc_is_selected(app, id) {
+	for (let i = 0; i < len(app.selection); i = i + 1) {
+		if (app.selection[i] == id) { return true; }
+	}
+	return false;
+}
+
+fn doc_select_none(app) {
+	app.selection = [];
+	app.selected_id = -1;
+	return 0;
+}
+
+fn doc_select_only(app, id) {
+	if (id < 0) { return doc_select_none(app); }
+	app.selection = [id];
+	app.selected_id = id;
+	return 0;
+}
+
+# Shift-click: add if it is not in, drop it if it is. The primary follows what
+# was just added, and falls back to whatever is left when one is dropped.
+fn doc_select_toggle(app, id) {
+	if (id < 0) { return 0; }
+
+	if (!doc_is_selected(app, id)) {
+		append(app.selection, id);
+		app.selected_id = id;
+		return 0;
+	}
+
+	let kept = [];
+	for (let i = 0; i < len(app.selection); i = i + 1) {
+		if (app.selection[i] != id) { append(kept, app.selection[i]); }
+	}
+	app.selection = kept;
+	if (len(kept) > 0) {
+		app.selected_id = kept[len(kept) - 1];
+	} else {
+		app.selected_id = -1;
+	}
+	return 0;
+}
+
+fn doc_selected_entities(app) {
+	let out = [];
+	for (let i = 0; i < len(app.selection); i = i + 1) {
+		let e = doc_find(app, app.selection[i]);
+		if (e != null) { append(out, e); }
+	}
+	return out;
+}
+
+# Drops from the selection anything the document no longer holds -- after an
+# undo, or a delete.
+fn doc_prune_selection(app) {
+	let kept = [];
+	for (let i = 0; i < len(app.selection); i = i + 1) {
+		if (doc_find(app, app.selection[i]) != null) { append(kept, app.selection[i]); }
+	}
+	app.selection = kept;
+	if (!doc_is_selected(app, app.selected_id)) {
+		if (len(kept) > 0) {
+			app.selected_id = kept[len(kept) - 1];
+		} else {
+			app.selected_id = -1;
+		}
+	}
+	return 0;
+}
+
+fn doc_selected(app) {
+	if (app.selected_id < 0) { return null; }
+	return doc_find(app, app.selected_id);
+}
+
+# --- history -------------------------------------------------------
+#
+#  The document is JSON-able, so a snapshot is the whole mechanism: no
+#  command objects, no inverse operations, and nothing to keep in sync
+#  when the format grows a field.
+
+fn doc_push_undo(app) {
+	append(app.undo, json_stringify(app.doc_data));
+	if (len(app.undo) > UNDO_LIMIT) { app.undo = drop_first(app.undo); }
+	app.redo = [];
+	return 0;
+}
+
+# Called by every mutating path. The snapshot is taken once per mouse
+# gesture, so dragging a number field for a second does not fill the stack
+# with a hundred nearly identical documents.
+fn doc_begin_edit(app) {
+	doc_touch(app);
+	if (app.edit_pushed) { return 0; }
+	doc_push_undo(app);
+	app.edit_pushed = true;
+	app.dirty = true;
+	return 0;
+}
+
+# Ends the gesture, so the next change starts a new undo step. The viewport
+# calls it when the button comes up; anything driving the document directly --
+# a test, a script -- has to say when one edit ends and the next begins, or
+# they all collapse into one undo.
+fn doc_end_edit(app) {
+	app.edit_pushed = false;
+	return 0;
+}
+
+# Undo used to clear the selection outright, which made a run of undos mean
+# reselecting between every step. The document is replaced wholesale, so the
+# entity object is gone either way -- but the id is stable, so the selection can
+# survive whenever the step did not remove the thing that was selected.
+fn doc_keep_selection(app) {
+	doc_prune_selection(app);
+	return 0;
+}
+
+fn doc_undo(app) {
+	if (len(app.undo) == 0) { log_line(app, "nothing to undo"); return 0; }
+	append(app.redo, json_stringify(app.doc_data));
+	app.doc_data = json_parse(app.undo[len(app.undo) - 1]);
+	app.undo = drop_last(app.undo);
+	doc_keep_selection(app);
+	doc_touch(app);
+	app.dirty = true;
+	log_line(app, "undo");
+	return 0;
+}
+
+fn doc_redo(app) {
+	if (len(app.redo) == 0) { log_line(app, "nothing to redo"); return 0; }
+	append(app.undo, json_stringify(app.doc_data));
+	app.doc_data = json_parse(app.redo[len(app.redo) - 1]);
+	app.redo = drop_last(app.redo);
+	doc_keep_selection(app);
+	doc_touch(app);
+	app.dirty = true;
+	log_line(app, "redo");
+	return 0;
+}
+
+# --- editing commands ----------------------------------------------
+
+# A copy of an entity that shares nothing with it.
+#
+# Field-by-field copying went wrong twice over: it quietly dropped everything
+# nobody remembered to list -- the angle, fixed rotation, gravity scale, the
+# fixture's density, friction, restitution and sensor flag, and later the whole
+# props map -- and `copy.groups = e.groups` handed over the *same* array, so
+# editing the copy's groups edited the original's too. Arrays and maps are
+# references in FH; a round trip through JSON is the deep copy, and it cannot
+# forget a field because it never enumerates them.
+fn doc_clone_entity(app, e) {
+	return json_parse(json_stringify(e));
+}
+
+fn doc_duplicate(app) {
+	let originals = doc_selected_entities(app);
+	if (len(originals) == 0) { return 0; }
+	doc_begin_edit(app);
+
+	let made = [];
+	for (let i = 0; i < len(originals); i = i + 1) {
+		let e = originals[i];
+		let copy = doc_clone_entity(app, e);
+		copy.id = app.doc_data.next_id;
+		app.doc_data.next_id = copy.id + 1;
+		copy.name = e.name + " copy";
+		copy.transform.x = e.transform.x + app.grid;
+		copy.transform.y = e.transform.y + app.grid;
+
+		append(app.doc_data.entities, copy);
+		append(made, copy.id);
+	}
+
+	# the copies become the selection, so dragging straight away moves them
+	app.selection = made;
+	app.selected_id = made[len(made) - 1];
+	log_line(app, "duplicated " + len(made));
+	return 0;
+}
+
+# --- z-order -------------------------------------------------------
+#
+# Document order *is* draw order: view_draw_entity() walks the list forwards,
+# and hit_test() walks it backwards so the topmost thing is picked first. So
+# reordering the list is the whole of z-order, and it costs the format nothing.
+
+fn doc_index_of(app, id) {
+	let entities = app.doc_data.entities;
+	for (let i = 0; i < len(entities); i = i + 1) {
+		if (entities[i].id == id) { return i; }
+	}
+	return -1;
+}
+
+fn doc_move_to(app, id, to) {
+	let from = doc_index_of(app, id);
+	if (from < 0) { return false; }
+
+	let last = len(app.doc_data.entities) - 1;
+	if (to < 0) { to = 0; }
+	if (to > last) { to = last; }
+	if (to == from) { return false; }
+
+	doc_begin_edit(app);
+
+	# rebuild rather than swap, so a move of more than one step is the same
+	# operation as a move of one
+	let e = app.doc_data.entities[from];
+	let rest = [];
+	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+		if (i != from) { append(rest, app.doc_data.entities[i]); }
+	}
+	let out = [];
+	for (let i = 0; i < len(rest); i = i + 1) {
+		if (i == to) { append(out, e); }
+		append(out, rest[i]);
+	}
+	if (to >= len(rest)) { append(out, e); }
+
+	app.doc_data.entities = out;
+	return true;
+}
+
+fn doc_raise(app, id)    { return doc_move_to(app, id, doc_index_of(app, id) + 1); }
+fn doc_lower(app, id)    { return doc_move_to(app, id, doc_index_of(app, id) - 1); }
+fn doc_to_front(app, id) { return doc_move_to(app, id, len(app.doc_data.entities) - 1); }
+fn doc_to_back(app, id)  { return doc_move_to(app, id, 0); }
+
+
+fn doc_delete_selected(app) {
+	let gone = doc_selected_entities(app);
+	if (len(gone) == 0) { return 0; }
+	doc_begin_edit(app);
+
+	let kept = [];
+	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
+		if (!doc_is_selected(app, app.doc_data.entities[i].id)) {
+			append(kept, app.doc_data.entities[i]);
+		}
+	}
+	app.doc_data.entities = kept;
+	doc_prune_joints(app);
+	doc_prune_links(app);
+
+	let what = gone[0].name;
+	if (len(gone) > 1) { what = len(gone) + " entities"; }
+	doc_select_none(app);
+	log_line(app, "deleted " + what);
+	return 0;
+}
+
+# --- save / load ---------------------------------------------------
+#
+#  io_* writes straight to the path given, next to the project. The
+#  love_filesystem_* calls go through PhysFS and land in the application's
+#  save directory instead -- right for a game's save games, wrong for a
+#  level file that belongs in the repository beside its assets.
+
+fn doc_save(app, path) {
+	let file = io_open(path, "w");
+	# `true` asks for indented output, so the file stays diffable
+	io_write(file, json_stringify(app.doc_data, true));
+	io_close(file);
+	app.dirty = false;
+	log_line(app, "saved " + path);
+	return true;
+}
+
+fn doc_migrate(app, parsed) {
+	if (!contains_key(parsed, "version")) {
+		log_line(app, "load failed: not a scene file");
+		return null;
+	}
+	if (parsed.version > DOC_VERSION) {
+		log_line(app, "load failed: scene version " + parsed.version +
+			" is newer than this editor (" + DOC_VERSION + ")");
+		return null;
+	}
+	if (!contains_key(parsed, "meter")) { parsed.meter = 30; }
+	if (!contains_key(parsed, "gravity")) { parsed.gravity = [0, 900]; }
+	if (!contains_key(parsed, "entities")) { parsed.entities = []; }
+	if (!contains_key(parsed, "joints")) { parsed.joints = []; }
+	for (let i = 0; i < len(parsed.entities); i = i + 1) {
+		if (!contains_key(parsed.entities[i], "groups")) { parsed.entities[i].groups = []; }
+		if (!contains_key(parsed.entities[i], "props")) { parsed.entities[i].props = {}; }
+		if (!contains_key(parsed.entities[i], "links")) { parsed.entities[i].links = {}; }
+
+		let fixtures = parsed.entities[i].fixtures;
+		for (let k = 0; k < len(fixtures); k = k + 1) {
+			if (!contains_key(fixtures[k], "category")) { fixtures[k].category = 1; }
+			if (!contains_key(fixtures[k], "mask")) { fixtures[k].mask = 65535; }
+			if (!contains_key(fixtures[k], "group")) { fixtures[k].group = 0; }
+		}
+	}
+	if (!contains_key(parsed, "next_id")) {
+		let highest = 0;
+		for (let i = 0; i < len(parsed.entities); i = i + 1) {
+			if (parsed.entities[i].id > highest) { highest = parsed.entities[i].id; }
+		}
+		parsed.next_id = highest + 1;
+	}
+	return parsed;
+}
+
+fn doc_load(app, path) {
+	# io_open() aborts the script when the file is missing, so look first
+	if (io_filetype(path) != "file") {
+		log_line(app, "no " + path + " to load");
+		return false;
+	}
+	let file = io_open(path, "r");
+	let text = io_read(file);
+	io_close(file);
+
+	let parsed = doc_migrate(app, json_parse(text));
+	if (parsed == null) { return false; }
+
+	app.doc_data = parsed;
+	doc_select_none(app);
+	app.undo = [];
+	app.redo = [];
+	app.dirty = false;
+	doc_touch(app);
+	log_line(app, "loaded " + path + " (" + len(parsed.entities) + " entities)");
+	return true;
+}

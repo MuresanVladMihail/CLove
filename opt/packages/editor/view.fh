@@ -1,0 +1,341 @@
+# ============================================================================
+#  view.fh -- the viewport
+# ----------------------------------------------------------------------------
+#  love_draw() runs before ui_draw() in the frame (src/fh_mainactivity.c), so
+#  everything painted here sits underneath the panels.
+# ============================================================================
+
+
+fn view_draw_grid(app) {
+	love_graphics_setColor(46, 50, 60, 255);
+
+	# only the visible span, so zooming out does not draw thousands of lines
+	let tl = cam_to_world(app, app.vp_x, app.vp_y);
+	let br = cam_to_world(app, app.vp_x + app.vp_w, app.vp_y + app.vp_h);
+
+	let step = app.grid;
+	while ((br[0] - tl[0]) / step > 120) { step = step * 2; }
+
+	# one step past the edge, so the last line is not clipped away
+	let x = math_floor(tl[0] / step) * step;
+	while (x <= br[0] + step) {
+		love_geometry_line([x, tl[1], x, br[1]]);
+		x = x + step;
+	}
+	let y = math_floor(tl[1] / step) * step;
+	while (y <= br[1] + step) {
+		love_geometry_line([tl[0], y, br[0], y]);
+		y = y + step;
+	}
+	return 0;
+}
+
+# Fills a polygon or traced shape, rotated into place. Answers false when the
+# entity has no polygon, so the caller falls back to its box.
+fn view_fill_polygon(app, e, cx, cy, angle) {
+	let poly = doc_polygon(app, e);
+	if (poly == null) { return false; }
+
+	let ca = math_cos(angle);
+	let sa = math_sin(angle);
+	let pts = [];
+	for (let i = 0; i + 1 < len(poly); i = i + 2) {
+		append(pts, cx + poly[i] * ca - poly[i + 1] * sa);
+		append(pts, cy + poly[i] * sa + poly[i + 1] * ca);
+	}
+	love_geometry_polygon("fill", pts);
+	return true;
+}
+
+# The traced hull, rotated into place. Falls back to the fixture box when
+# the entity has no vector art to trace.
+fn view_draw_traced_outline(app, e, cx, cy, angle) {
+	let poly = doc_polygon(app, e);
+	let f = doc_shape(app, e);
+	if (poly == null) {
+		love_geometry_rectangle("line", cx, cy, f.w, f.h,
+			angle, 1, 1, f.w * 0.5, f.h * 0.5);
+		return 0;
+	}
+
+	let ca = math_cos(angle);
+	let sa = math_sin(angle);
+	let line = [];
+	for (let i = 0; i + 1 < len(poly); i = i + 2) {
+		append(line, cx + poly[i] * ca - poly[i + 1] * sa);
+		append(line, cy + poly[i] * sa + poly[i + 1] * ca);
+	}
+	# close the loop
+	append(line, cx + poly[0] * ca - poly[1] * sa);
+	append(line, cy + poly[0] * sa + poly[1] * ca);
+
+	love_geometry_line(line);
+	return 0;
+}
+
+fn view_draw_entity(app, e) {
+	let f = doc_shape(app, e);
+	let pose = sim_pose(app, e);
+	let cx = pose[0];
+	let cy = pose[1];
+	let angle = pose[2];
+
+	if (e.visible) {
+		# The colour is a modulate, the way LOVE's setColor and Godot's
+		# `modulate` are: it fills the shape when there is no artwork, and
+		# tints the artwork when there is. It used to be forced to white
+		# before drawing a sprite, so the Appearance sliders did nothing the
+		# moment an entity had a texture. White means untinted.
+		love_graphics_setColor(e.color[0], e.color[1], e.color[2], 255);
+
+		let img = sprite_of(app, e);
+		if (img == null) {
+			if (f.shape == "circle") {
+				love_geometry_circle("fill", cx, cy, f.w * 0.5, 32);
+			} else if (view_fill_polygon(app, e, cx, cy, angle)) {
+				# a polygon fills as itself; a box would say nothing about it
+			} else {
+				# x,y is the origin anchor, so the shape is centred on the
+				# body and rotates about its own middle
+				love_geometry_rectangle("fill", cx, cy, f.w, f.h,
+					angle, 1, 1, f.w * 0.5, f.h * 0.5);
+			}
+		} else {
+			# scale the artwork onto the fixture, and rotate about its centre
+			let iw = love_image_getWidth(img);
+			let ih = love_image_getHeight(img);
+			love_graphics_draw(img, cx, cy, angle,
+				f.w / iw, f.h / ih, iw * 0.5, ih * 0.5);
+		}
+	}
+
+	# the collision shape, colour-coded by body type -- the overlay every
+	# physics editor gives you so the artwork cannot hide a wrong fixture
+	if (app.show_fixtures) {
+		if (e.body.type == "dynamic") {
+			love_graphics_setColor(120, 190, 255, 150);
+		} else if (e.body.type == "kinematic") {
+			love_graphics_setColor(190, 140, 255, 150);
+		} else {
+			love_graphics_setColor(150, 155, 165, 130);
+		}
+		if (f.shape == "circle") {
+			love_geometry_circle("line", cx, cy, f.w * 0.5, 32);
+		} else if (f.shape == "traced" || f.shape == "polygon") {
+			view_draw_traced_outline(app, e, cx, cy, angle);
+		} else {
+			love_geometry_rectangle("line", cx, cy, f.w, f.h,
+				angle, 1, 1, f.w * 0.5, f.h * 0.5);
+		}
+	}
+
+	if (e.id == app.selected_id) {
+		love_graphics_setColor(255, 214, 90, 255);
+		love_geometry_rectangle("line", cx, cy, f.w + 6, f.h + 6,
+			angle, 1, 1, f.w * 0.5 + 3, f.h * 0.5 + 3);
+	}
+	return 0;
+}
+
+# A ring at each contact point, fading as it ages. Drawn with the scene, inside
+# the camera transform: the points are world coordinates. What the fixture
+# overlay says about the shapes, this says about what they did.
+fn view_draw_contacts(app) {
+	for (let i = 0; i < len(app.contacts); i = i + 1) {
+		let c = app.contacts[i];
+		let fade = c.life / CONTACT_LIFE;
+
+		# The ring is an annotation, not part of the scene, so it keeps a
+		# constant size on screen: divided by the zoom, since this is drawn
+		# inside the camera transform.
+		let r = (4 + 10 * (1.0 - fade)) / app.cam.zoom;
+
+		love_graphics_setColor(255, 210, 90, math_floor(220 * fade));
+		love_geometry_circle("line", c.x, c.y, r, 16);
+	}
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+# The polygon being drawn: the run of points so far, plus a line back to the
+# first so it is obvious what closing it would give.
+fn view_draw_draft(app) {
+	let d = app.draft;
+
+	love_graphics_setColor(120, 200, 255, 230);
+	if (len(d) >= 4) {
+		let line = [];
+		for (let i = 0; i + 1 < len(d); i = i + 2) {
+			append(line, d[i]);
+			append(line, d[i + 1]);
+		}
+		append(line, app.wx);
+		append(line, app.wy);
+		append(line, d[0]);
+		append(line, d[1]);
+		love_geometry_line(line);
+	}
+
+	let r = 4 / app.cam.zoom;
+	for (let i = 0; i + 1 < len(d); i = i + 2) {
+		love_geometry_circle("fill", d[i], d[i + 1], r, 10);
+	}
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+# A handle at every vertex of the selected polygon, screen sized so it stays
+# grabbable at any zoom -- the same reason the gizmo's grips are.
+fn view_draw_vertices(app, e) {
+	let poly = doc_polygon(app, e);
+	if (poly == null || doc_shape(app, e).shape != "polygon") { return 0; }
+
+	let c = doc_center(app, e);
+	let ca = math_cos(e.transform.angle);
+	let sa = math_sin(e.transform.angle);
+
+	for (let i = 0; i + 1 < len(poly); i = i + 2) {
+		let wx = c[0] + poly[i] * ca - poly[i + 1] * sa;
+		let wy = c[1] + poly[i] * sa + poly[i + 1] * ca;
+		let p = cam_to_screen(app, wx, wy);
+
+		if (i == app.vertex) {
+			love_graphics_setColor(255, 220, 120, 255);
+		} else {
+			love_graphics_setColor(235, 238, 245, 255);
+		}
+		love_geometry_rectangle("fill", p[0] - HANDLE_HALF, p[1] - HANDLE_HALF,
+			HANDLE_HALF * 2, HANDLE_HALF * 2);
+		love_graphics_setColor(30, 34, 42, 255);
+		love_geometry_rectangle("line", p[0] - HANDLE_HALF, p[1] - HANDLE_HALF,
+			HANDLE_HALF * 2, HANDLE_HALF * 2);
+	}
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+# A joint as a line between the two entities it holds, through its anchor. It
+# is drawn inside the camera transform with the scene, because that is where it
+# lives -- unlike the gizmo, which is screen space.
+fn view_draw_joints(app) {
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		let j = joints[i];
+		let ea = doc_find(app, j.a);
+		let eb = doc_find(app, j.b);
+		if (ea == null || eb == null) { continue; }
+
+		# sim_pose, not doc_center: in Play the two ends have moved, and a
+		# joint drawn between where they used to be is worse than none
+		let pa = sim_pose(app, ea);
+		let pb = sim_pose(app, eb);
+
+		# the authored anchor while editing; midway between the live ends
+		# while playing, since the bodies have taken it with them
+		let ax = j.anchor[0];
+		let ay = j.anchor[1];
+		if (app.mode == "play") {
+			ax = (pa[0] + pb[0]) * 0.5;
+			ay = (pa[1] + pb[1]) * 0.5;
+		}
+
+		if (j.type == "revolute") {
+			love_graphics_setColor(255, 170, 90, 200);
+		} else {
+			love_graphics_setColor(140, 210, 255, 200);
+		}
+		love_geometry_line([pa[0], pa[1], ax, ay, pb[0], pb[1]]);
+		love_geometry_circle("line", ax, ay, 5, 12);
+	}
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+# An outline around everything selected. The primary is brighter, since it is
+# the one the inspector is showing.
+fn view_draw_selection(app) {
+	let sel = doc_selected_entities(app);
+	if (len(sel) < 2) { return 0; }
+
+	cam_push(app);
+	for (let i = 0; i < len(sel); i = i + 1) {
+		let e = sel[i];
+		let b = doc_bounds(app, e);
+		if (e.id == app.selected_id) {
+			love_graphics_setColor(255, 220, 120, 255);
+		} else {
+			love_graphics_setColor(190, 200, 220, 190);
+		}
+		love_geometry_rectangle("line", b[0] - 2, b[1] - 2, b[2] + 4, b[3] + 4);
+	}
+	cam_pop(app);
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+fn view_draw_marquee(app) {
+	let r = marquee_rect(app);
+	cam_push(app);
+	love_graphics_setColor(120, 170, 255, 40);
+	love_geometry_rectangle("fill", r[0], r[1], r[2], r[3]);
+	love_graphics_setColor(150, 190, 255, 220);
+	love_geometry_rectangle("line", r[0], r[1], r[2], r[3]);
+	cam_pop(app);
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+fn view_draw(app) {
+	love_graphics_setColor(20, 22, 28, 255);
+	love_geometry_rectangle("fill", app.vp_x, app.vp_y, app.vp_w, app.vp_h);
+
+	# Keep the scene inside the viewport while it pans. Note the Y: unlike
+	# every other drawing call, love_graphics_setScissor() hands its
+	# rectangle straight to glScissor(), whose origin is the *bottom* left.
+	love_graphics_setScissor(app.vp_x, app.screen_h - app.vp_y - app.vp_h, app.vp_w, app.vp_h);
+	cam_push(app);
+
+	if (app.show_grid) { view_draw_grid(app); }
+
+	let entities = doc_entities(app);
+	for (let i = 0; i < len(entities); i = i + 1) { view_draw_entity(app, entities[i]); }
+
+	view_draw_joints(app);
+	if (len(app.draft) > 0) { view_draw_draft(app); }
+
+	# Inside the camera transform, because the points are in world units --
+	# drawn outside it they landed wherever the world coordinates happened to
+	# fall on screen, which only looked right at zoom 1 with the camera at the
+	# origin.
+	if (app.mode == "play") { view_draw_contacts(app); }
+
+	cam_pop(app);
+
+	# Everything selected gets an outline; the gizmo is only for one, because
+	# rotating and resizing a group is a different feature with its own rules.
+	if (app.mode == "edit") {
+		view_draw_selection(app);
+		if (app.marquee != null) { view_draw_marquee(app); }
+	}
+
+	# the gizmo is screen space, but still clipped to the viewport
+	if (app.mode == "edit" && app.tool == "select" && len(app.selection) == 1) {
+		let sel = doc_selected(app);
+		if (sel != null) {
+			gizmo_draw(app, sel);
+			view_draw_vertices(app, sel);
+		}
+	}
+
+	# last inside the viewport, so it sits over the scene and the gizmo
+	if (point_in(app.mx, app.my, app.vp_x, app.vp_y, app.vp_w, app.vp_h)) {
+		cursor_draw(app);
+	}
+
+	love_graphics_setScissor();
+
+	love_graphics_setColor(70, 76, 90, 255);
+	love_geometry_rectangle("line", app.vp_x, app.vp_y, app.vp_w, app.vp_h);
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}

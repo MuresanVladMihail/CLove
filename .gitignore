@@ -64,5 +64,9 @@ tags
 # from whichever machine saved it.
 /opt/examples/fh/editor/*.json
 
+# The game example ships its level (level1.json is part of the example), but
+# editor.json is still the editor's own settings for whoever ran it.
+/opt/examples/fh/game/editor.json
+
 # JetBrains IDE project state
 .idea/

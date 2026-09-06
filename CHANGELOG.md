@@ -29,6 +29,39 @@ version 0.8.0 not yet released
 	default) exactly as in LOVE. See SKILLS.md for the API and the handful of
 	places Box2D 3 forced a difference (no gear or pulley joints, callbacks are
 	function names, user data is a number or a string).
+* the editor gained hover tips on every control (with a Tips box to turn them
+	off, remembered in editor.json), hand-drawn collision meshes with draggable
+	vertices, and named links between entities -- read back with scene.link(e,
+	name), which hands over the entity rather than an id.
+* added: love_ui_hovered(), love_ui_setWindowRect(name, x, y, w, h) and
+	love_ui_bringToFront(name) (FH only). Between them a script can build a
+	tooltip: ask whether the pointer is over the widget just built, then put a
+	window at the cursor and keep it on top. The rect call also lifts the
+	long-standing limit that a window could never be moved after microui first
+	saw it.
+* the editor gained multi-select (shift-click, a rubber band, and moving a
+	group as one), z-order (Back / Down / Up / Front over the draw order, which
+	is what the entity list already was), Box2D's collision filter as two rows
+	of layer toggles, joints (distance and revolute, from a two-entity
+	selection), and contact marks while Play runs that name the two entities
+	that touched.
+* the 2D editor became a package (opt/packages/editor) a game switches on and
+	off, rather than a program of its own. editor_new/update/draw/toggle, plus
+	editor_revision() -- a number that moves on every edit and on nothing else,
+	so a host can tell its world is out of date without diffing the level -- and
+	editor_document(), which Scene() from opt/packages/scene reads directly. The
+	level being edited and the level being played are the same document in the
+	same process: no file to save in between, no reload, no second window. See
+	opt/examples/fh/game, which toggles it with F1.
+	Its layout is now computed from the actual window rather than fixed at
+	1280x760, so it fits whatever hosts it.
+* added: love_ui_capturesKeyboard() (FH only) -- whether microui is taking
+	keystrokes, which is what a program with bare-key shortcuts has to ask
+	before acting on one.
+* fixed: love_quit() returning true now aborts the quit, the way LOVE's
+	love.quit does. Without it SDL_QUIT was not something a script could see,
+	let alone refuse, so a tool had no way to ask "save first?" when the
+	window's close button was pressed.
 * the editor example grew per-entity properties: a free-form key/value map on
 	each entity, authored in the inspector, typed on the way in (true/false to
 	a bool, anything numeric to a number, the rest text) and read back with

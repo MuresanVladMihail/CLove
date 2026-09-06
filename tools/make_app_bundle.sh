@@ -42,7 +42,10 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 
 cp "$engine" "$app/Contents/MacOS/clove"
-cp -R "$game" "$app/Contents/Resources/game"
+# -L so a "packages" symlink next to the game becomes a real directory in the
+# bundle: FH resolves an include relative to the including file, so whatever
+# the game says next to itself has to still be there once it is copied.
+cp -RL "$game" "$app/Contents/Resources/game"
 
 # The bundle executable: chdir into the game, then become the engine. exec
 # keeps the pid, so macOS still associates the process with this bundle.

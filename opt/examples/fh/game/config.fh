@@ -1,0 +1,11 @@
+fn love_config(c) {
+	c.window_title = "CLove — a game with the editor built in (F1)";
+	c.window_width = 1100;
+	c.window_height = 640;
+	c.window_x = -1;   # -1 is centred; without these the window can land off-screen
+	c.window_y = -1;
+	c.window_vsync = true;
+	# The editor sizes itself from the window rather than the other way round,
+	# so a game picks whatever it wants here.
+	c.window_resizable = false;
+}

@@ -1,0 +1,209 @@
+# ============================================================================
+#  A game with the editor built into it
+# ----------------------------------------------------------------------------
+#  Run it with:
+#      cd opt/examples/fh/game && ../../../../build/clove
+#
+#  Press F1. The editor opens over the running game, on the very level the game
+#  is playing -- move a platform, drop in a crate, retint a sprite -- and F1
+#  again drops you back into the game with the change already in it. There is
+#  no file to save in between and no second window: the level being edited and
+#  the level being played are the same document in the same process.
+#
+#  Two packages do the work:
+#
+#      packages/editor   the editor itself, switched on and off from here
+#      packages/scene    the read side of a level, for building the world
+#
+#  What this file is, is the wiring: forward the input callbacks, keep a Box2D
+#  world in step with the document, and draw it.
+# ============================================================================
+
+include "packages/editor/editor.fh"
+include "packages/scene/scene.fh"
+
+
+let LEVEL = "level1.json";
+
+# love_quit() and the input callbacks are handed no state map, so the game
+# state parks here for them the same way the editor's does.
+let HOST = { "game": null };
+
+
+# ============================================================================
+#  The world
+# ============================================================================
+#
+#  Rebuilt from the document whenever the editor has changed it. The entity id
+#  goes into every body's and fixture's user data: a collision callback is
+#  handed fixtures and nothing else, so that id is the only way back from a
+#  contact to the thing in the level that caused it.
+
+fn build_world(g) {
+	let scene = Scene(editor_document(g.ed));
+
+	love_physics_setMeter(scene.meter());
+	let gravity = scene.gravity();
+	g.world = love_physics_newWorld(gravity[0], gravity[1]);
+	g.bodies = [];
+
+	let entities = scene.all();
+	for (let i = 0; i < len(entities); i = i + 1) {
+		let e = entities[i];
+		let f = scene.fixture(e);
+		let c = scene.center(e);
+		let size = scene.size(e);
+
+		let body = love_physics_newBody(g.world, c[0], c[1], scene.body_type(e));
+		love_body_setAngle(body, scene.angle(e));
+
+		let shape = love_physics_newRectangleShape(size[0], size[1]);
+		if (f.shape == "circle") {
+			shape = love_physics_newCircleShape(size[0] * 0.5);
+		}
+
+		let fixture = love_physics_newFixture(body, shape, f.density);
+		love_fixture_setFriction(fixture, f.friction);
+		love_fixture_setRestitution(fixture, f.restitution);
+
+		love_body_setUserData(body, scene.id(e));
+		love_fixture_setUserData(fixture, scene.id(e));
+
+		append(g.bodies, [scene.id(e), body]);
+	}
+
+	g.scene = scene;
+	g.built_at = editor_revision(g.ed);
+	println("world rebuilt: " + len(g.bodies) + " bodies at revision " + g.built_at);
+	return 0;
+}
+
+fn sprite_for(g, path) {
+	if (path == null) { return null; }
+	if (!contains_key(g.images, path)) {
+		if (io_filetype(path) != "file") { return null; }
+		g.images[path] = love_graphics_newImage(path);
+	}
+	return g.images[path];
+}
+
+
+# ============================================================================
+#  Lifecycle
+# ============================================================================
+
+fn love_load() {
+	let g = {};
+	g.images = {};
+
+	# The editor is not standalone here: Esc switches it off rather than
+	# quitting, and it starts switched off so the game is what you see first.
+	g.ed = editor_new({ "scene": LEVEL, "standalone": false, "active": false });
+
+	# A level to play on a first run, so the example has something in it.
+	if (doc_count(g.ed) == 0) {
+		let ground = doc_add(g.ed, "Ground", "rect", 60, 520, 980, 60, 92, 128, 84);
+		ground.groups = ["terrain"];
+
+		let crate = doc_add(g.ed, "Crate", "rect", 300, 120, 90, 90, 255, 255, 255);
+		crate.sprite = { "path": "art/crate.svg" };
+		crate.body.type = "dynamic";
+		crate.groups = ["props"];
+
+		let coin = doc_add(g.ed, "Coin", "circle", 520, 60, 56, 56, 255, 255, 255);
+		coin.sprite = { "path": "art/coin.svg" };
+		coin.body.type = "dynamic";
+		coin.fixtures[0].restitution = 0.6;
+		coin.groups = ["pickups"];
+
+		doc_save(g.ed, LEVEL);
+	}
+
+	build_world(g);
+	love_graphics_setBackgroundColor(24, 26, 32, 255);
+
+	HOST.game = g;
+	return g;
+}
+
+fn love_update(dt, g) {
+	if (editor_active(g.ed)) {
+		editor_update(g.ed, dt);
+		return 0;
+	}
+
+	# Back in the game: if the level moved on while the editor was open, the
+	# world is out of date. A host that wanted the change to land mid-edit
+	# would do this whenever the revision moves instead -- the revision is
+	# there so the choice is the host's.
+	if (editor_revision(g.ed) != g.built_at) { build_world(g); }
+
+	love_world_update(g.world, dt);
+	return 0;
+}
+
+fn draw_entity(g, e, body) {
+	let pos = love_body_getPosition(body);
+	let angle = love_body_getAngle(body);
+	let size = g.scene.size(e);
+	let colour = g.scene.color(e);
+
+	love_graphics_setColor(colour[0], colour[1], colour[2], 255);
+
+	let img = sprite_for(g, g.scene.sprite_path(e));
+	if (img == null) {
+		if (g.scene.fixture(e).shape == "circle") {
+			love_geometry_circle("fill", pos[0], pos[1], size[0] * 0.5, 32);
+		} else {
+			love_geometry_rectangle("fill", pos[0], pos[1], size[0], size[1],
+				angle, 1, 1, size[0] * 0.5, size[1] * 0.5);
+		}
+		return 0;
+	}
+
+	let iw = love_image_getWidth(img);
+	let ih = love_image_getHeight(img);
+	love_graphics_draw(img, pos[0], pos[1], angle,
+		size[0] / iw, size[1] / ih, iw * 0.5, ih * 0.5);
+	return 0;
+}
+
+fn love_draw(g) {
+	for (let i = 0; i < len(g.bodies); i = i + 1) {
+		let id = g.bodies[i][0];
+		let e = g.scene.get(id);
+		if (e != null && g.scene.is_visible(e)) { draw_entity(g, e, g.bodies[i][1]); }
+	}
+
+	love_graphics_setColor(150, 155, 170, 255);
+	love_graphics_print("F1: editor", 12, 12);
+	love_graphics_setColor(255, 255, 255, 255);
+
+	# Last, so the panels sit over the game rather than under it.
+	editor_draw(g.ed);
+	return 0;
+}
+
+
+# ============================================================================
+#  Input
+# ============================================================================
+#
+#  Forwarded rather than owned by the package: FH has one global namespace, and
+#  these are names a game needs for itself.
+
+fn love_keypressed(k) {
+	if (k[0] == "f1" && !k[2]) {
+		editor_toggle(HOST.game.ed);
+		return 0;
+	}
+	editor_keypressed(k);
+	return 0;
+}
+
+fn love_mousepressed(m)  { editor_mousepressed(m); }
+fn love_mousereleased(m) { editor_mousereleased(m); }
+fn love_wheelmoved(y)    { editor_wheelmoved(y); }
+fn love_quit()           { return editor_quit(); }
+
+fn main() {}

@@ -57,9 +57,147 @@ fn panels_body_type_button(app, e, label) {
 	return 0;
 }
 
+# A hand-drawn collision mesh: how many points it has, whether Box2D will get
+# the shape as drawn, and a way to add one without aiming at an edge.
+#
+# Box2D 3 takes convex polygons of at most MAX_HULL_POINTS points, so a concave
+# or over-long one is simulated as its hull. That is worth saying out loud
+# rather than letting someone wonder why their notch does nothing.
+fn inspector_polygon(app, e, f) {
+	if (!contains_key(f, "points") || len(f.points) < 6) {
+		love_ui_text("No points yet. Pick Polygon from Primitives and click " +
+			"them out in the viewport.");
+		return 0;
+	}
+
+	let n = len(f.points) / 2;
+	let hulled = sim_hull(app, f.points);
+	let kept = 0;
+	if (hulled != null) { kept = len(hulled) / 2; }
+
+	if (kept == n) {
+		love_ui_label(n + " points, convex");
+	} else {
+		love_ui_text(n + " points, simulated as a hull of " + kept +
+			" -- Box2D takes convex shapes of at most " + MAX_HULL_POINTS +
+			" points, so the dents are filled in.");
+	}
+
+	love_ui_layout_row(2, [-95, -1], 0);
+	if (love_ui_button("Add point", ALIGN_CENTER)) { polygon_add_vertex(app, e); }
+	if (love_ui_button("Recentre", ALIGN_CENTER)) { doc_polygon_recentre(app, e); }
+	love_ui_layout_row(1, [-1], 0);
+	love_ui_label("drag a vertex to move it, Shift+click to remove");
+	return 0;
+}
+
+# Box2D's collision filter, as two rows of numbered toggles: "layer" is what
+# this fixture is, "hits" is what it is willing to touch. Two fixtures collide
+# only when each one's layer is in the other's mask -- so a coin on layer 2
+# that hits only layer 1 will land on the ground and pass through other coins.
+#
+# The document keeps the full 16 bits; the inspector shows the low FILTER_BITS
+# of each, which is as many toggles as fit without the panel becoming a
+# switchboard.
+fn inspector_bit_row(app, label, value, id_base) {
+	love_ui_layout_row(2, [56, -1], 0);
+	love_ui_label(label);
+
+	let widths = [];
+	for (let i = 0; i < FILTER_BITS; i = i + 1) { append(widths, 22); }
+	append(widths, -1);
+	love_ui_layout_row(FILTER_BITS + 1, widths, 0);
+
+	let out = value;
+	for (let i = 0; i < FILTER_BITS; i = i + 1) {
+		let mark = "" + (i + 1);
+		if (bit_has(value, i)) { mark = "[" + (i + 1) + "]"; }
+
+		# every toggle shares the label of some other row's toggle, so the
+		# index goes on the id stack
+		love_ui_pushId(id_base + i);
+		if (love_ui_button(mark, ALIGN_CENTER)) { out = bit_toggle(out, i); }
+		love_ui_popId();
+	}
+	love_ui_label("");
+	return out;
+}
+
+fn inspector_filter(app, e, f) {
+	if (!love_ui_header("Filter", 0)) { return 0; }
+
+	let category = inspector_bit_row(app, "layer:", f.category, 900);
+	let mask = inspector_bit_row(app, "hits:", f.mask, 950);
+
+	if (category != f.category || mask != f.mask) {
+		doc_begin_edit(app);
+		let live = doc_shape(app, doc_selected(app));
+		live.category = category;
+		live.mask = mask;
+	}
+
+	love_ui_layout_row(1, [-1], 0);
+	love_ui_label("layer " + f.category + ", hits " + f.mask);
+	return 0;
+}
+
+# Joints, which is where multi-select earns its keep: pick two entities and
+# there is exactly one thing the button can mean. With one selected it lists
+# the joints already touching it, so a hinge can be found and removed from
+# either end.
+fn inspector_joints(app, e) {
+	if (!love_ui_header("Joints", 0)) { return 0; }
+
+	let mine = doc_joints_of(app, e.id);
+
+	love_ui_layout_row(1, [-1], 0);
+	if (len(app.selection) == 2) {
+		let a = app.selection[0];
+		let b = app.selection[1];
+		let other = doc_find(app, a);
+		if (a == e.id) { other = doc_find(app, b); }
+
+		love_ui_label("with " + other.name + ":");
+		love_ui_layout_row(2, [-95, -1], 0);
+		if (love_ui_button("Distance", ALIGN_CENTER)) {
+			doc_add_joint(app, "distance", a, b);
+		}
+		if (love_ui_button("Revolute", ALIGN_CENTER)) {
+			doc_add_joint(app, "revolute", a, b);
+		}
+	} else {
+		love_ui_label("select two entities to join them");
+	}
+
+	love_ui_layout_row(1, [-1], 0);
+	if (len(mine) == 0) {
+		love_ui_label("none on this one");
+		return 0;
+	}
+
+	for (let i = 0; i < len(mine); i = i + 1) {
+		let j = mine[i];
+		let other_id = j.b;
+		if (j.b == e.id) { other_id = j.a; }
+		let other = doc_find(app, other_id);
+		let name = "?";
+		if (other != null) { name = other.name; }
+
+		love_ui_layout_row(2, [-64, -1], 0);
+		love_ui_label(j.type + " to " + name);
+
+		# every row's button says the same thing, so the joint id keeps them
+		# apart on the id stack
+		love_ui_pushId(j.id);
+		if (love_ui_button("Remove", ALIGN_CENTER)) { doc_delete_joint(app, j.id); }
+		love_ui_popId();
+	}
+	return 0;
+}
+
 fn panels_inspector(app) {
-	if (love_ui_begin_window("Inspector", SCREEN_W - PANEL_W, TOOLBAR_H,
-	                         PANEL_W, SCREEN_H - TOOLBAR_H, panels_dock_opts(app))) {
+	if (love_ui_begin_window("Inspector", app.screen_w - PANEL_W, TOOLBAR_H,
+	                         PANEL_W, app.screen_h - TOOLBAR_H, panels_dock_opts(app))) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("INSPECTOR");
 
@@ -98,21 +236,31 @@ fn panels_inspector(app) {
 				doc_begin_edit(app);
 				e.groups = panels_text_to_groups(app, box[1]);
 			}
+			tip(app, "Tags a game queries on: scene.in_group(\"pickups\"). " +
+				"Groups say what a thing is; properties say with what " +
+				"parameters.");
 			love_ui_label("comma separated, queried by the scene package");
 		}
 
 		# groups say what a thing is, props say with what parameters -- between
 		# them a game keeps its behaviour in code and the level stays data
 		props_panel(app, e);
+		links_panel(app, e);
 
 		if (love_ui_header("Collision", OPT_EXPANDED)) {
-			love_ui_layout_row(3, [62, 72, -1], 0);
+			love_ui_layout_row(4, [56, 62, 66, -1], 0);
 			panels_shape_button(app, f, "rect");
 			panels_shape_button(app, f, "circle");
 			panels_shape_button(app, f, "traced");
+			panels_shape_button(app, f, "polygon");
+			tip(app, "What Box2D actually collides with. rect and circle are " +
+				"the fixture box; traced follows vector artwork; polygon is a " +
+				"mesh you draw yourself.");
 
 			love_ui_layout_row(1, [-1], 0);
-			if (f.shape == "traced") {
+			if (f.shape == "polygon") {
+				inspector_polygon(app, e, f);
+			} else if (f.shape == "traced") {
 				let poly = trace_points(app, e);
 				if (poly == null) {
 					love_ui_text("Nothing to trace: give it vector art first.");
@@ -142,6 +290,9 @@ fn panels_inspector(app) {
 			# typing a path works, but browsing for one is the usual way in
 			love_ui_layout_row(2, [-90, -1], 0);
 			if (love_ui_button("Browse...", ALIGN_CENTER)) { browser_open(app, e); }
+			tip(app, "Pick an image from anywhere on the machine. Only the " +
+				"path is stored -- relative when it is inside the game " +
+				"folder, absolute otherwise.");
 			if (love_ui_button("Clear", ALIGN_CENTER)) {
 				if (e.sprite != null) {
 					doc_begin_edit(app);
@@ -238,6 +389,9 @@ fn panels_inspector(app) {
 				e.body.fixed_rotation = !e.body.fixed_rotation;
 			}
 		}
+
+		inspector_filter(app, e, f);
+		inspector_joints(app, e);
 
 		if (love_ui_header("Appearance", OPT_EXPANDED)) {
 			love_ui_layout_row(2, [56, -1], 0);

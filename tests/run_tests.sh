@@ -60,10 +60,13 @@ run_one() {
 
     # Reusable FH packages travel too, so a test can `include "packages/<x>.fh"`
     # and exercise the real file rather than a copy that can drift.
+    # Copied with their directories intact, not flattened: FH resolves an
+    # include relative to the including file, so a package that includes its
+    # own modules only works if it keeps its shape. A test then includes it by
+    # the same path a game would.
     if [ -d "$root/opt/packages" ]; then
         rm -rf "$scratch/packages"
-        mkdir -p "$scratch/packages"
-        find "$root/opt/packages" -name '*.fh' -exec cp {} "$scratch/packages/" \;
+        cp -R "$root/opt/packages" "$scratch/packages"
     fi
 
     out=$( cd "$scratch" && "$clove" 2>&1 )

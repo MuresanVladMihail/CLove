@@ -50,8 +50,15 @@ fn gizmo_handles(app, e) {
 	# Eight resize grips. The directions are floats on purpose: they end up in
 	# math_atan2() when the cursor picks a glyph for the grip, and FH's math_*
 	# functions reject integers rather than promoting them.
-	let dirs = [[-1.0,-1.0], [1.0,-1.0], [1.0,1.0], [-1.0,1.0],
-	            [0.0,-1.0], [1.0,0.0], [0.0,1.0], [-1.0,0.0]];
+	#
+	# A hand-drawn polygon gets none: its size *is* its points, and a grip that
+	# stretched the fixture box would say nothing about them. Its vertices are
+	# the handles instead.
+	let dirs = [];
+	if (doc_shape(app, e).shape != "polygon") {
+		dirs = [[-1.0,-1.0], [1.0,-1.0], [1.0,1.0], [-1.0,1.0],
+		        [0.0,-1.0], [1.0,0.0], [0.0,1.0], [-1.0,0.0]];
+	}
 	for (let i = 0; i < len(dirs); i = i + 1) {
 		let p = gizmo_handle_screen(app, e, dirs[i][0], dirs[i][1]);
 		append(out, { "id": "scale", "hx": dirs[i][0], "hy": dirs[i][1],

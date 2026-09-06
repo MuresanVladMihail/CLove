@@ -98,10 +98,11 @@ fn scenes_open(app, path) {
 	} else {
 		# a level that has not been written yet: start it empty
 		app.doc_data = doc_empty(app);
-		app.selected_id = -1;
+		doc_select_none(app);
 		app.undo = [];
 		app.redo = [];
 		app.dirty = true;
+		doc_touch(app);
 		log_line(app, "new level " + path);
 	}
 
@@ -200,7 +201,7 @@ fn scenes_unsaved_dialog(app) {
 	if (app.scene_pending == null) { return 0; }
 
 	let h = dialog_height(3);   # two wrapped lines of text, then the buttons
-	if (love_ui_begin_window("Unsaved changes", dialog_x(DIALOG_W), dialog_y(h),
+	if (love_ui_begin_window("Unsaved changes", dialog_x(app, DIALOG_W), dialog_y(app, h),
 	                         DIALOG_W, h,
 	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
 		love_ui_layout_row(1, [-1], 0);
@@ -274,7 +275,7 @@ fn scenes_name_dialog(app) {
 	let mode = app.name_dialog.mode;
 	let h = dialog_height(3);   # label, text box, buttons
 	if (love_ui_begin_window(scenes_dialog_title(mode),
-	                         dialog_x(DIALOG_W), dialog_y(h), DIALOG_W, h,
+	                         dialog_x(app, DIALOG_W), dialog_y(app, h), DIALOG_W, h,
 	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("File name, next to " + PREFS_PATH + ":");
@@ -309,7 +310,7 @@ fn scenes_delete_dialog(app) {
 	if (app.delete_scene == null) { return 0; }
 
 	let h = dialog_height(3);
-	if (love_ui_begin_window("Delete level", dialog_x(DIALOG_W), dialog_y(h),
+	if (love_ui_begin_window("Delete level", dialog_x(app, DIALOG_W), dialog_y(app, h),
 	                         DIALOG_W, h,
 	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
 		love_ui_layout_row(1, [-1], 0);
@@ -355,7 +356,7 @@ fn scenes_quit_dialog(app) {
 	if (!app.quitting) { return 0; }
 
 	let h = dialog_height(2);   # one line of text, then the buttons
-	if (love_ui_begin_window("Quit", dialog_x(DIALOG_W), dialog_y(h),
+	if (love_ui_begin_window("Quit", dialog_x(app, DIALOG_W), dialog_y(app, h),
 	                         DIALOG_W, h,
 	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
 		love_ui_layout_row(1, [-1], 0);

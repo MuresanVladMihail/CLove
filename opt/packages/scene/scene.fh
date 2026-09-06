@@ -97,6 +97,22 @@ fn Scene(source) {
 	scene.color = fn(e) { return e.color; };
 
 	scene.fixture = fn(e) { return e.fixtures[0]; };
+
+	# Box2D's collision filter as [category, mask, group] -- what this thing is,
+	# what it is willing to touch, and the group override. Named for LOVE's
+	# fixture:getFilterData() rather than "filter", which below is the
+	# predicate query and got there first. Older levels that predate the field
+	# read as "layer 1, hits everything", which is Box2D's own default.
+	scene.filter_data = fn(e) {
+		let f = e.fixtures[0];
+		let category = 1;
+		let mask = 65535;
+		let group = 0;
+		if (contains_key(f, "category")) { category = f.category; }
+		if (contains_key(f, "mask")) { mask = f.mask; }
+		if (contains_key(f, "group")) { group = f.group; }
+		return [category, mask, group];
+	};
 	scene.size = fn(e) { return [e.fixtures[0].w, e.fixtures[0].h]; };
 
 	scene.center = fn(e) {
@@ -163,6 +179,22 @@ fn Scene(source) {
 		return contains_key(scene.props(e), key);
 	};
 
+	# Named references to other entities: a door's exit, a lever's target. The
+	# document holds ids; this hands back the entity, because that is what the
+	# caller wanted and an id it has to look up itself is a chore with a bug in
+	# it. null when the name is not set -- the editor drops a link whose target
+	# is deleted, so a dangling one should not exist in a file it wrote.
+	scene.links = fn(e) {
+		if (!contains_key(e, "links")) { return {}; }
+		return e.links;
+	};
+
+	scene.link = fn(e, name) {
+		let ls = scene.links(e);
+		if (!contains_key(ls, name)) { return null; }
+		return scene.get(ls[name]);
+	};
+
 	# --- looking entities up ------------------------------------------
 
 	scene.all = fn() { return doc.entities; };
@@ -223,6 +255,26 @@ fn Scene(source) {
 		let out = [];
 		for (let i = 0; i < len(doc.entities); i = i + 1) {
 			if (predicate(doc.entities[i])) { append(out, doc.entities[i]); }
+		}
+		return out;
+	};
+
+	# --- joints -------------------------------------------------------
+	#
+	# A joint holds two entities together and belongs to neither, so it lives
+	# at the top level and names them by id. Build them after the bodies:
+	# both ends have to exist first.
+
+	scene.joints = fn() {
+		if (!contains_key(doc, "joints")) { return []; }
+		return doc.joints;
+	};
+
+	scene.joints_of = fn(e) {
+		let out = [];
+		let all = scene.joints();
+		for (let i = 0; i < len(all); i = i + 1) {
+			if (all[i].a == e.id || all[i].b == e.id) { append(out, all[i]); }
 		}
 		return out;
 	};

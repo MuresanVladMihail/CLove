@@ -1,0 +1,229 @@
+# ============================================================================
+#  world.fh -- Edit and Play
+# ----------------------------------------------------------------------------
+#  Play builds a Box2D world from the document and Stop throws it away. The
+#  simulation never writes back: a physics editor that lets the simulation edit
+#  the level destroys your work the first time you press play.
+# ============================================================================
+
+
+# A flat [x0,y0,...] Box2D will accept: convex and at most MAX_HULL_POINTS
+# long. Returns what it was given when it already qualifies, so a traced
+# outline is not hulled twice.
+fn sim_hull(app, points) {
+	if (points == null || len(points) < 6) { return null; }
+
+	let pts = [];
+	for (let i = 0; i + 1 < len(points); i = i + 2) {
+		append(pts, [points[i], points[i + 1]]);
+	}
+
+	let hull = trace_reduce_hull(app, trace_convex_hull(app, pts), MAX_HULL_POINTS);
+	if (len(hull) < 3) { return null; }
+
+	let flat = [];
+	for (let i = 0; i < len(hull); i = i + 1) {
+		append(flat, hull[i][0]);
+		append(flat, hull[i][1]);
+	}
+	return flat;
+}
+
+fn sim_body_of(app, id) {
+	for (let i = 0; i < len(app.runtime); i = i + 1) {
+		if (app.runtime[i][0] == id) { return app.runtime[i][1]; }
+	}
+	return null;
+}
+
+fn sim_build(app) {
+	love_physics_setMeter(app.doc_data.meter);
+	app.world = love_physics_newWorld(app.doc_data.gravity[0], app.doc_data.gravity[1]);
+	app.runtime = [];
+
+	let entities = doc_entities(app);
+	for (let i = 0; i < len(entities); i = i + 1) {
+		let e = entities[i];
+		let f = doc_shape(app, e);
+
+		# the document stores a top-left corner, Box2D wants the centre
+		let c = doc_center(app, e);
+		let body = love_physics_newBody(app.world, c[0], c[1], e.body.type);
+		love_body_setAngle(body, e.transform.angle);
+		love_body_setFixedRotation(body, e.body.fixed_rotation);
+		love_body_setGravityScale(body, e.body.gravity_scale);
+
+		let shape = love_physics_newRectangleShape(f.w, f.h);
+		if (f.shape == "circle") {
+			shape = love_physics_newCircleShape(f.w * 0.5);
+		} else if (f.shape == "traced" || f.shape == "polygon") {
+			# Box2D wants a convex polygon of at most MAX_HULL_POINTS points.
+			# A traced outline is hulled on the way out of trace.fh; one drawn
+			# by hand can be anything, so it is hulled here -- a concave shape
+			# is accepted and simulated as its hull rather than refused.
+			let poly = sim_hull(app, doc_polygon(app, e));
+			if (poly == null) {
+				log_line(app, e.name + ": no usable polygon, using its box");
+			} else {
+				shape = love_physics_newPolygonShape(poly);
+			}
+		}
+
+		let fixture = love_physics_newFixture(body, shape, f.density);
+		love_fixture_setFriction(fixture, f.friction);
+		love_fixture_setRestitution(fixture, f.restitution);
+		love_fixture_setSensor(fixture, f.sensor);
+		love_fixture_setFilterData(fixture, f.category, f.mask, f.group);
+
+		# The entity's id, on both the body and its fixture. A collision
+		# callback is handed fixtures and nothing else, so without this there
+		# is no way back from a contact to the thing in the scene that caused
+		# it -- and that is where any game logic starts. A game building its
+		# own world from the scene package wants to do the same.
+		love_body_setUserData(body, e.id);
+		love_fixture_setUserData(fixture, e.id);
+
+		append(app.runtime, [e.id, body]);
+	}
+
+	sim_build_joints(app);
+
+	# Collision callbacks are looked up by *name* from C and handed no state
+	# map, which is what EDITOR_INPUT.app is for.
+	love_world_setCallbacks(app.world, "sim_begin_contact", null);
+	app.contacts = [];
+
+	log_line(app, "play: " + len(app.runtime) + " bodies, gravity " +
+		app.doc_data.gravity[0] + ", " + app.doc_data.gravity[1]);
+	return 0;
+}
+
+# Joints, once every body exists -- a joint needs both ends built. A joint
+# whose entities are gone is skipped rather than fatal: the document can be
+# hand-edited, and a level that will not play is worse than one missing a hinge.
+fn sim_build_joints(app) {
+	let joints = doc_joints(app);
+	for (let i = 0; i < len(joints); i = i + 1) {
+		let j = joints[i];
+		let a = sim_body_of(app, j.a);
+		let b = sim_body_of(app, j.b);
+		if (a == null || b == null) {
+			log_line(app, "joint " + j.id + ": one end is missing, skipped");
+			continue;
+		}
+
+		if (j.type == "revolute") {
+			love_physics_newRevoluteJoint(a, b, j.anchor[0], j.anchor[1], j.collide);
+		} else {
+			# a distance joint takes an anchor per body; the rest length is
+			# whatever the two are apart when Play starts
+			let ca = love_body_getPosition(a);
+			let cb = love_body_getPosition(b);
+			love_physics_newDistanceJoint(a, b, ca[0], ca[1], cb[0], cb[1], j.collide);
+		}
+	}
+	return 0;
+}
+
+# --- contacts ------------------------------------------------------
+#
+# Every fixture carries its entity id in user data, so a contact can say which
+# two things in the level touched -- which is the whole reason the id is there.
+# The points are kept for a moment and drawn fading, because a contact that
+# lasts one step is exactly the one you are trying to see.
+
+let CONTACT_LIFE = 0.6;   # seconds a contact mark stays on screen
+
+fn sim_begin_contact(a, b, contact) {
+	let app = EDITOR_INPUT.app;
+	if (app == null || app.mode != "play") { return 0; }
+
+	let ida = love_fixture_getUserData(a);
+	let idb = love_fixture_getUserData(b);
+	let points = love_contact_getPositions(contact);
+
+	for (let i = 0; i + 1 < len(points); i = i + 2) {
+		append(app.contacts, {
+			"x": points[i], "y": points[i + 1],
+			"a": ida, "b": idb,
+			"life": CONTACT_LIFE
+		});
+	}
+	return 0;
+}
+
+fn sim_age_contacts(app, dt) {
+	let kept = [];
+	for (let i = 0; i < len(app.contacts); i = i + 1) {
+		let c = app.contacts[i];
+		c.life = c.life - dt;
+		if (c.life > 0) { append(kept, c); }
+	}
+	app.contacts = kept;
+	return 0;
+}
+
+fn sim_contact_names(app, c) {
+	let ea = doc_find(app, c.a);
+	let eb = doc_find(app, c.b);
+	let na = "?";
+	let nb = "?";
+	if (ea != null) { na = ea.name; }
+	if (eb != null) { nb = eb.name; }
+	return na + " / " + nb;
+}
+
+fn sim_destroy(app) {
+	if (app.world != null) {
+		love_world_destroy(app.world);
+		app.world = null;
+	}
+	app.runtime = [];
+	return 0;
+}
+
+fn sim_play(app) {
+	if (app.mode == "play") { return 0; }
+	sim_build(app);
+	app.mode = "play";
+	app.dragging = false;
+	app.gizmo = null;
+	return 0;
+}
+
+fn sim_stop(app) {
+	app.contacts = [];
+	if (app.mode == "edit") { return 0; }
+	sim_destroy(app);
+	app.mode = "edit";
+	# the document was never touched, so the scene simply snaps back
+	log_line(app, "stopped; the document is unchanged");
+	return 0;
+}
+
+fn sim_update(app) {
+	if (app.mode != "play") { return 0; }
+	# a fixed step keeps the simulation stable when a frame runs long
+	love_world_update(app.world, 1.0 / 60.0);
+	sim_age_contacts(app, 1.0 / 60.0);
+	return 0;
+}
+
+# Where an entity is drawn right now: the document in edit mode, the live
+# body in play mode. Returns [centre_x, centre_y, angle].
+fn sim_pose(app, e) {
+	let c = doc_center(app, e);
+	let cx = c[0];
+	let cy = c[1];
+	let a = e.transform.angle;
+
+	if (app.mode == "play") {
+		let body = sim_body_of(app, e.id);
+		if (body != null) {
+			cx = love_body_getX(body);
+			cy = love_body_getY(body);
+			a = love_body_getAngle(body);
+		}
+	}
+	return [cx, cy, a];
+}

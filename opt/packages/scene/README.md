@@ -42,8 +42,12 @@ level that will not load is a bug, not a state every caller should poll for.
 ## Reading one entity
 
 `id`, `name`, `is_visible`, `position`, `angle`, `center`, `size`, `rect`,
-`color`, `fixture`, `body_type`, `sprite_path`, `groups`, `has_group`,
-`props`, `prop`, `has_prop`.
+`color`, `fixture`, `filter_data`, `body_type`, `sprite_path`, `groups`,
+`has_group`, `props`, `prop`, `has_prop`, `links`, `link`.
+
+`filter_data(e)` is `[category, mask, group]` — what the thing is, what it is willing
+to touch, and the group override — ready for `love_fixture_setFilterData()`. A
+level written before the filter existed reads as Box2D's own default.
 
 `sprite_path()` returns a path or `null` — the editor stores nothing else
 about a sprite. `love_graphics_newImage()` loads `.svg` and `.png` through the
@@ -72,6 +76,38 @@ for (let e in scene.in_group("enemies")) {
 Groups say *what* a thing is, properties say *with what parameters*. Between
 them the behaviour stays in game code and the level stays data — which is why
 there is no scripting attached to an entity.
+
+## Links
+
+`link(e, name)` follows a named reference to another entity and hands back the
+*entity*, not the id — an id the caller has to look up itself is a chore with a
+bug in it. `links(e)` is the raw map.
+
+```
+let door = scene.find("Door");
+let exit = scene.link(door, "exit");        # the entity it leads to
+let level = scene.prop(door, "level", "");  # or a level name, as a property
+```
+
+A property's value is data; a link's value is another entity. They are kept
+apart because the editor drops a link whose target is deleted, so a dangling
+one should not appear in a file it wrote — `link()` still answers `null` for a
+name that is not set.
+
+## Joints
+
+`joints()` is every joint in the level; `joints_of(e)` those touching one
+entity. A joint holds two entities together and belongs to neither, so it lives
+at the top level and names its ends by id:
+
+```
+{ "id": 5, "type": "distance", "a": 2, "b": 3,
+  "anchor": [300, 200], "collide": false }
+```
+
+`"distance"` is a rigid link, `"revolute"` a hinge. Build them *after* the
+bodies — both ends have to exist first. A level written before joints existed
+reads as having none.
 
 ## Spatial queries
 

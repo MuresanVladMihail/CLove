@@ -1,0 +1,186 @@
+# The editor is a package a game switches on and off, not a program of its
+# own: opt/packages/editor. This exercises the contract a host depends on --
+# the toggle, the revision a host watches to know the level changed under it,
+# and the document it reads. It runs the real editor, panels and all.
+
+include "packages/editor/editor.fh"
+include "packages/scene/scene.fh"
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    # embedded, and starting switched off: the game is what you see first
+    let ed = editor_new({ "scene": "no_such_level.json",
+                          "standalone": false, "active": false });
+
+    check(!editor_active(ed), "an embedded editor starts switched off");
+    check(editor_scene_path(ed) == "no_such_level.json",
+          "the level given in opts wins over what editor.json remembered");
+    check(doc_count(ed) == 0, "a level with no file on disk starts empty");
+
+    # --- the toggle ---
+    editor_toggle(ed);
+    check(editor_active(ed), "toggle switches it on");
+    editor_toggle(ed);
+    check(!editor_active(ed), "and off again");
+
+    editor_set_active(ed, true);
+    editor_set_active(ed, true);
+    check(editor_active(ed), "setting it to what it already is changes nothing");
+
+    # --- the revision ---
+    # It moves for every change to the document, and for nothing else: a game
+    # must not rebuild its world because someone panned the camera.
+    let r0 = editor_revision(ed);
+
+    ed.cam.x = 500;
+    check(editor_revision(ed) == r0, "a camera move is not a document change");
+
+    let ground = doc_add(ed, "Ground", "rect", 0, 400, 600, 40, 90, 120, 80);
+    check(editor_revision(ed) > r0, "adding an entity moves the revision");
+
+    # --- selection ---
+    doc_select_only(ed, ground.id);
+    check(doc_is_selected(ed, ground.id), "select_only selects it");
+    check(len(ed.selection) == 1, "and nothing else");
+    check(editor_revision(ed) == editor_revision(ed),
+          "selecting is not a document change");
+
+    let r1 = editor_revision(ed);
+    doc_end_edit(ed);          # a gesture ends where the mouse would come up
+    doc_duplicate(ed);
+    check(editor_revision(ed) > r1, "duplicating moves it");
+    check(doc_count(ed) == 2, "and there are two entities now");
+
+    # the copies become the selection, so a drag straight after moves them
+    check(len(ed.selection) == 1, "the copy is what is selected now");
+    check(!doc_is_selected(ed, ground.id), "and the original is not");
+
+    # shift-click semantics: toggling adds, toggling again drops
+    doc_select_toggle(ed, ground.id);
+    check(len(ed.selection) == 2, "toggling adds to the selection");
+    check(ed.selected_id == ground.id, "and the primary follows what was added");
+    doc_select_toggle(ed, ground.id);
+    check(len(ed.selection) == 1, "toggling again drops it");
+    check(ed.selected_id != ground.id, "and the primary falls back");
+
+    doc_select_none(ed);
+    check(len(ed.selection) == 0, "select_none clears it");
+    check(ed.selected_id == -1, "primary included");
+
+    doc_select_only(ed, ground.id);
+
+    let r2 = editor_revision(ed);
+    doc_end_edit(ed);
+    doc_undo(ed);
+    check(editor_revision(ed) > r2, "undo moves it too -- the level did change");
+    check(doc_count(ed) == 1, "back to one entity");
+
+    # an undo that removes what was selected has to drop it from the selection
+    doc_end_edit(ed);
+    doc_select_only(ed, ground.id);
+    doc_delete_selected(ed);
+    check(doc_count(ed) == 0, "delete takes the selection");
+    check(len(ed.selection) == 0, "and leaves nothing selected");
+    doc_end_edit(ed);
+    doc_undo(ed);
+    check(doc_count(ed) == 1, "undo brings it back");
+    check(len(ed.selection) == 0,
+          "without reselecting it -- the selection only survives, never revives");
+
+    # --- links ---
+    # A property's value is data; a link's value is another entity, which the
+    # editor has to keep honest when that entity goes away.
+    doc_end_edit(ed);
+    let door = doc_add(ed, "Door", "rect", 0, 0, 40, 40, 200, 200, 200);
+    let room = doc_add(ed, "Room", "rect", 200, 0, 40, 40, 200, 200, 200);
+
+    check(len(doc_links(ed, door)) == 0, "an entity starts with no links");
+    doc_select_only(ed, door.id);
+    links_set(ed, door, "exit", room.id);
+    check(doc_links(ed, door).exit == room.id, "a link stores the target's id");
+
+    let scene_with_link = Scene(editor_document(ed));
+    check(scene_with_link.link(door, "exit") != null, "the package follows it");
+    check(scene_with_link.link(door, "exit").id == room.id, "to the right entity");
+    check(scene_with_link.link(door, "nowhere") == null,
+          "and answers null for a name that is not set");
+
+    # deleting the target drops the link rather than leaving it dangling
+    doc_end_edit(ed);
+    doc_select_only(ed, room.id);
+    doc_delete_selected(ed);
+    check(!contains_key(doc_links(ed, door), "exit"),
+          "deleting the target removes the link");
+
+    doc_end_edit(ed);
+    doc_select_only(ed, door.id);
+    doc_delete_selected(ed);
+
+    # --- joints ---
+    # They hold two entities together and belong to neither, so they live at
+    # the top level and name their ends by id.
+    doc_end_edit(ed);
+    let a = doc_add(ed, "Anchor", "rect", 0, 0, 40, 40, 200, 200, 200);
+    let b = doc_add(ed, "Swing", "rect", 100, 0, 40, 40, 200, 200, 200);
+
+    check(len(doc_joints(ed)) == 0, "a level starts with no joints");
+    check(doc_add_joint(ed, "revolute", a.id, a.id) == null,
+          "an entity cannot be joined to itself");
+
+    let j = doc_add_joint(ed, "distance", a.id, b.id);
+    check(j != null, "joining two entities works");
+    check(len(doc_joints(ed)) == 1, "and the document holds it");
+    check(len(doc_joints_of(ed, a.id)) == 1, "found from one end");
+    check(len(doc_joints_of(ed, b.id)) == 1, "and from the other");
+
+    # deleting an entity takes its joints: a joint to something gone is not one
+    doc_end_edit(ed);
+    doc_select_only(ed, b.id);
+    doc_delete_selected(ed);
+    check(len(doc_joints(ed)) == 0, "deleting an end removes the joint");
+
+    doc_end_edit(ed);
+    doc_undo(ed);
+    check(len(doc_joints(ed)) == 1, "and undo brings both back");
+
+    doc_end_edit(ed);
+    doc_delete_joint(ed, doc_joints(ed)[0].id);
+    check(len(doc_joints(ed)) == 0, "a joint can also be removed on its own");
+
+    doc_end_edit(ed);
+    doc_select_only(ed, a.id);
+    doc_delete_selected(ed);
+    doc_end_edit(ed);
+    doc_select_only(ed, b.id);
+    doc_delete_selected(ed);
+
+    # --- what a host reads ---
+    let doc = editor_document(ed);
+    check(type(doc) == "map", "the document is a map");
+    check(len(doc.entities) == 1, "and it is the live one, not a copy");
+
+    # the scene package reads that document without going near a file
+    let scene = Scene(doc);
+    check(scene.count() == 1, "the scene package reads the live document");
+    check(scene.find("Ground") != null, "and finds what the editor put in it");
+
+    # --- switching off stops a running simulation ---
+    sim_play(ed);
+    check(ed.mode == "play", "Play builds a world");
+    editor_set_active(ed, false);
+    check(ed.mode == "edit", "switching the editor off stops it again");
+
+    # --- the layout follows the window, not a constant ---
+    editor_layout(ed);
+    check(ed.screen_w == love_window_getWidth(), "the layout takes the real width");
+    check(ed.vp_w > 0 && ed.vp_h > 0, "the viewport is never negative");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

@@ -1,0 +1,861 @@
+# ============================================================================
+#  editor.fh -- the 2D editor, as something a game can switch on
+# ----------------------------------------------------------------------------
+#      include "packages/editor/editor.fh"
+#
+#      fn love_load() {
+#          let g = {};
+#          g.ed = editor_new({ "scene": "level1.json" });
+#          g.seen = editor_revision(g.ed);
+#          return g;
+#      }
+#
+#      fn love_update(dt, g) {
+#          if (editor_active(g.ed)) {
+#              editor_update(g.ed, dt);
+#              if (editor_revision(g.ed) != g.seen) {
+#                  g.seen = editor_revision(g.ed);
+#                  rebuild_from(editor_document(g.ed));   # your world
+#              }
+#          } else {
+#              ...your update...
+#          }
+#      }
+#
+#      fn love_draw(g)              { ...your draw...; editor_draw(g.ed); }
+#      fn love_mousepressed(m)      { editor_mousepressed(m); }
+#      fn love_mousereleased(m)     { editor_mousereleased(m); }
+#      fn love_wheelmoved(y)        { editor_wheelmoved(y); }
+#      fn love_quit()               { return editor_quit(); }
+#      fn editor_keypressed(k) {
+#          if (k[0] == "f1" && !k[2]) { editor_toggle(g.ed); return 0; }
+#          editor_keypressed(k);
+#      }
+#
+#  The point of the toggle is that the level being edited and the level being
+#  played are the same document in the same process: switch the editor on, move
+#  a platform, switch it off, and the game is already running the new one. No
+#  file to save, no reload, no second window.
+#
+#  Everything takes the editor state first, so a program could in principle
+#  hold two of them. The input callbacks are the exception -- CLove hands those
+#  no state map at all, so what they can do is park the event in EDITOR_INPUT
+#  until the next editor_update() picks it up. That is why the host forwards
+#  them rather than the package defining love_mousepressed itself: FH has one
+#  global namespace, and a game needs those names for its own input.
+#
+#  Modules, in dependency order. `include` is textual and resolves relative to
+#  the including file, so a game only needs this one path.
+#
+#      const.fh       sizes, ids, small helpers
+#      prefs.fh       the editor's own settings (grid, snap, what is drawn)
+#      doc.fh         the document: entities, history, save/load
+#      properties.fh  free-form authored data on an entity
+#      camera.fh      pan, zoom, world <-> screen
+#      sprites.fh     the image cache
+#      trace.fh       collision traced from vector art
+#      world.fh       Edit and Play, the Box2D side
+#      gizmo.fh       the transform handles
+#      cursor.fh      the drawn cursor
+#      view.fh        the viewport
+#      browser.fh     the "pick an image" dialog
+#      scenes.fh      levels: the Scene menu and switching between them
+#      inspector.fh   the right-hand panel
+#      panels.fh      the toolbar, hierarchy, console, status bar, theme
+# ============================================================================
+
+include "const.fh"
+include "prefs.fh"
+include "doc.fh"
+include "properties.fh"
+include "camera.fh"
+include "sprites.fh"
+include "trace.fh"
+include "world.fh"
+include "gizmo.fh"
+include "cursor.fh"
+include "view.fh"
+include "browser.fh"
+include "scenes.fh"
+include "inspector.fh"
+include "panels.fh"
+
+
+# The modifier is read here, not when the press is handled a frame later, for
+# the same reason the keyboard's is: by then Shift may already have been let
+# go, and a shift-click would arrive as a plain one. m is [x, y, button].
+fn editor_mousepressed(m) {
+	EDITOR_INPUT.press = {
+		"x": m[0], "y": m[1], "button": m[2],
+		"shift": love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift")
+	};
+	return 0;
+}
+
+fn editor_mousereleased(m) {
+	EDITOR_INPUT.released = true;
+	return 0;
+}
+
+fn editor_wheelmoved(y) {
+	if (EDITOR_INPUT.app == null) { return 0; }
+	EDITOR_INPUT.app.wheel = EDITOR_INPUT.app.wheel + y;
+	return 0;
+}
+
+# Shortcuts come from the event too, for the same reason the mouse does:
+# love_keyboard_isDown() only reports the state at the moment love_update()
+# runs, so a key tapped between two frames is never seen at all.
+#
+# The modifier is read *here* rather than when the shortcut is handled, because
+# it has the same problem one level up: by the next love_update() the Ctrl may
+# already have been released, and Ctrl+S would arrive as a bare S. This runs
+# inside the event pump, right after the key went down, so the modifier still
+# reads as held.
+#
+# k is [name, keycode, isrepeat]; a repeat is dropped, since one press of
+# Ctrl+Z means one undo however long it is held.
+fn editor_keypressed(k) {
+	if (k[2]) { return 0; }
+
+	let ctrl = love_keyboard_isDown("lctrl") || love_keyboard_isDown("rctrl") ||
+		love_keyboard_isDown("lgui") || love_keyboard_isDown("rgui");
+	append(EDITOR_INPUT.keys, [k[0], ctrl]);
+	return 0;
+}
+
+
+# ============================================================================
+#  Shared helpers
+# ============================================================================
+
+fn snap_value(app, v) {
+	# prefs_set_grid() keeps app.grid at GRID_MIN or above, so the division is
+	# safe, but a stale editor.json is outside this file's control
+	if (!app.snap || app.grid < GRID_MIN) { return round_to(v, 2); }
+	return math_floor((v + app.grid * 0.5) / app.grid) * app.grid;
+}
+
+fn hit_test(app, wx, wy) {
+	# topmost entity wins, so walk the list backwards
+	let entities = doc_entities(app);
+	for (let i = len(entities) - 1; i >= 0; i = i - 1) {
+		let e = entities[i];
+		let b = doc_bounds(app, e);
+		if (e.visible && point_in(wx, wy, b[0], b[1], b[2], b[3])) { return e.id; }
+	}
+	return -1;
+}
+
+
+fn spawn_at(app, wx, wy) {
+	let w = 80;
+	let h = 80;
+	if (app.tool == "circle") {
+		w = 56;
+		h = 56;
+	}
+
+	let c = next_colour(app);
+
+	let name = "Rect " + app.doc_data.next_id;
+	if (app.tool == "circle") { name = "Circle " + app.doc_data.next_id; }
+
+	doc_begin_edit(app);
+	let e = doc_add(app, name, app.tool,
+		snap_value(app, wx - w * 0.5), snap_value(app, wy - h * 0.5),
+		w, h, c[0], c[1], c[2]);
+
+	doc_select_only(app, e.id);
+	log_line(app, "added " + name);
+	return 0;
+}
+
+# Dragging moves everything selected, not just the one under the cursor, so
+# each entity remembers where it was when the drag started. Recomputing from a
+# delta each frame would let rounding walk them apart.
+fn drag_begin(app, wx, wy) {
+	app.dragging = true;
+	app.drag_from = [wx, wy];
+	app.drag_start = [];
+
+	let sel = doc_selected_entities(app);
+	for (let i = 0; i < len(sel); i = i + 1) {
+		append(app.drag_start, [sel[i].id, sel[i].transform.x, sel[i].transform.y]);
+	}
+	return 0;
+}
+
+fn drag_apply(app) {
+	if (len(app.drag_start) == 0) { return 0; }
+
+	# The primary is what snaps; the rest keep their offset from it, so a row
+	# of crates dragged together stays a row.
+	let lead = app.drag_start[0];
+	for (let i = 0; i < len(app.drag_start); i = i + 1) {
+		if (app.drag_start[i][0] == app.selected_id) { lead = app.drag_start[i]; }
+	}
+	let nx = snap_value(app, lead[1] + app.wx - app.drag_from[0]);
+	let ny = snap_value(app, lead[2] + app.wy - app.drag_from[1]);
+	let dx = nx - lead[1];
+	let dy = ny - lead[2];
+
+	for (let i = 0; i < len(app.drag_start); i = i + 1) {
+		let start = app.drag_start[i];
+		let e = doc_find(app, start[0]);
+		if (e != null) {
+			if (e.transform.x != start[1] + dx || e.transform.y != start[2] + dy) {
+				doc_begin_edit(app);
+				e.transform.x = start[1] + dx;
+				e.transform.y = start[2] + dy;
+			}
+		}
+	}
+	return 0;
+}
+
+# A press on empty space starts a rubber band; releasing takes everything it
+# touches. Shift adds to the selection instead of replacing it.
+fn marquee_rect(app) {
+	let a = app.marquee;
+	let x = math_min(a[0], app.wx);
+	let y = math_min(a[1], app.wy);
+	return [x, y, math_abs(app.wx - a[0]), math_abs(app.wy - a[1])];
+}
+
+fn marquee_finish(app) {
+	let r = marquee_rect(app);
+	app.marquee = null;
+
+	# a band a few pixels across is a click that wobbled, not a selection
+	if (r[2] < 4 && r[3] < 4) { return 0; }
+
+	# the Shift that was held when the band started, not whatever is held now
+	if (!app.marquee_add) { doc_select_none(app); }
+
+	let entities = doc_entities(app);
+	for (let i = 0; i < len(entities); i = i + 1) {
+		let e = entities[i];
+		let b = doc_bounds(app, e);
+		let hits = e.visible &&
+			b[0] < r[0] + r[2] && b[0] + b[2] > r[0] &&
+			b[1] < r[1] + r[3] && b[1] + b[3] > r[1];
+		if (hits && !doc_is_selected(app, e.id)) { doc_select_toggle(app, e.id); }
+	}
+	log_line(app, "selected " + len(app.selection));
+	return 0;
+}
+
+# --- drawing a collision polygon -------------------------------------------
+#
+# The Polygon tool lays down points with the mouse: each click adds one, and
+# clicking back on the first (or pressing Return) closes the shape and makes an
+# entity of it. Escape throws the draft away.
+#
+# The points are stored local to the entity, centred on it, which is the same
+# convention a traced outline uses -- so everything downstream treats the two
+# alike.
+
+fn polygon_click(app, wx, wy) {
+	# closing: back on the first point, once there are enough to be a polygon
+	if (len(app.draft) >= 6) {
+		let dx = wx - app.draft[0];
+		let dy = wy - app.draft[1];
+		let near = 10 / app.cam.zoom;
+		if (math_abs(dx) < near && math_abs(dy) < near) {
+			polygon_finish(app);
+			return 0;
+		}
+	}
+
+	append(app.draft, snap_value(app, wx));
+	append(app.draft, snap_value(app, wy));
+	return 0;
+}
+
+fn polygon_finish(app) {
+	if (len(app.draft) < 6) {
+		app.draft = [];
+		log_line(app, "a polygon needs three points");
+		return 0;
+	}
+
+	let b = doc_polygon_bounds(app, app.draft);
+	let c = next_colour(app);
+
+	let e = doc_add(app, "Polygon " + app.doc_data.next_id, "polygon",
+		b[0], b[1], b[2], b[3], c[0], c[1], c[2]);
+
+	# world -> local, centred on the entity, the convention trace.fh uses
+	let f = doc_shape(app, e);
+	f.points = [];
+	let cx = b[0] + b[2] * 0.5;
+	let cy = b[1] + b[3] * 0.5;
+	for (let i = 0; i + 1 < len(app.draft); i = i + 2) {
+		append(f.points, round_to(app.draft[i] - cx, 2));
+		append(f.points, round_to(app.draft[i + 1] - cy, 2));
+	}
+
+	app.draft = [];
+	doc_select_only(app, e.id);
+	log_line(app, e.name + ": " + (len(f.points) / 2) + " points");
+	return 0;
+}
+
+# --- editing one ------------------------------------------------------------
+#
+# A handle per vertex, in screen space so it stays the same size at any zoom --
+# the same reason the gizmo's grips are screen space.
+
+fn polygon_vertex_at(app, e, sx, sy) {
+	let poly = doc_polygon(app, e);
+	if (poly == null || doc_shape(app, e).shape != "polygon") { return -1; }
+
+	let c = doc_center(app, e);
+	let ca = math_cos(e.transform.angle);
+	let sa = math_sin(e.transform.angle);
+
+	for (let i = 0; i + 1 < len(poly); i = i + 2) {
+		let wx = c[0] + poly[i] * ca - poly[i + 1] * sa;
+		let wy = c[1] + poly[i] * sa + poly[i + 1] * ca;
+		let p = cam_to_screen(app, wx, wy);
+		if (math_abs(sx - p[0]) <= HANDLE_HALF + 2 &&
+		    math_abs(sy - p[1]) <= HANDLE_HALF + 2) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+fn polygon_move_vertex(app, e, index, wx, wy) {
+	let f = doc_shape(app, e);
+	let c = doc_center(app, e);
+
+	# world -> local, undoing the entity's rotation
+	let ca = math_cos(-e.transform.angle);
+	let sa = math_sin(-e.transform.angle);
+	let dx = snap_value(app, wx) - c[0];
+	let dy = snap_value(app, wy) - c[1];
+
+	let lx = round_to(dx * ca - dy * sa, 2);
+	let ly = round_to(dx * sa + dy * ca, 2);
+	if (f.points[index] == lx && f.points[index + 1] == ly) { return 0; }
+
+	doc_begin_edit(app);
+	let live = doc_shape(app, doc_find(app, e.id));
+	live.points[index] = lx;
+	live.points[index + 1] = ly;
+	return 0;
+}
+
+fn polygon_delete_vertex(app, e, index) {
+	let f = doc_shape(app, e);
+	if (len(f.points) <= 6) {
+		log_line(app, "a polygon needs three points");
+		return 0;
+	}
+
+	doc_begin_edit(app);
+	let live = doc_shape(app, doc_find(app, e.id));
+	let kept = [];
+	for (let i = 0; i + 1 < len(live.points); i = i + 2) {
+		if (i != index) {
+			append(kept, live.points[i]);
+			append(kept, live.points[i + 1]);
+		}
+	}
+	live.points = kept;
+	doc_polygon_recentre(app, doc_find(app, e.id));
+	return 0;
+}
+
+# Splits the longest edge, which is where a point is most likely wanted and
+# needs no aiming.
+fn polygon_add_vertex(app, e) {
+	let f = doc_shape(app, e);
+	if (f.shape != "polygon") { return 0; }
+
+	let n = len(f.points);
+	let best = 0;
+	let best_len = -1.0;
+	for (let i = 0; i < n; i = i + 2) {
+		let j = (i + 2) % n;
+		let dx = f.points[j] - f.points[i];
+		let dy = f.points[j + 1] - f.points[i + 1];
+		let d = dx * dx + dy * dy;
+		if (d > best_len) { best_len = d; best = i; }
+	}
+
+	doc_begin_edit(app);
+	let live = doc_shape(app, doc_find(app, e.id));
+	let j = (best + 2) % n;
+	let mx = round_to((live.points[best] + live.points[j]) * 0.5, 2);
+	let my = round_to((live.points[best + 1] + live.points[j + 1]) * 0.5, 2);
+
+	let out = [];
+	for (let i = 0; i < n; i = i + 2) {
+		append(out, live.points[i]);
+		append(out, live.points[i + 1]);
+		if (i == best) {
+			append(out, mx);
+			append(out, my);
+		}
+	}
+	live.points = out;
+	return 0;
+}
+
+fn viewport_input(app, dt) {
+	let m = love_mouse_getPosition();
+	app.mx = m[0];
+	app.my = m[1];
+
+	let w = cam_to_world(app, app.mx, app.my);
+	app.wx = w[0];
+	app.wy = w[1];
+
+	let down = love_mouse_isDown("l");
+	app.mouse_down = down;
+
+	# one press and one release per frame, taken from the event queue
+	let press = EDITOR_INPUT.press;
+	EDITOR_INPUT.press = null;
+	let released = EDITOR_INPUT.released;
+	EDITOR_INPUT.released = false;
+
+	let pressed = false;
+	let add = false;
+	let px = app.mx;
+	let py = app.my;
+	if (press != null && press.button == "l") {
+		pressed = true;
+		px = press.x;
+		py = press.y;
+		add = press.shift;
+	}
+
+	# where the button went down, in world units
+	let pw = cam_to_world(app, px, py);
+	let pwx = pw[0];
+	let pwy = pw[1];
+
+	# a snapshot is taken once per gesture, so releasing the button opens the
+	# next undo step
+	if (!down && !pressed) { doc_end_edit(app); }
+
+	# The docked panels sit outside the viewport rect, but the Theme editor and
+	# the delete confirmation float over it -- ask microui whether the pointer
+	# is over one of its containers rather than only testing the rectangle.
+	let inside = point_in(app.mx, app.my, app.vp_x, app.vp_y, app.vp_w, app.vp_h) &&
+		!love_ui_mouse_over();
+	let press_inside = point_in(px, py, app.vp_x, app.vp_y, app.vp_w, app.vp_h) &&
+		!love_ui_mouse_over();
+	app.hover_viewport = inside;   # read by the F shortcut
+	let panning = cam_input(app, dt, inside);
+
+	# the simulation owns the scene while it runs; only the camera stays live
+	if (app.mode == "play" || panning) {
+		app.dragging = false;
+		cursor_update(app, inside);
+		return 0;
+	}
+
+	# A microui popup is dismissed by the click that lands outside it, and
+	# viewport_input() runs a whole pass before love_ui_begin() -- so without
+	# this the same press both closed the Primitives menu and dropped a body
+	# where the menu was pointing. Swallow that one press, the way a menu
+	# anywhere else does.
+	if (pressed && app.popup_open) {
+		cursor_update(app, inside);
+		return 0;
+	}
+
+	if (pressed && press_inside && !app.confirm && app.browser == null &&
+	    app.scene_pending == null && app.name_dialog == null &&
+	    app.delete_scene == null && !app.quitting) {
+		if (app.tool == "polygon") {
+			polygon_click(app, pwx, pwy);
+		} else if (app.tool == "select") {
+			# A vertex of the selected polygon wins over everything: it is the
+			# smallest target on screen and it sits on top of the shape it
+			# belongs to. Shift removes one instead of moving it.
+			let sel = doc_selected(app);
+			let vertex = -1;
+			if (sel != null && len(app.selection) == 1) {
+				vertex = polygon_vertex_at(app, sel, px, py);
+			}
+			if (vertex >= 0) {
+				if (add) {
+					polygon_delete_vertex(app, sel, vertex);
+				} else {
+					app.vertex = vertex;
+				}
+			}
+
+			# a grip of the current selection wins over picking something new,
+			# so a handle that overhangs another entity still works. The grips
+			# only appear for one entity, so this cannot fire on a multi
+			# selection.
+			let handle = null;
+			if (vertex < 0 && sel != null && len(app.selection) == 1) {
+				handle = gizmo_hit(app, sel, px, py);
+			}
+
+			if (vertex >= 0) {
+				# already handled above
+			} else if (handle != null) {
+				gizmo_begin(app, sel, handle, pwx, pwy);
+			} else {
+				let hit = hit_test(app, pwx, pwy);
+
+				if (hit < 0) {
+					# empty space: shift keeps what is selected, a plain press
+					# starts a marquee from here
+					if (!add) { doc_select_none(app); }
+					app.marquee = [pwx, pwy];
+					app.marquee_add = add;
+				} else if (add) {
+					doc_select_toggle(app, hit);
+				} else if (!doc_is_selected(app, hit)) {
+					doc_select_only(app, hit);
+				} else {
+					# already in the selection: keep the rest, drag them all
+					app.selected_id = hit;
+				}
+
+				if (hit >= 0) { drag_begin(app, pwx, pwy); }
+			}
+		} else {
+			spawn_at(app, pwx, pwy);
+		}
+	}
+
+	if (app.vertex >= 0 && down) {
+		let e = doc_selected(app);
+		if (e != null) { polygon_move_vertex(app, e, app.vertex, app.wx, app.wy); }
+	} else if (app.gizmo != null && down) {
+		let e = doc_selected(app);
+		if (e != null) { gizmo_apply(app, e); }
+	} else if (app.dragging && down) {
+		drag_apply(app);
+	}
+
+	if (released) {
+		if (app.marquee != null) { marquee_finish(app); }
+
+		# the box follows the points once a vertex has been let go, so the
+		# entity's position still means its top-left corner
+		if (app.vertex >= 0) {
+			let e = doc_selected(app);
+			if (e != null) { doc_polygon_recentre(app, e); }
+		}
+		app.vertex = -1;
+		app.dragging = false;
+		app.gizmo = null;
+	}
+
+	cursor_update(app, inside);
+	return 0;
+}
+
+fn shortcut(app, name, ctrl) {
+	# Esc backs out of whatever is open, one layer at a time. It used to be
+	# polled with love_keyboard_isDown(), which meant a quick tap between two
+	# frames did nothing at all.
+	if (!ctrl && (name == "return" || name == "enter")) {
+		if (len(app.draft) > 0) { polygon_finish(app); }
+		return 0;
+	}
+
+	if (!ctrl && (name == "escape" || name == "esc")) {
+		if (len(app.draft) > 0) {
+			app.draft = [];
+			log_line(app, "polygon cancelled");
+			return 0;
+		}
+		if (app.browser != null) { browser_close(app); return 0; }
+		if (app.name_dialog != null) { app.name_dialog = null; return 0; }
+		if (app.delete_scene != null) { app.delete_scene = null; return 0; }
+		if (app.scene_pending != null) { app.scene_pending = null; return 0; }
+		if (app.confirm) { app.confirm = false; return 0; }
+		if (app.quitting) { app.quitting = false; return 0; }
+
+		# Nothing left to close. On its own the editor is the program, so this
+		# is a request to quit -- with the usual guard. Hosted in a game it is
+		# a request to get out of the way and let the game have the screen.
+		if (!app.standalone) { editor_set_active(app, false); return 0; }
+		if (app.dirty) { app.quitting = true; return 0; }
+		love_mouse_setVisible(true);
+		love_event_quit();
+		return 0;
+	}
+
+	if (ctrl) {
+		if (name == "z") { doc_undo(app); return 0; }
+		if (name == "y") { doc_redo(app); return 0; }
+		if (name == "s") { doc_save(app, app.scene_path); return 0; }
+		if (name == "d") { doc_duplicate(app); return 0; }
+		if (name == "n") {
+			scenes_ask_name(app, "new", scenes_suggest_name(app));
+			return 0;
+		}
+		return 0;
+	}
+
+	# Delete goes through the same confirmation the button does -- a level is
+	# not somewhere a keystroke should remove something without asking.
+	# Backspace counts too: on a Mac keyboard the key labelled "delete" is
+	# backspace, and forward delete needs Fn.
+	if (name == "delete" || name == "backspace") {
+		if (doc_selected(app) != null) { app.confirm = true; }
+		return 0;
+	}
+
+	# Framing is a viewport command, so it only answers while the pointer is
+	# over the viewport -- the panels are full of text boxes.
+	if (name == "f" && app.hover_viewport) { cam_frame_all(app); }
+	return 0;
+}
+
+fn shortcuts(app) {
+	let keys = EDITOR_INPUT.keys;
+	EDITOR_INPUT.keys = [];
+
+	# A text box being typed into takes the keyboard, and so does a slider
+	# being dragged. Those keystrokes belong to the widget: drop them, or
+	# naming an entity would fire every shortcut the name happens to contain.
+	if (love_ui_capturesKeyboard()) { return 0; }
+
+	for (let i = 0; i < len(keys); i = i + 1) {
+		shortcut(app, keys[i][0], keys[i][1]);
+	}
+	return 0;
+}
+
+
+# opts is optional and may carry:
+#   "scene"      the level to open, overriding what editor.json remembers
+#   "standalone" true when the editor *is* the program, so Esc quits it;
+#                embedded in a game, Esc only switches it off
+#   "active"     whether it starts switched on (standalone defaults to true)
+fn editor_new(opts) {
+	let app = {};
+
+	if (opts == null) { opts = {}; }
+	app.standalone = contains_key(opts, "standalone") && opts.standalone;
+	app.active = app.standalone;
+	if (contains_key(opts, "active")) { app.active = opts.active; }
+
+	# Bumped by every change to the document, so a host can tell whether
+	# anything it derived from the level is out of date without diffing it.
+	app.revision = 0;
+	app.wheel = 0;
+
+	editor_layout(app);
+
+	app.log = [];
+	app.sprite_cache = {};
+	app.trace_cache = {};
+
+	app.selected_id = -1;
+	app.selection = [];
+	app.last_selected = -2;
+	app.dirty = false;
+
+	app.undo = [];
+	app.redo = [];
+	app.edit_pushed = false;
+
+	app.mode = "edit";
+	app.world = null;
+	app.runtime = [];
+	app.contacts = [];        # contact marks, while Play is running
+
+	app.cam = { "x": 0, "y": 0, "zoom": 1 };
+	app.panning = false;
+	app.pan_x = 0;
+	app.pan_y = 0;
+
+	app.tool      = "select";
+	prefs_defaults(app);      # grid, snap, show_grid, show_fixtures
+	app.show_style = false;
+	app.confirm   = false;
+
+	app.selection = [];       # every selected id; app.selected_id is the primary
+	app.dragging = false;
+	app.gizmo = null;
+	app.grab = null;
+	app.drag_from = [0, 0];   # where a move started, in world units
+	app.drag_start = [];      # [id, x, y] per selected entity when it started
+	app.marquee = null;       # [x, y] of a rubber band's first corner
+	app.marquee_add = false;  # was Shift held when it started
+	app.vertex = -1;          # index into a polygon's points, while dragging one
+	app.draft = [];           # the polygon being drawn, in world units
+
+	app.mouse_down = false;
+	app.mx = 0;
+	app.my = 0;
+	app.wx = 0;
+	app.wy = 0;
+
+	app.cursor_kind = "arrow";
+	app.cursor_label = "";
+	app.popup_open = false;   # set while a microui popup is on screen
+	app.tip = null;           # the hover help to show this frame, if any
+
+	# where relative sprite paths resolve, and where the file picker starts.
+	# love_filesystem_getCurrentDirectory() is a different thing despite the
+	# name: it answers the directory the executable lives in.
+	app.game_dir = love_filesystem_getWorkingDirectory();
+	if (app.game_dir == null) { app.game_dir = "."; }
+	app.browser = null;       # the file picker, while it is open
+
+	# the Properties section: the row order it shows, and the pair of boxes
+	# that edits whichever row was clicked
+	app.prop_order = [];
+	app.prop_key = "";
+	app.prop_value = "";
+	app.link_key = "";        # the name being given to a link, while typing it
+
+	# levels. app.scene_path comes from prefs_defaults()/prefs_load().
+	app.scene_files = [];     # the menu's listing, refreshed when it opens
+	app.cameras = {};         # where you were looking in each level, per session
+	app.scene_pending = null; # a switch waiting on the unsaved-changes modal
+	app.name_dialog = null;   # { mode, name } while New / Save as / Rename is up
+	app.delete_scene = null;  # the level the Delete confirmation is about
+	app.quitting = false;     # the quit modal is up
+	app.force_quit = false;   # the user answered it: stop asking
+	app.style_open = false;   # the Theme editor's microui container is open
+
+	app.pal_i = 0;
+	app.hover_viewport = false;   # is the pointer over the scene, not a panel
+
+	app.browser_panel   = love_ui_newContainer();
+	app.console_panel   = love_ui_newContainer();
+	app.hierarchy_panel = love_ui_newContainer();
+
+	app.doc_data = doc_empty(app);
+
+	log_line(app, "editor ready");
+
+	if (prefs_load(app)) {
+		log_line(app, "grid " + app.grid + " (from " + PREFS_PATH + ")");
+	}
+	# an explicit level wins over what editor.json remembered
+	if (contains_key(opts, "scene") && opts.scene != null) {
+		app.scene_path = opts.scene;
+	}
+
+	if (io_filetype(app.scene_path) == "file") {
+		doc_load(app, app.scene_path);
+	} else {
+		log_line(app, "no " + app.scene_path + " yet -- starting empty");
+	}
+
+	# the input callbacks are handed no state map, so they reach it here
+	EDITOR_INPUT.app = app;
+	return app;
+}
+
+# Returning true aborts the quit, the way LOVE's love.quit does -- which is the
+# only way to catch the window's close button, since SDL_QUIT never reaches a
+# script. Unsaved work puts the modal up instead of closing; scenes.fh finishes
+# the job, and app.force_quit is how it says "yes, really".
+fn editor_quit() {
+	let app = EDITOR_INPUT.app;
+	if (app != null && !app.force_quit && app.dirty) {
+		app.quitting = true;
+		return true;
+	}
+	love_mouse_setVisible(true);   # the OS cursor is ours to give back
+	return false;
+}
+
+
+fn editor_update(app, dt) {
+	if (!app.active) { return 0; }
+
+	editor_layout(app);
+	shortcuts(app);
+
+	if (app.selected_id != app.last_selected) {
+		# hand the text boxes back to microui so they re-seed from the new entity
+		love_ui_clear_textbox(NAME_BOX);
+		love_ui_clear_textbox(SPRITE_BOX);
+		love_ui_clear_textbox(GROUP_BOX);
+		love_ui_clear_textbox(PROP_KEY_BOX);
+		love_ui_clear_textbox(PROP_VAL_BOX);
+		love_ui_clear_textbox(LINK_KEY_BOX);
+		app.prop_key = "";
+		app.prop_value = "";
+		app.link_key = "";
+		app.prop_order = [];
+		app.last_selected = app.selected_id;
+	}
+
+	viewport_input(app, dt);
+	sim_update(app);
+	prefs_flush(app);
+
+	# recomputed from microui every frame: each menu ORs itself back in while
+	# it is on screen, and viewport_input() reads the value the previous frame
+	# left behind -- it runs before the panels do
+	app.popup_open = false;
+
+	love_ui_begin();
+	panels_toolbar(app);
+	panels_hierarchy(app);
+	panels_console(app);
+	panels_inspector(app);
+	panels_statusbar(app);
+	panels_theme(app);
+	panels_confirm(app);
+	browser_panel(app);
+	scenes_dialogs(app);
+	scenes_quit_dialog(app);
+
+	# last, so it is built after everything that might have set it
+	tip_draw(app);
+	love_ui_end();
+}
+
+fn editor_draw(app) {
+	if (!app.active) { return 0; }
+	view_draw(app);
+	return 0;
+}
+
+
+# ============================================================================
+#  What a host asks the editor
+# ============================================================================
+
+fn editor_active(app) { return app.active; }
+
+# Switching off hands the mouse back and stops the simulation if Play was
+# running: the game underneath is about to want both.
+fn editor_set_active(app, on) {
+	if (app.active == on) { return 0; }
+	app.active = on;
+	if (!on) {
+		if (app.mode == "play") { sim_stop(app); }
+		love_mouse_setVisible(true);
+		app.dragging = false;
+		app.gizmo = null;
+	}
+	return 0;
+}
+
+fn editor_toggle(app) {
+	editor_set_active(app, !app.active);
+	return 0;
+}
+
+# The number a host watches to know the level changed under it. It moves on
+# every edit, undo, redo and load -- never on a camera move or a selection, so
+# a game does not rebuild its world because someone scrolled.
+fn editor_revision(app) { return app.revision; }
+
+fn editor_document(app) { return app.doc_data; }
+fn editor_scene_path(app) { return app.scene_path; }
+
