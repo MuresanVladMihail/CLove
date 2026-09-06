@@ -47,11 +47,20 @@ fn love_config(c) {
 - `love_load()` / `love_update(dt, self)` / `love_draw(self)`
 - `love_focus(focused)` , `love_quit()`
 - `love_keypressed(key)` , `love_keyreleased(key)` , `love_textinput(text)`
+- `love_resize(w, h)` — the window was resized; two real arguments
 - `love_mousepressed(m)` , `love_mousereleased(m)` , `love_wheelmoved(y)`
 - `love_joystickpressed(...)` , `love_joystickreleased(...)`
 
 The two mouse-button callbacks take **one** argument, an array `[x, y, button]`
 — not three — with `button` one of `"l"`, `"r"`, `"m"`, `"wu"`, `"wd"`.
+`love_resize` takes two, the way LÖVE's does.
+
+A resizable window (`c.window_resizable` in `config.fh`) now updates the 2D
+projection and the GL viewport for you when the user drags its edge — before,
+only a script-driven resize did, so a dragged window kept drawing the scene
+into a corner of itself. `love_window_getWidth()`/`getHeight()` ask SDL
+directly and are correct either way; `love_resize` exists because polling a
+size cannot tell you *that* it changed.
 
 The engine pumps SDL events at the *end* of a frame, after `love_update` and
 `love_draw` (`fh_main_loop` in `src/fh_mainactivity.c`), so a press reaches

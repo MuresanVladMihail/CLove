@@ -31,7 +31,7 @@ let OPT_DISABLED = 4;      # MU_OPT_NOINTERACT -- draws, never fires
 let PANEL_W   = 250;
 let TOOLBAR_H = 76;
 let STATUS_H  = 30;
-let HIER_H    = 400;
+let HIER_H    = 400;   # the hierarchy's share of the left column, by default
 
 # Below these the panels would leave nothing to draw into, so the viewport
 # stops shrinking and starts being covered instead. Better a cramped editor
@@ -42,6 +42,13 @@ let MIN_VP_H = 120;
 fn editor_layout(app) {
 	app.screen_w = love_window_getWidth();
 	app.screen_h = love_window_getHeight();
+
+	# The hierarchy keeps its height until the window is too short for it, and
+	# then gives way rather than pushing the console off the bottom.
+	app.hier_h = HIER_H;
+	let column = app.screen_h - TOOLBAR_H;
+	if (app.hier_h > column - MIN_VP_H) { app.hier_h = column - MIN_VP_H; }
+	if (app.hier_h < MIN_VP_H) { app.hier_h = MIN_VP_H; }
 
 	app.vp_x = PANEL_W;
 	app.vp_y = TOOLBAR_H;
@@ -116,6 +123,9 @@ let ID_NUM_BOUNCE  = 17;
 let ID_NUM_GRAVITY = 18;
 
 let ID_NUM_GRID    = 19;
+let ID_NUM_GRAV_X  = 23;
+let ID_NUM_GRAV_Y  = 24;
+let ID_NUM_METER   = 25;
 
 let ID_COL_R = 20;
 let ID_COL_G = 21;

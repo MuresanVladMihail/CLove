@@ -173,3 +173,8 @@ void graphics_shear(float kx, float ky);
 /* Writes the framebuffer as it currently stands to a .png. Returns 0 if the
  * file could not be written. */
 int graphics_captureScreenshot(const char *path);
+
+/* Points the 2D projection and the GL viewport at a window of this size,
+ * without touching the window itself. What a user-driven resize needs: SDL has
+ * already changed the window, only the drawing state is behind. */
+void graphics_updateViewport(int width, int height);

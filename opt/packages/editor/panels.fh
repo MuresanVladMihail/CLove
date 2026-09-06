@@ -21,6 +21,18 @@ fn panels_dock_opts(app) {
 	return love_ui_opt("notitle") + love_ui_opt("noresize") + love_ui_opt("noclose");
 }
 
+# Begins a docked panel at a rect that is recomputed every frame.
+#
+# love_ui_begin_window()'s rect is applied only the first time microui sees
+# that window -- which is what makes a floating window stay where it was
+# dragged, and what left the docks pinned to whatever size the editor started
+# at. Setting the rect first is the whole of following a resized window, and
+# doing both here means the two can never drift apart.
+fn panels_dock(app, name, x, y, w, h) {
+	love_ui_setWindowRect(name, x, y, w, h);
+	return love_ui_begin_window(name, x, y, w, h, panels_dock_opts(app));
+}
+
 # --- toolbar --------------------------------------------------------
 
 fn panels_primitives_menu(app) {
@@ -131,7 +143,7 @@ fn panels_settings_menu(app) {
 }
 
 fn panels_toolbar(app) {
-	if (love_ui_begin_window("Toolbar", 0, 0, app.screen_w, TOOLBAR_H, panels_dock_opts(app))) {
+	if (panels_dock(app, "Toolbar", 0, 0, app.screen_w, TOOLBAR_H)) {
 
 		# Both rows use the same column widths for their first ten cells, so
 		# the groups line up vertically: one action button is always TB_BTN
@@ -236,7 +248,7 @@ fn panels_toolbar(app) {
 }
 
 fn panels_hierarchy(app) {
-	if (love_ui_begin_window("Hierarchy", 0, TOOLBAR_H, PANEL_W, HIER_H, panels_dock_opts(app))) {
+	if (panels_dock(app, "Hierarchy", 0, TOOLBAR_H, PANEL_W, app.hier_h)) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("HIERARCHY");
 
@@ -361,6 +373,9 @@ fn panels_hierarchy(app) {
 				"-- a door's exit, a lever's target. A game follows it with " +
 				"scene.link(e, name) and gets the entity back; deleting the " +
 				"target drops the link rather than leaving it dangling.");
+			love_ui_text("Level: with nothing selected the inspector shows the " +
+				"level itself -- gravity and the metre. Both are saved with " +
+				"it, and gravity applies to a world that is already playing.");
 			love_ui_text("Settings holds snapping, the grid, the fixture " +
 				"overlay, these tips and the Theme editor. Everything in it " +
 				"is remembered in " + PREFS_PATH + ", and the Theme editor's " +
@@ -381,8 +396,8 @@ fn panels_hierarchy(app) {
 # --- inspector ------------------------------------------------------
 
 fn panels_console(app) {
-	if (love_ui_begin_window("Console", 0, TOOLBAR_H + HIER_H,
-	                         PANEL_W, app.screen_h - TOOLBAR_H - HIER_H, panels_dock_opts(app))) {
+	if (panels_dock(app, "Console", 0, TOOLBAR_H + app.hier_h,
+	                PANEL_W, app.screen_h - TOOLBAR_H - app.hier_h)) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("CONSOLE");
 
@@ -404,8 +419,8 @@ fn panels_console(app) {
 }
 
 fn panels_statusbar(app) {
-	if (love_ui_begin_window("Status", app.vp_x, app.screen_h - STATUS_H,
-	                         app.vp_w, STATUS_H, panels_dock_opts(app))) {
+	if (panels_dock(app, "Status", app.vp_x, app.screen_h - STATUS_H,
+	                app.vp_w, STATUS_H)) {
 		love_ui_layout_row(6, [90, 150, 170, 110, 100, -1], 0);
 
 		love_ui_label("mode: " + app.mode);

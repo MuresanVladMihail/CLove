@@ -76,6 +76,22 @@ static bool quit_function(void) {
     return allow;
 }
 
+/* love_resize(w, h) -- optional, and two real arguments, the way LOVE's
+ * love.resize has them. A program that lays anything out by hand needs to be
+ * told, and asking love_window_getWidth() every frame is not the same thing:
+ * it cannot tell you *that* it changed. */
+static void resize_function(int width, int height) {
+    if (!fh_function_exists(loopData.prog, "love_resize"))
+        return;
+
+    struct fh_value args[2];
+    args[0] = fh_new_number(width);
+    args[1] = fh_new_number(height);
+    if (fh_call_function(loopData.prog, "love_resize", args, 2, NULL) == -2) {
+        clove_error("Error: %s\n", fh_get_error(loopData.prog));
+    }
+}
+
 static void focus_function(void) {
     // love_focus is an optional callback; calling a missing function would
     // also pollute the program error state every frame
@@ -187,6 +203,18 @@ void fh_main_loop(int argc, char **argv) {
                 case SDL_WINDOWEVENT_FOCUS_GAINED:
                     graphics_setFocus(true);
                     break;
+                case SDL_WINDOWEVENT_SIZE_CHANGED: {
+                    /* SDL has already resized the window; only the drawing
+                     * state is behind. Without this the projection and the GL
+                     * viewport stay at the size the context was created with,
+                     * so a resized window keeps drawing the scene into a
+                     * corner of itself. */
+                    int w = event.window.data1;
+                    int h = event.window.data2;
+                    graphics_updateViewport(w, h);
+                    resize_function(w, h);
+                    break;
+                }
                 default:
                     break;
             }
