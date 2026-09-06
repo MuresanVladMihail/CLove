@@ -368,6 +368,14 @@ Poll state with `love_keyboard_isDown(key)`, `love_mouse_getX/getY`,
 
 ## Math — `src/fhapi/math.c`
 
+`love_math_triangulate(points)` ear-clips a flat `[x, y, x, y, ...]` outline
+into an array of triangles, each `[x,y, x,y, x,y]`. `love_geometry_polygon`
+uses it internally, so a script needs it only when it wants the triangles
+themselves — to hand them to Box2D, which takes convex shapes only, or to
+build a mesh. The outline has to be simple: ear clipping cannot detect a
+self-crossing one in general, so a bowtie comes back wrong rather than as an
+error.
+
 `love_math_noise(x [, y, z, w])` — simplex noise in [-1, 1], 1–4 dimensions.
 (General arithmetic, arrays, maps, closures, strings come from the FH language
 itself — see the FH docs under `src/3rdparty/FH`.)

@@ -1,0 +1,84 @@
+# love_geometry_polygon("fill") has to fill the polygon.
+#
+# It used to hand the raw vertex list to GL_TRIANGLE_STRIP, which is only ever
+# right for a triangle or a strip-ordered quad. A hexagon came out with a bite
+# taken from it; a twelve-sided polygon came out hollow, a ring. So this draws
+# both and reads the middle back.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+let T = {"n": 0};
+
+fn ngon(cx, cy, r, sides) {
+    let p = [];
+    for (let i = 0; i < sides; i++) {
+        let a = i / sides * 6.28318;
+        append(p, cx + math_cos(a) * r);
+        append(p, cy + math_sin(a) * r);
+    }
+    return p;
+}
+
+fn test_triangulate() {
+    # The binding, on its own. A square is two triangles.
+    let tris = love_math_triangulate([0, 0, 100, 0, 100, 100, 0, 100]);
+    check(len(tris) == 2, "a square triangulates into two triangles");
+    check(len(tris[0]) == 6, "each triangle is three x,y pairs");
+
+    # n points make n - 2 triangles, whatever the shape.
+    check(len(love_math_triangulate(ngon(0, 0, 50, 12))) == 10, "a 12-gon makes ten triangles");
+
+    # A concave outline still works -- that is the whole point of ear clipping.
+    let arrow = [0, 0, 100, 0, 100, 100, 50, 60, 0, 100];
+    check(len(love_math_triangulate(arrow)) == 3, "a concave pentagon makes three triangles");
+
+    # A closed outline (last point repeating the first) is accepted.
+    check(len(love_math_triangulate([0, 0, 100, 0, 100, 100, 0, 0])) == 1,
+          "a closed triangle is still one triangle");
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(0, 0, 0);
+    love_graphics_setColor(255, 255, 255);
+    love_geometry_polygon("fill", ngon(120, 120, 90, 6));      # convex hexagon
+    love_geometry_polygon("fill", ngon(360, 120, 90, 12));     # convex 12-gon
+    # concave: a notch cut into the bottom edge
+    love_geometry_polygon("fill", [520, 40, 660, 40, 660, 200, 590, 120, 520, 200]);
+}
+
+fn lit(shot, x, y) {
+    let p = love_image_getPixel(shot, x, y);
+    return p[0] + p[1] + p[2] > 150;
+}
+
+fn love_update(dt, self) {
+    T.n++;
+    if (T.n == 3) { love_graphics_captureScreenshot("polygon_shot.png"); }
+    if (T.n == 5) {
+        let shot = love_graphics_newImage("polygon_shot.png");
+
+        # The centre of each convex shape must be filled. The 12-gon used to
+        # be a ring, so its centre was the background.
+        check(lit(shot, 120, 120), "the hexagon's centre should be filled");
+        check(lit(shot, 360, 120), "the 12-gon's centre should be filled -- it used to be a ring");
+
+        # And the edges of the hexagon, well inside it.
+        check(lit(shot, 70, 120), "the hexagon's left half should be filled");
+        check(lit(shot, 170, 120), "the hexagon's right half should be filled");
+
+        # The concave shape: filled above the notch, background below it.
+        check(lit(shot, 590, 70), "the concave shape is filled above the notch");
+        check(!lit(shot, 590, 190), "and the notch itself is not filled");
+
+        println("CLOVE_TEST_OK");
+        love_event_quit();
+    }
+    if (T.n > 40) { error("the screenshot never came back"); }
+}
+
+fn love_load() {
+    test_triangulate();
+    return T;
+}
+
+fn main() {}

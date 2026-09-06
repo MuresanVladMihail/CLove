@@ -15,6 +15,7 @@
 #include "../include/shader.h"
 #include "../include/matrixstack.h"
 #include "../include/vertex.h"
+#include "../include/triangulate.h"
 
 static struct {
     GLuint vao;
@@ -341,7 +342,28 @@ void graphics_geometry_line(float *points, uint32_t count) {
 }
 
 void graphics_geometry_polygon(bool filled, float *vertices, uint32_t count) {
-    growBuffers(count, count);
+    if (count < 2) {
+        return;
+    }
+
+    /* A filled polygon has to be triangulated. This used to hand the raw
+     * vertex list to GL_TRIANGLE_STRIP, which is only ever right for a
+     * triangle or a strip-ordered quad: a hexagon came out with a bite taken
+     * from it, and a twelve-sided polygon came out hollow -- a ring. LOVE
+     * triangulates here, and so does this now. */
+    uint32_t indexCount = count;
+    GLenum mode = GL_LINE_STRIP;
+
+    if (filled) {
+        int wanted = math_triangulateIndexCount((int) count);
+        if (wanted <= 0) {
+            return;
+        }
+        indexCount = (uint32_t) wanted;
+        mode = GL_TRIANGLES;
+    }
+
+    growBuffers(count, indexCount);
 
     for (uint32_t i = 0; i < count; i++) {
         moduleData.data[8 * i + 0] = vertices[2 * i];
@@ -352,10 +374,31 @@ void graphics_geometry_polygon(bool filled, float *vertices, uint32_t count) {
         moduleData.data[8 * i + 5] = 1.0f;
         moduleData.data[8 * i + 6] = 1.0f;
         moduleData.data[8 * i + 7] = 1.0f;
-        moduleData.index[i] = i;
     }
 
-    drawBuffer(count, count, filled ? GL_TRIANGLE_STRIP : GL_LINE_STRIP);
+    if (filled) {
+        int written = math_triangulate(vertices, (int) count, moduleData.index);
+        if (written <= 0) {
+            /* Self-intersecting, so there is no correct answer. A fan is what
+             * it would have been anyway, and drawing something beats drawing
+             * nothing while the caller works out that their outline crosses. */
+            uint32_t at = 0;
+            for (uint32_t i = 1; i + 1 < count; i++) {
+                moduleData.index[at++] = 0;
+                moduleData.index[at++] = i;
+                moduleData.index[at++] = i + 1;
+            }
+            written = (int) at;
+        }
+        indexCount = (uint32_t) written;
+    } else {
+        for (uint32_t i = 0; i < count; i++) {
+            moduleData.index[i] = i;
+        }
+    }
+
+    /* drawBuffer takes the index count first and the vertex count second. */
+    drawBuffer(indexCount, (int) count, mode);
 }
 
 

@@ -7,10 +7,11 @@
 #  first, and it is wrong in the way that matters: the collision stops matching
 #  the drawing exactly where someone took the trouble to draw a notch.
 #
-#  So the outline is decomposed instead. Ear clipping cuts it into triangles,
-#  then adjacent triangles are merged back together for as long as the result
-#  stays convex and short enough. That is Hertel-Mehlhorn: not the fewest
-#  possible pieces, but close, and simple enough to read.
+#  So the outline is decomposed instead. Ear clipping cuts it into triangles --
+#  love_math_triangulate does that in the engine now, it used to be sixty lines
+#  of FH here -- then adjacent triangles are merged back together for as long
+#  as the result stays convex and short enough. That is Hertel-Mehlhorn: not
+#  the fewest possible pieces, but close, and simple enough to read.
 #
 #  Each piece becomes its own fixture on the same body, which is how every 2D
 #  physics editor does it -- the document's "fixtures" was an array from the
@@ -20,106 +21,15 @@
 #  space, the same as trace.fh.
 # ============================================================================
 
-
-# Twice the signed area. Positive is counter-clockwise in a y-down world, which
-# is the winding ear clipping below assumes.
-fn poly_area2(points) {
-	let sum = 0.0;
-	let n = len(points);
-	for (let i = 0; i < n; i = i + 2) {
-		let j = (i + 2) % n;
-		sum = sum + points[i] * points[j + 1] - points[j] * points[i + 1];
-	}
-	return sum;
-}
-
-fn poly_reverse(points) {
-	let out = [];
-	for (let i = len(points) - 2; i >= 0; i = i - 2) {
-		append(out, points[i]);
-		append(out, points[i + 1]);
-	}
-	return out;
-}
-
-fn poly_cross(ax, ay, bx, by, cx, cy) {
-	return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
-}
-
-# Is p inside (or on) the triangle abc? Used to reject an "ear" that would
-# swallow another vertex.
-fn poly_in_triangle(px, py, ax, ay, bx, by, cx, cy) {
-	let d1 = poly_cross(ax, ay, bx, by, px, py);
-	let d2 = poly_cross(bx, by, cx, cy, px, py);
-	let d3 = poly_cross(cx, cy, ax, ay, px, py);
-	let neg = d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
-	let pos = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
-	return !(neg && pos);
-}
-
-# --- ear clipping ------------------------------------------------------------
+# --- ear clipping, now the engine's --------------------------------------------
 
 fn poly_triangulate(points) {
+	# Ear clipping lives in the engine now (love_math_triangulate, which is
+	# what love_geometry_polygon("fill") uses too), so this is a thin wrapper
+	# that keeps the shape the rest of this file expects and turns a
+	# self-crossing outline into an empty list rather than an error.
 	if (len(points) < 6) { return []; }
-
-	let work = points;
-	if (poly_area2(work) < 0.0) { work = poly_reverse(work); }
-
-	# indices still in play, as [x, y] pairs so the loop below reads plainly
-	let ring = [];
-	for (let i = 0; i + 1 < len(work); i = i + 2) {
-		append(ring, [work[i], work[i + 1]]);
-	}
-
-	let out = [];
-	# every clip removes one vertex, so this cannot run longer than that -- a
-	# polygon that crosses itself would otherwise spin here forever
-	let guard = len(ring) * len(ring) + 8;
-
-	while (len(ring) > 3 && guard > 0) {
-		guard = guard - 1;
-		let n = len(ring);
-		let clipped = false;
-
-		for (let i = 0; i < n; i++) {
-			let a = ring[(i + n - 1) % n];
-			let b = ring[i];
-			let c = ring[(i + 1) % n];
-
-			# a reflex corner is not an ear
-			if (poly_cross(a[0], a[1], b[0], b[1], c[0], c[1]) <= 0.0) { continue; }
-
-			let clean = true;
-			for (let k = 0; k < n; k++) {
-				if (k == i || k == (i + n - 1) % n || k == (i + 1) % n) { continue; }
-				let p = ring[k];
-				if (poly_in_triangle(p[0], p[1], a[0], a[1], b[0], b[1], c[0], c[1])) {
-					clean = false;
-				}
-			}
-			if (!clean) { continue; }
-
-			append(out, [a[0], a[1], b[0], b[1], c[0], c[1]]);
-
-			let rest = [];
-			for (let k = 0; k < n; k++) {
-				if (k != i) { append(rest, ring[k]); }
-			}
-			ring = rest;
-			clipped = true;
-			break;
-		}
-
-		# nothing was an ear: the outline is self-intersecting or degenerate,
-		# so stop rather than loop
-		if (!clipped) { return out; }
-	}
-
-	if (len(ring) == 3) {
-		append(out, [ring[0][0], ring[0][1], ring[1][0], ring[1][1],
-		             ring[2][0], ring[2][1]]);
-	}
-	return out;
+	return love_math_triangulate(points);
 }
 
 # --- merging back up ---------------------------------------------------------
