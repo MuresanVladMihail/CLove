@@ -24,6 +24,11 @@ fh_c_obj_gc_callback particle_gc(graphics_ParticleSystem *p) {
 // Frees only the fh_image_t wrapper itself, not the graphics_Image it
 // points to - for handles (like getTexture() below) that borrow a texture
 // still owned by something else.
+static fh_c_obj_gc_callback quad_gc_copy(graphics_Quad *q) {
+    free(q);
+    return (fh_c_obj_gc_callback)1;
+}
+
 static fh_c_obj_gc_callback freeImageWrapperOnly(fh_image_t *x) {
     free(x);
     return (fh_c_obj_gc_callback)1;
@@ -56,19 +61,26 @@ static int fn_love_graphics_newParticleSystem(struct fh_program *prog,
 
 static int fn_love_particleSystem_clone(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (n_args != 2)
-        return fh_set_error(prog, "love_particleSystem_clone(): expected 2 arguments, got %d", n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_clone(): expected 1 argument, got %d", n_args);
 
-    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
-            || !fh_is_c_obj_of_type(&args[1], FH_GRAPHICS_PARTICLE))
-        return fh_set_error(prog, "Expected two particle systems");
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
+        return fh_set_error(prog, "Expected a particle system");
 
-    graphics_ParticleSystem *cloned = fh_get_c_obj_value(&args[0]);
-    graphics_ParticleSystem *to = fh_get_c_obj_value(&args[1]);
+    graphics_ParticleSystem *from = fh_get_c_obj_value(&args[0]);
 
-    graphics_ParticleSystem_clone(cloned, to);
+    // clone() used to take the destination as a second argument and hand it
+    // back wrapped in a *second* c_obj: two script handles owned one system,
+    // and the destination's own buffers leaked. It now allocates its own,
+    // the way love.graphics.ParticleSystem:clone() does.
+    graphics_ParticleSystem *to = malloc(sizeof(graphics_ParticleSystem));
+    if (!to)
+        return fh_set_error(prog, "out of memory");
 
-    *ret = fh_new_c_obj(prog, to, NULL, FH_GRAPHICS_PARTICLE);
+    graphics_ParticleSystem_clone(from, to);
+
+    fh_c_obj_gc_callback *callback = particle_gc;
+    *ret = fh_new_c_obj(prog, to, callback, FH_GRAPHICS_PARTICLE);
     return 0;
 }
 
@@ -151,6 +163,32 @@ static int fn_love_particleSystem_getBufferSize(struct fh_program *prog,
     return 0;
 }
 
+// love.graphics's emission-area distributions. "uniform" and "normal" fill
+// the box; the ellipse ones fill (or trace) an oval inscribed in it, and
+// "borderrectangle" traces the box itself.
+static int area_mode_from_string(const char *name, graphics_AreaSpreadDistribution *out) {
+    if (strcmp(name, "uniform") == 0)              *out = graphics_AreaSpreadDistribution_uniform;
+    else if (strcmp(name, "normal") == 0)          *out = graphics_AreaSpreadDistribution_normal;
+    else if (strcmp(name, "ellipse") == 0)         *out = graphics_AreaSpreadDistribution_ellipse;
+    else if (strcmp(name, "borderellipse") == 0)   *out = graphics_AreaSpreadDistribution_borderellipse;
+    else if (strcmp(name, "borderrectangle") == 0) *out = graphics_AreaSpreadDistribution_borderrectangle;
+    else if (strcmp(name, "none") == 0)            *out = graphics_AreaSpreadDistribution_none;
+    else return 0;
+    return 1;
+}
+
+static const char *area_mode_to_string(graphics_AreaSpreadDistribution mode) {
+    switch (mode) {
+    case graphics_AreaSpreadDistribution_uniform:         return "uniform";
+    case graphics_AreaSpreadDistribution_normal:          return "normal";
+    case graphics_AreaSpreadDistribution_ellipse:         return "ellipse";
+    case graphics_AreaSpreadDistribution_borderellipse:   return "borderellipse";
+    case graphics_AreaSpreadDistribution_borderrectangle: return "borderrectangle";
+    case graphics_AreaSpreadDistribution_none:            break;
+    }
+    return "none";
+}
+
 static int fn_love_particleSystem_setAreaSpread(struct fh_program *prog,
                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 4)
@@ -168,16 +206,8 @@ static int fn_love_particleSystem_setAreaSpread(struct fh_program *prog,
     float dy = (float)fh_get_number(&args[3]);
 
     graphics_AreaSpreadDistribution mode;
-
-    if (strcmp(mode_str, "uniform") == 0) {
-        mode = graphics_AreaSpreadDistribution_uniform;
-    } else if (strcmp(mode_str, "normal") == 0) {
-        mode = graphics_AreaSpreadDistribution_normal;
-    } else if (strcmp(mode_str, "none") == 0) {
-        mode = graphics_AreaSpreadDistribution_none;
-    } else {
+    if (!area_mode_from_string(mode_str, &mode))
         return fh_set_error(prog, "Invalid area spread distribution mode '%s'", mode_str);
-    }
 
     graphics_ParticleSystem_setAreaSpread(p, mode, dx, dy);
 
@@ -199,18 +229,7 @@ static int fn_love_particleSystem_getAreaSpread(struct fh_program *prog,
     graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
     graphics_ParticleSystem_getAreaSpread(p, &mode, &dx, &dy);
 
-    const char *mode_str;
-    switch (mode) {
-    case graphics_AreaSpreadDistribution_none:
-        mode_str = "none";
-        break;
-    case graphics_AreaSpreadDistribution_normal:
-        mode_str = "normal";
-        break;
-    case graphics_AreaSpreadDistribution_uniform:
-        mode_str = "uniform";
-        break;
-    }
+    const char *mode_str = area_mode_to_string(mode);
 
     int pin_state = fh_get_pin_state(prog);
     struct fh_array *ret_arr = fh_make_array(prog, true);
@@ -229,6 +248,76 @@ static int fn_love_particleSystem_getAreaSpread(struct fh_program *prog,
     return 0;
 }
 
+static int fn_love_particleSystem_setEmissionArea(struct fh_program *prog,
+                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 4 || n_args > 6)
+        return fh_set_error(prog,
+                "love_particleSystem_setEmissionArea(): expected 4 to 6 arguments "
+                "(particle, mode, dx, dy [, angle [, directionRelativeToCenter]]), got %d", n_args);
+
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
+            || !fh_is_string(&args[1])
+            || !fh_is_number(&args[2])
+            || !fh_is_number(&args[3]))
+        return fh_set_error(prog, "Expected particle, a mode:string, dx:number and dy:number");
+
+    graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
+
+    graphics_AreaSpreadDistribution mode;
+    if (!area_mode_from_string(fh_get_string(&args[1]), &mode))
+        return fh_set_error(prog, "Invalid emission area distribution '%s'", fh_get_string(&args[1]));
+
+    float dx = (float)fh_get_number(&args[2]);
+    float dy = (float)fh_get_number(&args[3]);
+    float angle = (float)fh_optnumber(args, n_args, 4, 0.0);
+
+    bool relative = false;
+    if (n_args > 5) {
+        if (!fh_is_bool(&args[5]))
+            return fh_set_error(prog, "directionRelativeToCenter must be a bool");
+        relative = fh_get_bool(&args[5]);
+    }
+
+    graphics_ParticleSystem_setEmissionArea(p, mode, dx, dy, angle, relative);
+
+    *ret = fh_new_null();
+    return 0;
+}
+
+static int fn_love_particleSystem_getEmissionArea(struct fh_program *prog,
+                                                 struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getEmissionArea(): expected 1 argument, got %d", n_args);
+
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
+        return fh_set_error(prog, "Expected particle");
+
+    graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
+
+    graphics_AreaSpreadDistribution mode;
+    float dx, dy, angle;
+    bool relative;
+    graphics_ParticleSystem_getEmissionArea(p, &mode, &dx, &dy, &angle, &relative);
+
+    int pin_state = fh_get_pin_state(prog);
+    struct fh_array *ret_arr = fh_make_array(prog, true);
+    if (!fh_grow_array_object(prog, ret_arr, 5))
+        return fh_set_error(prog, "out of memory");
+
+    struct fh_value new_val = fh_new_array(prog);
+
+    ret_arr->items[0] = fh_new_string(prog, area_mode_to_string(mode));
+    ret_arr->items[1] = fh_new_number((double)dx);
+    ret_arr->items[2] = fh_new_number((double)dy);
+    ret_arr->items[3] = fh_new_number((double)angle);
+    ret_arr->items[4] = fh_new_bool(relative);
+
+    fh_restore_pin_state(prog, pin_state);
+    new_val.data.obj = ret_arr;
+    *ret = new_val;
+    return 0;
+}
+
 static int fn_love_particleSystem_setColors(struct fh_program *prog,
                                             struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 2)
@@ -240,8 +329,10 @@ static int fn_love_particleSystem_setColors(struct fh_program *prog,
     graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
 
     struct fh_array *arr = GET_VAL_ARRAY(&args[1]);
-    if (arr->len % 4 != 0)
-        return fh_set_error(prog, "Array of colors must be power of 4");
+    if (arr->len < 4 || arr->len % 4 != 0)
+        return fh_set_error(prog,
+                "love_particleSystem_setColors(): expected a flat r,g,b,a array "
+                "of at least one colour, got %d values", (int)arr->len);
 
     uint32_t len = arr->len / 4;
     graphics_Color *color = malloc(sizeof(graphics_Color) * len);
@@ -645,6 +736,26 @@ static int fn_love_particleSystem_getOffset(struct fh_program *prog,
     return 0;
 }
 
+static int fn_love_particleSystem_setParticleLifetime(struct fh_program *prog,
+                                                     struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_particleSystem_setParticleLifetime(): expected 3 arguments, got %d", n_args);
+
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE)
+            || !fh_is_number(&args[1])
+            || !fh_is_number(&args[2]))
+        return fh_set_error(prog, "Expected particle, a min and a max");
+
+    graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
+    float min = (float)fh_get_number(&args[1]);
+    float max = (float)fh_get_number(&args[2]);
+
+    graphics_ParticleSystem_setParticleLifetime(p, min, max);
+
+    *ret = fh_new_null();
+    return 0;
+}
+
 static int fn_love_particleSystem_getParticleLifetime(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args != 1)
         return fh_set_error(prog, "love_particleSystem_getParticleLifetime(): expected 1 argument, got %d", n_args);
@@ -885,11 +996,21 @@ static int fn_love_particleSystem_setSizes(struct fh_program *prog,
     graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
 
     struct fh_array *arr = GET_VAL_ARRAY(&args[1]);
+    if (arr->len < 1)
+        return fh_set_error(prog, "love_particleSystem_setSizes(): expected at least one size");
 
     float *sizes = malloc(sizeof(float) * arr->len);
+    if (!sizes)
+        return fh_set_error(prog, "out of memory");
 
     for (uint32_t i = 0; i < arr->len; i++) {
-        sizes[i] = (float)fh_get_number(&arr->items[i * 4 + 0]);
+        // The index used to be i * 4, copied from setColors(): every size
+        // past the first was read from beyond the end of the array.
+        if (!fh_is_number(&arr->items[i])) {
+            free(sizes);
+            return fh_set_error(prog, "love_particleSystem_setSizes(): size %d is not a number", (int)i);
+        }
+        sizes[i] = (float)fh_get_number(&arr->items[i]);
     }
 
     graphics_ParticleSystem_setSizes(p, arr->len, sizes);
@@ -940,19 +1061,66 @@ static int fn_love_particleSystem_setQuads(struct fh_program *prog,
     graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
 
     struct fh_array *arr = GET_VAL_ARRAY(&args[1]);
+    if (arr->len < 1)
+        return fh_set_error(prog, "love_particleSystem_setQuads(): expected at least one quad");
 
-    graphics_Quad **quads = malloc(sizeof(graphics_Quad) * arr->len);
+    graphics_Quad **quads = malloc(sizeof(graphics_Quad *) * arr->len);
+    if (!quads)
+        return fh_set_error(prog, "out of memory");
 
     for (uint32_t i = 0; i < arr->len; i++) {
-        if (fh_is_c_obj_of_type(&arr->items[i], FH_GRAPHICS_QUAD))
-            return fh_set_error(prog, "Expected quad");
+        // The test used to be inverted -- it rejected exactly the arrays it
+        // should have accepted -- and returned without freeing `quads`.
+        if (!fh_is_c_obj_of_type(&arr->items[i], FH_GRAPHICS_QUAD)) {
+            free(quads);
+            return fh_set_error(prog, "love_particleSystem_setQuads(): item %d is not a quad", (int)i);
+        }
         quads[i] = fh_get_c_obj_value(&arr->items[i]);
     }
 
-    graphics_ParticleSystem_setQuads(p, arr->len, quads);
+    // The system copies the quads by value, so the script may drop these.
+    graphics_ParticleSystem_setQuads(p, arr->len, (graphics_Quad const * const *)quads);
 
     free(quads);
     *ret = fh_new_null();
+    return 0;
+}
+
+static int fn_love_particleSystem_getQuads(struct fh_program *prog,
+                                           struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_particleSystem_getQuads(): expected 1 argument, got %d", n_args);
+
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_PARTICLE))
+        return fh_set_error(prog, "Expected particle");
+
+    graphics_ParticleSystem *p = fh_get_c_obj_value(&args[0]);
+    size_t count;
+    graphics_Quad const *quads = graphics_ParticleSystem_getQuads(p, &count);
+
+    int pin_state = fh_get_pin_state(prog);
+    struct fh_array *ret_arr = fh_make_array(prog, true);
+    if (!fh_grow_array_object(prog, ret_arr, count))
+        return fh_set_error(prog, "out of memory");
+
+    struct fh_value new_val = fh_new_array(prog);
+
+    // The system owns its quads by value, so each handed back is a fresh
+    // copy the script owns outright.
+    for (uint32_t i = 0; i < count; i++) {
+        graphics_Quad *copy = malloc(sizeof(graphics_Quad));
+        if (!copy) {
+            fh_restore_pin_state(prog, pin_state);
+            return fh_set_error(prog, "out of memory");
+        }
+        *copy = quads[i];
+        fh_c_obj_gc_callback *callback = quad_gc_copy;
+        ret_arr->items[i] = fh_new_c_obj(prog, copy, callback, FH_GRAPHICS_QUAD);
+    }
+
+    fh_restore_pin_state(prog, pin_state);
+    new_val.data.obj = ret_arr;
+    *ret = new_val;
     return 0;
 }
 
@@ -1249,6 +1417,8 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_particleSystem_getBufferSize),
     DEF_FN(love_particleSystem_setAreaSpread),
     DEF_FN(love_particleSystem_getAreaSpread),
+    DEF_FN(love_particleSystem_setEmissionArea),
+    DEF_FN(love_particleSystem_getEmissionArea),
     DEF_FN(love_particleSystem_setColors),
     DEF_FN(love_particleSystem_getColors),
     DEF_FN(love_particleSystem_getCount),
@@ -1270,6 +1440,7 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_particleSystem_setRotation),
     DEF_FN(love_particleSystem_setSpeed),
     DEF_FN(love_particleSystem_getOffset),
+    DEF_FN(love_particleSystem_setParticleLifetime),
     DEF_FN(love_particleSystem_getParticleLifetime),
     DEF_FN(love_particleSystem_getPosition),
     DEF_FN(love_particleSystem_getRadialAcceleration),
@@ -1279,10 +1450,12 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_particleSystem_getTangentialAcceleration),
     DEF_FN(love_particleSystem_setSpin),
     DEF_FN(love_particleSystem_getSpin),
+    DEF_FN(love_particleSystem_setSizes),
     DEF_FN(love_particleSystem_getSizes),
     DEF_FN(love_particleSystem_setTexture),
     DEF_FN(love_particleSystem_getTexture),
     DEF_FN(love_particleSystem_setQuads),
+    DEF_FN(love_particleSystem_getQuads),
     DEF_FN(love_particleSystem_setRelativeRotation),
     DEF_FN(love_particleSystem_hasRelativeRotation),
     DEF_FN(love_particleSystem_setInsertMode),

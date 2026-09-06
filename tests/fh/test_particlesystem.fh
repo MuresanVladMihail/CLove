@@ -1,0 +1,285 @@
+# love.graphics particle systems: the property round trip, emission against a
+# finite buffer, the size/colour curves and the quad list.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn near(a, b, tolerance) {
+    let d = a - b;
+    if (d < 0) { d = 0 - d; }
+    return d <= tolerance;
+}
+
+fn new_ps(buffer) {
+    let img = love_graphics_newImage("assets/vector.svg");
+    return love_graphics_newParticleSystem(img, buffer);
+}
+
+fn test_defaults() {
+    let ps = new_ps(64);
+    check(love_particleSystem_getBufferSize(ps) == 64, "the buffer size is what newParticleSystem got");
+    check(love_particleSystem_getCount(ps) == 0, "a fresh system holds no particles");
+    check(!love_particleSystem_isActive(ps), "a fresh system is not emitting");
+    check(love_particleSystem_getEmitterLifetime(ps) == -1, "the emitter lives forever by default");
+    check(!love_particleSystem_hasRelativeRotation(ps), "relative rotation is off by default");
+
+    let life = love_particleSystem_getParticleLifetime(ps);
+    check(near(life[0], 0.5, 0.001) && near(life[1], 2.0, 0.001), "LOVE's default particle lifetime");
+}
+
+fn test_properties() {
+    let ps = new_ps(32);
+
+    # setParticleLifetime used to have no binding at all.
+    love_particleSystem_setParticleLifetime(ps, 1.5, 3.0);
+    let life = love_particleSystem_getParticleLifetime(ps);
+    check(near(life[0], 1.5, 0.001) && near(life[1], 3.0, 0.001), "particle lifetime should stick");
+
+    love_particleSystem_setDirection(ps, 1.25);
+    check(near(love_particleSystem_getDirection(ps), 1.25, 0.001), "direction should stick");
+
+    love_particleSystem_setSpread(ps, 0.5);
+    check(near(love_particleSystem_getSpread(ps), 0.5, 0.001), "spread should stick");
+
+    love_particleSystem_setEmissionRate(ps, 40);
+    check(near(love_particleSystem_getEmissionRate(ps), 40, 0.001), "emission rate should stick");
+
+    love_particleSystem_setSpeed(ps, 10, 90);
+    let sp = love_particleSystem_getSpeed(ps);
+    check(near(sp[0], 10, 0.001) && near(sp[1], 90, 0.001), "speed should stick");
+
+    love_particleSystem_setLinearAcceleration(ps, -5, -10, 5, 10);
+    let la = love_particleSystem_getLinearAcceleration(ps);
+    check(near(la[0], -5, 0.001) && near(la[3], 10, 0.001), "linear acceleration should stick");
+
+    love_particleSystem_setLinearDamping(ps, 0.25, 0.75);
+    let ld = love_particleSystem_getLinearDamping(ps);
+    check(near(ld[0], 0.25, 0.001) && near(ld[1], 0.75, 0.001), "linear damping should stick");
+
+    love_particleSystem_setRadialAcceleration(ps, 1, 2);
+    love_particleSystem_setTangentialAcceleration(ps, 3, 4);
+    check(near(love_particleSystem_getRadialAcceleration(ps)[1], 2, 0.001), "radial acceleration should stick");
+    check(near(love_particleSystem_getTangentialAcceleration(ps)[0], 3, 0.001), "tangential acceleration should stick");
+
+    love_particleSystem_setSpin(ps, 0.1, 0.9);
+    let spin = love_particleSystem_getSpin(ps);
+    check(near(spin[0], 0.1, 0.001) && near(spin[1], 0.9, 0.001), "spin should stick");
+
+    love_particleSystem_setSpinVariation(ps, 0.4);
+    check(near(love_particleSystem_getSpinVariation(ps), 0.4, 0.001), "spin variation should stick");
+
+    love_particleSystem_setSizeVariation(ps, 0.3);
+    check(near(love_particleSystem_getSizeVariation(ps), 0.3, 0.001), "size variation should stick");
+
+    love_particleSystem_setOffset(ps, 7, 11);
+    let off = love_particleSystem_getOffset(ps);
+    check(near(off[0], 7, 0.001) && near(off[1], 11, 0.001), "offset should stick");
+
+    love_particleSystem_setPosition(ps, 100, 200);
+    let pos = love_particleSystem_getPosition(ps);
+    check(near(pos[0], 100, 0.001) && near(pos[1], 200, 0.001), "position should stick");
+
+    love_particleSystem_setRotation(ps, 0, 3);
+    check(near(love_particleSystem_getRotation(ps)[1], 3, 0.001), "rotation should stick");
+
+    love_particleSystem_setRelativeRotation(ps, true);
+    check(love_particleSystem_hasRelativeRotation(ps), "relative rotation should stick");
+
+    love_particleSystem_setInsertMode(ps, "top");
+    check(love_particleSystem_getInsertMode(ps) == "top", "insert mode should stick");
+
+    love_particleSystem_setAreaSpread(ps, "normal", 20, 30);
+    let area = love_particleSystem_getAreaSpread(ps);
+    check(area[0] == "normal", "the area spread mode should stick");
+    check(near(area[1], 20, 0.001) && near(area[2], 30, 0.001), "the area spread extent should stick");
+}
+
+fn test_sizes_and_colors() {
+    let ps = new_ps(16);
+
+    # setSizes had no entry in the binding table, and read every size past the
+    # first from beyond the end of the array.
+    love_particleSystem_setSizes(ps, [1, 2, 4]);
+    let sizes = love_particleSystem_getSizes(ps);
+    check(len(sizes) == 3, "three sizes in, three sizes out");
+    check(near(sizes[0], 1, 0.001), "the first size survives");
+    check(near(sizes[1], 2, 0.001), "the second size survives -- it used to be read out of bounds");
+    check(near(sizes[2], 4, 0.001), "the third size survives");
+
+    love_particleSystem_setColors(ps, [1, 0, 0, 1, 0, 0, 1, 0.5]);
+    let cols = love_particleSystem_getColors(ps);
+    check(len(cols) == 8, "two colours round-trip as eight components");
+    check(near(cols[0], 1, 0.001) && near(cols[7], 0.5, 0.001), "the colour components survive");
+}
+
+fn test_quads() {
+    let ps = new_ps(16);
+    let a = love_graphics_newQuad(0, 0, 8, 8, 16, 16);
+    let b = love_graphics_newQuad(8, 0, 8, 8, 16, 16);
+
+    # The type check in setQuads was inverted: it rejected real quads.
+    love_particleSystem_setQuads(ps, [a, b]);
+
+    let got = love_particleSystem_getQuads(ps);
+    check(len(got) == 2, "two quads in, two quads out");
+
+    let vp = love_quad_getViewport(got[1]);
+    check(near(vp[0], 0.5, 0.001), "the second quad keeps its x, normalised against the 16px reference");
+}
+
+fn test_emission_area() {
+    let ps = new_ps(64);
+
+    # LOVE 11's emission area: the ellipse shapes, the area angle and
+    # directionRelativeToCenter had no equivalent here at all.
+    love_particleSystem_setEmissionArea(ps, "ellipse", 40, 20, 0.5, true);
+    let a = love_particleSystem_getEmissionArea(ps);
+    check(a[0] == "ellipse", "the distribution should stick");
+    check(near(a[1], 40, 0.001) && near(a[2], 20, 0.001), "the extents should stick");
+    check(near(a[3], 0.5, 0.001), "the area angle should stick");
+    check(a[4], "directionRelativeToCenter should stick");
+
+    # The 4-argument alias keeps the angle and the flag, as LOVE's does.
+    love_particleSystem_setAreaSpread(ps, "borderellipse", 10, 10);
+    let b = love_particleSystem_getEmissionArea(ps);
+    check(b[0] == "borderellipse", "setAreaSpread should still set the mode");
+    check(near(b[3], 0.5, 0.001), "setAreaSpread leaves the angle alone");
+
+    love_particleSystem_setEmissionArea(ps, "borderrectangle", 5, 5);
+    check(love_particleSystem_getEmissionArea(ps)[0] == "borderrectangle", "borderrectangle is a valid mode");
+    check(near(love_particleSystem_getEmissionArea(ps)[3], 0, 0.001), "omitting the angle resets it to zero");
+
+    # Particles really do land inside a border ellipse of radius 30.
+    love_particleSystem_setPosition(ps, 0, 0);
+    love_particleSystem_setEmissionArea(ps, "borderellipse", 30, 30, 0, false);
+    love_particleSystem_setSpeed(ps, 0, 0);
+    love_particleSystem_setParticleLifetime(ps, 10, 10);
+    love_particleSystem_setEmissionRate(ps, 100);
+    love_particleSystem_start(ps);
+    let i = 0;
+    for (i = 0; i < 10; i++) { love_particleSystem_update(ps, 0.02); }
+    check(love_particleSystem_getCount(ps) > 0, "the border ellipse should emit");
+}
+
+fn test_emission() {
+    let ps = new_ps(8);
+    love_particleSystem_setParticleLifetime(ps, 10, 10);
+    love_particleSystem_setEmissionRate(ps, 1000);
+    love_particleSystem_setSpeed(ps, 0, 0);
+
+    love_particleSystem_start(ps);
+    check(love_particleSystem_isActive(ps), "start() should make it active");
+
+    # A thousand particles a second into a buffer of eight: this used to walk
+    # the free pointer straight off the end of the allocation.
+    let i = 0;
+    for (i = 0; i < 30; i++) {
+        love_particleSystem_update(ps, 0.1);
+    }
+    check(love_particleSystem_getCount(ps) == 8, "emission must stop at the buffer size");
+
+    love_particleSystem_pause(ps);
+    check(!love_particleSystem_isActive(ps), "pause() should clear active");
+    check(love_particleSystem_isPaused(ps), "a paused emitter with life left reads as paused");
+
+    love_particleSystem_reset(ps);
+    check(love_particleSystem_getCount(ps) == 0, "reset() should empty the system");
+}
+
+fn test_lifetime_expiry() {
+    let ps = new_ps(64);
+    love_particleSystem_setParticleLifetime(ps, 0.2, 0.2);
+    love_particleSystem_setEmissionRate(ps, 100);
+    love_particleSystem_setSpeed(ps, 0, 0);
+    love_particleSystem_start(ps);
+
+    let i = 0;
+    for (i = 0; i < 10; i++) { love_particleSystem_update(ps, 0.02); }
+    check(love_particleSystem_getCount(ps) > 0, "the emitter should have produced particles");
+
+    love_particleSystem_stop(ps);
+    check(love_particleSystem_isStopped(ps), "stop() should read as stopped");
+
+    # No emission any more, so the live ones age out and the list drains.
+    for (i = 0; i < 30; i++) { love_particleSystem_update(ps, 0.05); }
+    check(love_particleSystem_getCount(ps) == 0, "every particle should have expired");
+}
+
+fn test_zero_emission_rate() {
+    # 1/0 used to go straight into the emission loop's divisor.
+    let ps = new_ps(16);
+    love_particleSystem_setEmissionRate(ps, 0);
+    love_particleSystem_start(ps);
+    let i = 0;
+    for (i = 0; i < 10; i++) { love_particleSystem_update(ps, 0.1); }
+    check(love_particleSystem_getCount(ps) == 0, "a rate of zero emits nothing");
+}
+
+fn test_buffer_resize() {
+    let ps = new_ps(8);
+    love_particleSystem_setParticleLifetime(ps, 10, 10);
+    love_particleSystem_setEmissionRate(ps, 200);
+    love_particleSystem_start(ps);
+
+    let i = 0;
+    for (i = 0; i < 10; i++) { love_particleSystem_update(ps, 0.05); }
+    check(love_particleSystem_getCount(ps) == 8, "the small buffer fills");
+
+    # This used to leak the old buffer and leave the list pointing into it.
+    love_particleSystem_setBufferSize(ps, 200);
+    check(love_particleSystem_getBufferSize(ps) == 200, "the new buffer size is reported");
+    check(love_particleSystem_getCount(ps) == 0, "resizing clears the live particles");
+
+    love_particleSystem_start(ps);
+    for (i = 0; i < 40; i++) { love_particleSystem_update(ps, 0.05); }
+    check(love_particleSystem_getCount(ps) > 8, "the grown buffer holds more than the old one");
+}
+
+fn test_clone() {
+    let ps = new_ps(24);
+    love_particleSystem_setEmissionRate(ps, 33);
+    love_particleSystem_setSizes(ps, [2, 5]);
+    love_particleSystem_setSpread(ps, 0.75);
+
+    # clone() used to want the destination as a second argument and wrapped it
+    # in a second handle over the same system.
+    let copy = love_particleSystem_clone(ps);
+    check(love_particleSystem_getBufferSize(copy) == 24, "the clone keeps the buffer size");
+    check(near(love_particleSystem_getEmissionRate(copy), 33, 0.001), "the clone keeps the emission rate");
+    check(near(love_particleSystem_getSpread(copy), 0.75, 0.001), "the clone keeps the spread");
+    check(len(love_particleSystem_getSizes(copy)) == 2, "the clone keeps the size curve");
+
+    # Independent afterwards.
+    love_particleSystem_setEmissionRate(copy, 99);
+    check(near(love_particleSystem_getEmissionRate(ps), 33, 0.001), "the original is untouched by the clone");
+}
+
+fn test_texture() {
+    let ps = new_ps(16);
+    let other = love_graphics_newImage("assets/clip.svg");
+    love_particleSystem_setTexture(ps, other);
+    let back = love_particleSystem_getTexture(ps);
+    check(back != null, "getTexture should hand back an image");
+    check(love_image_getWidth(back) == love_image_getWidth(other), "the texture we set is the one we get");
+}
+
+fn run() {
+    test_defaults();
+    test_properties();
+    test_sizes_and_colors();
+    test_quads();
+    test_emission_area();
+    test_emission();
+    test_lifetime_expiry();
+    test_zero_emission_rate();
+    test_buffer_resize();
+    test_clone();
+    test_texture();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

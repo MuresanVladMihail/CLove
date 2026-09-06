@@ -100,13 +100,82 @@ panning a camera.
   `love_graphics_setCanvas`.
 - **Shaders** (`graphics_shader.c`): `love_graphics_newShader`,
   `love_graphics_setShader`, `love_shader_send`.
-- **Meshes** (`graphics_mesh.c`) and **particle systems**
-  (`graphics_particlesystem.c`).
+- **Meshes** (`graphics_mesh.c`).
+- **Particle systems** (`graphics_particlesystem.c`) — see below.
 - **Window** (`graphics_window.c`): `love_window_getWidth` / `getHeight` /
   `getDimensions`, `setTitle`, `setVsync`, `setIcon`, `getDisplayCount`, ...
 
 All of the above need the GL context (i.e. a window) and so only run inside a
 real game, not headless.
+
+## Particle systems — `src/graphics/particlesystem.c`
+
+```fh
+self.ps = love_graphics_newParticleSystem(spark, 512);  # texture, buffer size
+love_particleSystem_setParticleLifetime(self.ps, 0.4, 1.2);
+love_particleSystem_setEmissionRate(self.ps, 200);
+love_particleSystem_setSpeed(self.ps, 40, 120);
+love_particleSystem_setSpread(self.ps, 6.28);
+love_particleSystem_setSizes(self.ps, [1.0, 0.6, 0.0]);        # over a life
+love_particleSystem_setColors(self.ps, [1,1,0.5,1,  1,0.2,0,0]); # flat r,g,b,a
+love_particleSystem_setLinearAcceleration(self.ps, 0, 200, 0, 400);
+love_particleSystem_start(self.ps);
+```
+
+Then drive it and draw it like any other drawable:
+
+```fh
+fn love_update(dt) { love_particleSystem_update(self.ps, dt); }
+fn love_draw()     { love_graphics_draw(self.ps, x, y); }
+```
+
+Emission, lifetime and shape:
+
+- `start` / `stop` / `pause` / `reset`, and `isActive` / `isPaused` /
+  `isStopped`. `emit(ps, n)` spawns `n` at once (only while active).
+- `setEmissionRate` (particles per second), `setEmitterLifetime` (`-1` = never
+  stops), `setParticleLifetime(min, max)`.
+- `setPosition` teleports the emitter, `moveTo` moves it and interpolates the
+  particles spawned during the step along the way — use `moveTo` for a trail.
+- `setDirection` / `setSpread` (radians), `setSpeed(min, max)`,
+  `setLinearAcceleration(xmin, ymin, xmax, ymax)`, `setLinearDamping`,
+  `setRadialAcceleration` and `setTangentialAcceleration` (relative to where
+  the particle was born).
+- `setSizes([...])` and `setColors([r,g,b,a, ...])` are curves interpolated
+  over each particle's life; `setSizeVariation` jitters the size curve.
+  Colours are 0..1 floats and multiply the texture.
+- `setRotation(min, max)`, `setSpin(start, end)`, `setSpinVariation`, and
+  `setRelativeRotation(true)` to aim each particle along its velocity.
+- `setOffset(x, y)` is the texture's origin — half the texture by default.
+- `setQuads([q1, q2, ...])` animates through a sprite sheet over the life;
+  `getQuads` hands back copies. The system owns its quads, so the script may
+  drop them afterwards.
+- `setTexture` / `getTexture`, `setBufferSize` (this discards the live
+  particles), `getCount`, `setInsertMode("top" | "bottom" | "random")` for
+  draw order, and `clone(ps)` for an independent copy.
+
+`setEmissionArea(ps, mode, dx, dy [, angle [, directionRelativeToCenter]])`
+picks where particles are born, relative to the emitter:
+
+| mode | shape |
+| --- | --- |
+| `"none"` | all at the emitter (the default) |
+| `"uniform"` | anywhere in the `2dx` x `2dy` box |
+| `"normal"` | a gaussian blob with `dx`/`dy` as the deviations |
+| `"ellipse"` | anywhere inside the oval inscribed in the box |
+| `"borderellipse"` | on that oval's outline — a ring |
+| `"borderrectangle"` | on the box's outline |
+
+`angle` rotates the whole area, and `directionRelativeToCenter` aims each
+particle away from the emitter instead of along `setDirection` — that plus
+`"borderellipse"` is the usual explosion. `getEmissionArea` returns
+`[mode, dx, dy, angle, relative]`. The older 4-argument
+`setAreaSpread(ps, mode, dx, dy)` still works and leaves the angle and the
+flag alone.
+
+Differences from LOVE 11: colour and size curves are flat FH arrays rather
+than tables of tables, and there is no cap of eight entries; `clone` takes
+just the system and returns a new one.
 
 ## Vector art (SVG) — `src/graphics/svg.c`
 
