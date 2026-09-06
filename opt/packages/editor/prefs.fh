@@ -21,6 +21,7 @@ fn prefs_defaults(app) {
 	app.show_grid      = true;
 	app.show_fixtures  = true;
 	app.tips           = true;    # hover help; off for anyone who knows the tool
+	theme_apply(app, THEME_DEFAULT);
 	app.scene_path     = SCENE_PATH;   # which level is open; see scenes.fh
 	app.prefs_dirty    = false;
 	return 0;
@@ -62,6 +63,13 @@ fn prefs_load(app) {
 	if (contains_key(parsed, "show_grid")) { app.show_grid = parsed.show_grid; }
 	if (contains_key(parsed, "show_fixtures")) { app.show_fixtures = parsed.show_fixtures; }
 	if (contains_key(parsed, "tips")) { app.tips = parsed.tips; }
+
+	# A theme is a list of [name, [r, g, b]] the same shape THEME_DEFAULT has,
+	# so a file written by an older editor -- or one Revert emptied -- simply
+	# leaves the default in place.
+	if (contains_key(parsed, "theme") && type(parsed.theme) == "array") {
+		theme_apply(app, parsed.theme);
+	}
 	# the level to reopen. A name only, no directory: levels live next to the
 	# game, and a path out of it would make editor.json machine-specific.
 	if (contains_key(parsed, "scene") && type(parsed.scene) == "string" &&
@@ -81,6 +89,7 @@ fn prefs_save(app) {
 		"show_grid": app.show_grid,
 		"show_fixtures": app.show_fixtures,
 		"tips": app.tips,
+		"theme": theme_current(app),
 		"scene": app.scene_path
 	}, true));
 	io_close(file);

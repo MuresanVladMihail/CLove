@@ -170,6 +170,47 @@ fn next_colour(app) {
 }
 
 
+# --- the editor's own look --------------------------------------------------
+#
+# The theme the editor starts in, and the one Revert goes back to. It is here
+# rather than captured from microui at startup because "the original" has to
+# mean something fixed: once a customised theme is remembered in editor.json,
+# what microui holds at startup is the customised one.
+#
+# Names are love_ui_getColor()/setColor()'s, and only the ones the Theme editor
+# offers are listed -- microui's other slots keep its own defaults.
+let THEME_DEFAULT = [
+	["windowBg",    [50, 50, 50]],
+	["button",      [75, 75, 75]],
+	["buttonHover", [95, 95, 95]],
+	["text",        [230, 230, 230]],
+	["border",      [25, 25, 25]]
+];
+
+fn theme_apply(app, table) {
+	for (let i = 0; i < len(table); i = i + 1) {
+		let name = table[i][0];
+		let rgb = table[i][1];
+		let c = love_ui_getColor(name);
+		# c[4] is the MU_COLOR_* id the name resolved to, c[3] its alpha
+		love_ui_setColor(c[4], rgb[0], rgb[1], rgb[2], c[3]);
+	}
+	return 0;
+}
+
+# What the Theme editor is showing right now, in the same shape, so it can be
+# written to editor.json and read back.
+fn theme_current(app) {
+	let out = [];
+	for (let i = 0; i < len(THEME_DEFAULT); i = i + 1) {
+		let name = THEME_DEFAULT[i][0];
+		let c = love_ui_getColor(name);
+		append(out, [name, [c[0], c[1], c[2]]]);
+	}
+	return out;
+}
+
+
 # --- tooltips ---------------------------------------------------------------
 #
 # Called straight after a widget: love_ui_hovered() answers for the one just
@@ -199,7 +240,11 @@ fn tip(app, text) {
 fn tip_draw(app) {
 	if (app.tip == null) { return 0; }
 
-	let lines = 1 + math_floor(len(app.tip) / 42);
+	# Measured, not guessed at so many characters per line: a tip that wrapped
+	# to one more line than the count assumed had its last line cut off by the
+	# window it was drawn in.
+	let usable = TIP_W - TIP_PAD * 2;
+	let lines = math_floor(love_font_getWidth(app.tip) / usable) + 1;
 	let h = TIP_PAD + lines * TIP_LINE;
 	let x = app.mx + TIP_OFFSET;
 	let y = app.my + TIP_OFFSET;

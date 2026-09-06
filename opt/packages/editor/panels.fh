@@ -67,6 +67,69 @@ fn panels_primitives_menu(app) {
 	return 0;
 }
 
+# The view and snapping switches, behind one button. They are settings, not
+# actions: they belong together and out of the way, rather than spread along
+# the toolbar next to the things you press all day.
+#
+# Opened and begun from the same window, since mu_get_container() hashes a
+# popup's name with the top of the id stack.
+fn panels_settings_menu(app) {
+	if (love_ui_button("Settings", ALIGN_CENTER)) {
+		love_ui_open_popup("settings");
+	}
+	tip(app, "Snapping, the grid, what the viewport draws, and these tips.");
+
+	if (love_ui_begin_popup("settings")) {
+		love_ui_layout_row(1, [190], 0);
+
+		if (love_ui_checkbox("Snap to grid", app.snap, 1)) {
+			app.snap = !app.snap;
+			prefs_touch(app);
+		}
+		tip(app, "Round positions and sizes to the grid step while dragging.");
+
+		if (love_ui_checkbox("Show grid", app.show_grid, 2)) {
+			app.show_grid = !app.show_grid;
+			prefs_touch(app);
+		}
+		tip(app, "Draw the grid. Whether it is drawn and whether Snap uses it " +
+			"are separate.");
+
+		love_ui_layout_row(2, [86, -1], 0);
+		love_ui_label("grid step:");
+		prefs_set_grid(app,
+			love_ui_number(app.grid, 1, ID_NUM_GRID, ALIGN_CENTER, 0));
+		tip(app, "In world units, " + GRID_MIN + " to " + GRID_MAX + ". Drag " +
+			"it or click to type.");
+
+		love_ui_layout_row(1, [190], 0);
+		if (love_ui_checkbox("Show fixtures", app.show_fixtures, 3)) {
+			app.show_fixtures = !app.show_fixtures;
+			prefs_touch(app);
+		}
+		tip(app, "Outline every collision shape over the artwork, colour " +
+			"coded by body type -- and, for a drawn mesh, the convex pieces " +
+			"Box2D actually has.");
+
+		if (love_ui_checkbox("Hover tips", app.tips, 8)) {
+			app.tips = !app.tips;
+			app.tip = null;
+			prefs_touch(app);
+		}
+
+		if (love_ui_checkbox("Theme editor", app.show_style, 7)) {
+			app.show_style = !app.show_style;
+		}
+
+		love_ui_label("");
+		love_ui_label("remembered in " + PREFS_PATH);
+		love_ui_end_popup();
+	}
+
+	if (love_ui_popup_open("settings")) { app.popup_open = true; }
+	return 0;
+}
+
 fn panels_toolbar(app) {
 	if (love_ui_begin_window("Toolbar", 0, 0, app.screen_w, TOOLBAR_H, panels_dock_opts(app))) {
 
@@ -127,9 +190,9 @@ fn panels_toolbar(app) {
 		love_ui_label(state + len(app.undo) + " undo");
 
 		# --- row 2: tools, editing, view, toggles ---
-		love_ui_layout_row(16,
+		love_ui_layout_row(12,
 			[TB_BTN, TB_GAP, TB_MENU, TB_GAP, TB_BTN, TB_BTN, TB_GAP,
-			 TB_BTN, TB_BTN, TB_GAP, 76, 70, 56, 92, 68, -1], 0);
+			 TB_BTN, TB_BTN, TB_GAP, TB_BTN, -1], 0);
 
 		let select_label = "  Select";
 		if (app.tool == "select") { select_label = "> Select"; }
@@ -165,39 +228,7 @@ fn panels_toolbar(app) {
 		tip(app, "Back to the origin at 1x.");
 		love_ui_label("");
 
-		if (love_ui_checkbox("Snap", app.snap, 1)) {
-			app.snap = !app.snap;
-			prefs_touch(app);
-		}
-		tip(app, "Round positions and sizes to the grid step while dragging.");
-		if (love_ui_checkbox("Grid", app.show_grid, 2)) {
-			app.show_grid = !app.show_grid;
-			prefs_touch(app);
-		}
-		tip(app, "Draw the grid. Whether it is drawn and whether Snap uses " +
-			"it are separate.");
-
-		# The grid step, in world units: what the viewport rules and what Snap
-		# rounds to. Drag it or click to type; prefs.fh clamps and persists it.
-		prefs_set_grid(app,
-			love_ui_number(app.grid, 1, ID_NUM_GRID, ALIGN_CENTER, 0));
-		tip(app, "The grid step in world units, " + GRID_MIN + " to " +
-			GRID_MAX + ". Drag it or click to type. Remembered in " +
-			PREFS_PATH + ".");
-
-		if (love_ui_checkbox("Fixtures", app.show_fixtures, 3)) {
-			app.show_fixtures = !app.show_fixtures;
-			prefs_touch(app);
-		}
-		tip(app, "Outline every collision shape over the artwork, colour " +
-			"coded by body type. The overlay a physics editor lives on.");
-
-		if (love_ui_checkbox("Tips", app.tips, 8)) {
-			app.tips = !app.tips;
-			app.tip = null;
-			prefs_touch(app);
-		}
-		love_ui_label("");
+		panels_settings_menu(app);
 
 		love_ui_end_window();
 	}
@@ -330,9 +361,11 @@ fn panels_hierarchy(app) {
 				"-- a door's exit, a lever's target. A game follows it with " +
 				"scene.link(e, name) and gets the entity back; deleting the " +
 				"target drops the link rather than leaving it dangling.");
-			love_ui_text("Tips: hover any control for a line about what it " +
-				"does. The Tips box in the toolbar turns them off, and the " +
-				"setting is remembered in " + PREFS_PATH + ".");
+			love_ui_text("Settings holds snapping, the grid, the fixture " +
+				"overlay, these tips and the Theme editor. Everything in it " +
+				"is remembered in " + PREFS_PATH + ", and the Theme editor's " +
+				"Revert puts the colours back to the one the editor ships " +
+				"with.");
 			love_ui_text("Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save, Ctrl+D " +
 				"duplicate, Ctrl+N new level, Delete removes the selection. " +
 				"Esc closes a dialog, or asks before quitting.");
@@ -359,9 +392,11 @@ fn panels_console(app) {
 		for (let i = 0; i < len(app.log); i = i + 1) { love_ui_text(app.log[i]); }
 		love_ui_end_panel();
 
+		# the Theme editor moved into Settings, with the rest of the switches
 		love_ui_layout_row(2, [-80, -1], 0);
-		if (love_ui_checkbox("Theme", app.show_style, 7)) { app.show_style = !app.show_style; }
+		love_ui_label("");
 		if (love_ui_button("Clear", ALIGN_CENTER)) { app.log = []; }
+		tip(app, "Empty the console.");
 
 		love_ui_end_window();
 	}
@@ -404,6 +439,7 @@ fn panels_style_row(app, name, id) {
 	let g = love_ui_slider(c[1], 0, 255, 1, id + 1, ALIGN_CENTER);
 	let b = love_ui_slider(c[2], 0, 255, 1, id + 2, ALIGN_CENTER);
 	# c[4] is the MU_COLOR_* id love_ui_getColor() resolved the name to
+	if (r != c[0] || g != c[1] || b != c[2]) { prefs_touch(app); }
 	love_ui_setColor(c[4], r, g, b, c[3]);
 	let sw = love_ui_layout_next();
 	love_ui_rect(sw[0], sw[1], sw[2], sw[3], r, g, b, 255);
@@ -441,6 +477,17 @@ fn panels_theme(app) {
 		panels_style_row(app, "buttonHover", ID_STYLE_BASE + 6);
 		panels_style_row(app, "text", ID_STYLE_BASE + 9);
 		panels_style_row(app, "border", ID_STYLE_BASE + 12);
+
+		love_ui_layout_row(2, [-110, -1], 0);
+		love_ui_label("");
+		if (love_ui_button("Revert", ALIGN_CENTER)) {
+			theme_apply(app, THEME_DEFAULT);
+			prefs_touch(app);
+			log_line(app, "theme back to the default");
+		}
+		tip(app, "Back to the theme the editor ships with, the one in " +
+			"THEME_DEFAULT. Whatever is on screen is what gets written to " +
+			PREFS_PATH + ", so this un-remembers a custom one too.");
 
 		love_ui_end_window();
 	} else {

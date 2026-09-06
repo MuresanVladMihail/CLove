@@ -249,7 +249,11 @@ fn panels_inspector(app) {
 		links_panel(app, e);
 
 		if (love_ui_header("Collision", OPT_EXPANDED)) {
-			love_ui_layout_row(4, [56, 62, 66, -1], 0);
+			# Two rows of two: four across the inspector's 250px left "polygon"
+			# reading as "olyg". A positive first width, because microui reads
+			# a negative one as "the container's width plus this" -- two of
+			# those fill the row each and give one button per line.
+			love_ui_layout_row(2, [112, -1], 0);
 			panels_shape_button(app, f, "rect");
 			panels_shape_button(app, f, "circle");
 			panels_shape_button(app, f, "traced");
