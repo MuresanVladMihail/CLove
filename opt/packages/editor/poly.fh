@@ -1,0 +1,205 @@
+# ============================================================================
+#  poly.fh -- turning a drawn outline into something Box2D can collide with
+# ----------------------------------------------------------------------------
+#  Box2D only has convex polygons, of at most MAX_HULL_POINTS points. A shape
+#  drawn by hand is neither: it can be concave, and it can have more points
+#  than that. Hulling it -- filling in the dents -- is what the editor did
+#  first, and it is wrong in the way that matters: the collision stops matching
+#  the drawing exactly where someone took the trouble to draw a notch.
+#
+#  So the outline is decomposed instead. Ear clipping cuts it into triangles,
+#  then adjacent triangles are merged back together for as long as the result
+#  stays convex and short enough. That is Hertel-Mehlhorn: not the fewest
+#  possible pieces, but close, and simple enough to read.
+#
+#  Each piece becomes its own fixture on the same body, which is how every 2D
+#  physics editor does it -- the document's "fixtures" was an array from the
+#  start for exactly this.
+#
+#  Everything here works on flat [x0, y0, x1, y1, ...] in the entity's local
+#  space, the same as trace.fh.
+# ============================================================================
+
+
+# Twice the signed area. Positive is counter-clockwise in a y-down world, which
+# is the winding ear clipping below assumes.
+fn poly_area2(points) {
+	let sum = 0.0;
+	let n = len(points);
+	for (let i = 0; i < n; i = i + 2) {
+		let j = (i + 2) % n;
+		sum = sum + points[i] * points[j + 1] - points[j] * points[i + 1];
+	}
+	return sum;
+}
+
+fn poly_reverse(points) {
+	let out = [];
+	for (let i = len(points) - 2; i >= 0; i = i - 2) {
+		append(out, points[i]);
+		append(out, points[i + 1]);
+	}
+	return out;
+}
+
+fn poly_cross(ax, ay, bx, by, cx, cy) {
+	return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
+
+# Is p inside (or on) the triangle abc? Used to reject an "ear" that would
+# swallow another vertex.
+fn poly_in_triangle(px, py, ax, ay, bx, by, cx, cy) {
+	let d1 = poly_cross(ax, ay, bx, by, px, py);
+	let d2 = poly_cross(bx, by, cx, cy, px, py);
+	let d3 = poly_cross(cx, cy, ax, ay, px, py);
+	let neg = d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
+	let pos = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
+	return !(neg && pos);
+}
+
+# --- ear clipping ------------------------------------------------------------
+
+fn poly_triangulate(points) {
+	if (len(points) < 6) { return []; }
+
+	let work = points;
+	if (poly_area2(work) < 0.0) { work = poly_reverse(work); }
+
+	# indices still in play, as [x, y] pairs so the loop below reads plainly
+	let ring = [];
+	for (let i = 0; i + 1 < len(work); i = i + 2) {
+		append(ring, [work[i], work[i + 1]]);
+	}
+
+	let out = [];
+	# every clip removes one vertex, so this cannot run longer than that -- a
+	# polygon that crosses itself would otherwise spin here forever
+	let guard = len(ring) * len(ring) + 8;
+
+	while (len(ring) > 3 && guard > 0) {
+		guard = guard - 1;
+		let n = len(ring);
+		let clipped = false;
+
+		for (let i = 0; i < n; i = i + 1) {
+			let a = ring[(i + n - 1) % n];
+			let b = ring[i];
+			let c = ring[(i + 1) % n];
+
+			# a reflex corner is not an ear
+			if (poly_cross(a[0], a[1], b[0], b[1], c[0], c[1]) <= 0.0) { continue; }
+
+			let clean = true;
+			for (let k = 0; k < n; k = k + 1) {
+				if (k == i || k == (i + n - 1) % n || k == (i + 1) % n) { continue; }
+				let p = ring[k];
+				if (poly_in_triangle(p[0], p[1], a[0], a[1], b[0], b[1], c[0], c[1])) {
+					clean = false;
+				}
+			}
+			if (!clean) { continue; }
+
+			append(out, [a[0], a[1], b[0], b[1], c[0], c[1]]);
+
+			let rest = [];
+			for (let k = 0; k < n; k = k + 1) {
+				if (k != i) { append(rest, ring[k]); }
+			}
+			ring = rest;
+			clipped = true;
+			break;
+		}
+
+		# nothing was an ear: the outline is self-intersecting or degenerate,
+		# so stop rather than loop
+		if (!clipped) { return out; }
+	}
+
+	if (len(ring) == 3) {
+		append(out, [ring[0][0], ring[0][1], ring[1][0], ring[1][1],
+		             ring[2][0], ring[2][1]]);
+	}
+	return out;
+}
+
+# --- merging back up ---------------------------------------------------------
+
+fn poly_is_convex(points) {
+	if (len(points) < 6) { return false; }
+	return love_math_isConvex(points);
+}
+
+# Joins two pieces across a shared edge, if they have one. Returns the merged
+# outline or null. Both are wound the same way, so the shared edge appears
+# forwards in one and backwards in the other.
+fn poly_merge(a, b) {
+	# tointeger, not just /2: FH's % rejects floats, and integer division
+	# hands back a float
+	let na = tointeger(len(a) / 2);
+	let nb = tointeger(len(b) / 2);
+
+	for (let i = 0; i < na; i = i + 1) {
+		let a0 = i * 2;
+		let a1 = ((i + 1) % na) * 2;
+
+		for (let j = 0; j < nb; j = j + 1) {
+			let b0 = j * 2;
+			let b1 = ((j + 1) % nb) * 2;
+
+			# shared edge: a's a0->a1 is b's b1->b0
+			if (a[a0] != b[b1] || a[a0 + 1] != b[b1 + 1]) { continue; }
+			if (a[a1] != b[b0] || a[a1 + 1] != b[b0 + 1]) { continue; }
+
+			let out = [];
+			# a, from a1 all the way round to a0
+			for (let k = 0; k < na; k = k + 1) {
+				let idx = ((i + 1 + k) % na) * 2;
+				append(out, a[idx]);
+				append(out, a[idx + 1]);
+			}
+			# b, skipping the two vertices the shared edge already contributed
+			for (let k = 1; k < nb; k = k + 1) {
+				let idx = ((j + 1 + k) % nb) * 2;
+				append(out, b[idx]);
+				append(out, b[idx + 1]);
+			}
+			return out;
+		}
+	}
+	return null;
+}
+
+# The convex pieces Box2D will be given: [[x0,y0,...], ...]. One piece for a
+# shape that was convex to begin with.
+fn poly_convex_pieces(points) {
+	let pieces = poly_triangulate(points);
+	if (len(pieces) == 0) { return []; }
+
+	# Greedy: try every pair, keep the first merge that stays convex and short
+	# enough, and start again. Quadratic in the piece count, which is fine for
+	# a shape somebody drew by hand and is done once per Play.
+	let merged = true;
+	let guard = 200;
+	while (merged && guard > 0) {
+		guard = guard - 1;
+		merged = false;
+
+		for (let i = 0; i < len(pieces) && !merged; i = i + 1) {
+			for (let j = i + 1; j < len(pieces) && !merged; j = j + 1) {
+				let joined = poly_merge(pieces[i], pieces[j]);
+				if (joined == null) { continue; }
+				if (tointeger(len(joined) / 2) > MAX_HULL_POINTS) { continue; }
+				if (!poly_is_convex(joined)) { continue; }
+
+				let rest = [];
+				for (let k = 0; k < len(pieces); k = k + 1) {
+					if (k != i && k != j) { append(rest, pieces[k]); }
+				}
+				append(rest, joined);
+				pieces = rest;
+				merged = true;
+			}
+		}
+	}
+	return pieces;
+}

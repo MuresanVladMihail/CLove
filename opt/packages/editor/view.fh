@@ -33,26 +33,35 @@ fn view_draw_grid(app) {
 # Fills a polygon or traced shape, rotated into place. Answers false when the
 # entity has no polygon, so the caller falls back to its box.
 fn view_fill_polygon(app, e, cx, cy, angle) {
-	let poly = doc_polygon(app, e);
-	if (poly == null) { return false; }
+	# The convex pieces, not the outline: a filled polygon is drawn as a fan
+	# from its first vertex, which is only the right shape when it is convex.
+	# A concave outline came out as a star of overlapping triangles.
+	let pieces = sim_pieces(app, e);
+	if (len(pieces) == 0) { return false; }
 
 	let ca = math_cos(angle);
 	let sa = math_sin(angle);
-	let pts = [];
-	for (let i = 0; i + 1 < len(poly); i = i + 2) {
-		append(pts, cx + poly[i] * ca - poly[i + 1] * sa);
-		append(pts, cy + poly[i] * sa + poly[i + 1] * ca);
+	for (let p = 0; p < len(pieces); p = p + 1) {
+		let piece = pieces[p];
+		let pts = [];
+		for (let i = 0; i + 1 < len(piece); i = i + 2) {
+			append(pts, cx + piece[i] * ca - piece[i + 1] * sa);
+			append(pts, cy + piece[i] * sa + piece[i + 1] * ca);
+		}
+		love_geometry_polygon("fill", pts);
 	}
-	love_geometry_polygon("fill", pts);
 	return true;
 }
 
 # The traced hull, rotated into place. Falls back to the fixture box when
 # the entity has no vector art to trace.
+# The fixture overlay for an outline: every convex piece, because that is what
+# Box2D actually has. Seeing the seams is the point -- it is the difference
+# between "my notch does nothing" and "ah, that is where it cut it".
 fn view_draw_traced_outline(app, e, cx, cy, angle) {
-	let poly = doc_polygon(app, e);
+	let pieces = sim_pieces(app, e);
 	let f = doc_shape(app, e);
-	if (poly == null) {
+	if (len(pieces) == 0) {
 		love_geometry_rectangle("line", cx, cy, f.w, f.h,
 			angle, 1, 1, f.w * 0.5, f.h * 0.5);
 		return 0;
@@ -60,16 +69,17 @@ fn view_draw_traced_outline(app, e, cx, cy, angle) {
 
 	let ca = math_cos(angle);
 	let sa = math_sin(angle);
-	let line = [];
-	for (let i = 0; i + 1 < len(poly); i = i + 2) {
-		append(line, cx + poly[i] * ca - poly[i + 1] * sa);
-		append(line, cy + poly[i] * sa + poly[i + 1] * ca);
+	for (let p = 0; p < len(pieces); p = p + 1) {
+		let piece = pieces[p];
+		let line = [];
+		for (let i = 0; i + 1 < len(piece); i = i + 2) {
+			append(line, cx + piece[i] * ca - piece[i + 1] * sa);
+			append(line, cy + piece[i] * sa + piece[i + 1] * ca);
+		}
+		append(line, cx + piece[0] * ca - piece[1] * sa);
+		append(line, cy + piece[0] * sa + piece[1] * ca);
+		love_geometry_line(line);
 	}
-	# close the loop
-	append(line, cx + poly[0] * ca - poly[1] * sa);
-	append(line, cy + poly[0] * sa + poly[1] * ca);
-
-	love_geometry_line(line);
 	return 0;
 }
 

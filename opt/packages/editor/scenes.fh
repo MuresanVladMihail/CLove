@@ -111,6 +111,7 @@ fn scenes_open(app, path) {
 	# the caches are keyed by path, and a level has its own art
 	app.sprite_cache = {};
 	app.trace_cache = {};
+	app.piece_cache = {};
 
 	prefs_touch(app);          # editor.json remembers the level you are on
 	scenes_restore_camera(app);

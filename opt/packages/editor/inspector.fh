@@ -71,16 +71,17 @@ fn inspector_polygon(app, e, f) {
 	}
 
 	let n = len(f.points) / 2;
-	let hulled = sim_hull(app, f.points);
-	let kept = 0;
-	if (hulled != null) { kept = len(hulled) / 2; }
+	let pieces = sim_pieces(app, e);
 
-	if (kept == n) {
-		love_ui_label(n + " points, convex");
+	if (len(pieces) == 0) {
+		love_ui_text(n + " points, but they do not make a simple outline -- " +
+			"an edge crossing another has no inside for Box2D to fill.");
+	} else if (len(pieces) == 1) {
+		love_ui_label(n + " points, one convex piece");
 	} else {
-		love_ui_text(n + " points, simulated as a hull of " + kept +
-			" -- Box2D takes convex shapes of at most " + MAX_HULL_POINTS +
-			" points, so the dents are filled in.");
+		love_ui_text(n + " points, cut into " + len(pieces) + " convex pieces " +
+			"-- Box2D only has convex shapes, so the outline becomes that " +
+			"many fixtures on the one body and collides exactly as drawn.");
 	}
 
 	love_ui_layout_row(2, [-95, -1], 0);

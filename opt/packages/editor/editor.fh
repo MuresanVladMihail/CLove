@@ -53,6 +53,7 @@
 #      properties.fh  free-form authored data on an entity
 #      camera.fh      pan, zoom, world <-> screen
 #      sprites.fh     the image cache
+#      poly.fh        cutting a drawn outline into convex pieces for Box2D
 #      trace.fh       collision traced from vector art
 #      world.fh       Edit and Play, the Box2D side
 #      gizmo.fh       the transform handles
@@ -70,6 +71,7 @@ include "doc.fh"
 include "properties.fh"
 include "camera.fh"
 include "sprites.fh"
+include "poly.fh"
 include "trace.fh"
 include "world.fh"
 include "gizmo.fh"
@@ -656,6 +658,7 @@ fn editor_new(opts) {
 	app.log = [];
 	app.sprite_cache = {};
 	app.trace_cache = {};
+	app.piece_cache = {};     # a polygon's convex decomposition, see sim_pieces
 
 	app.selected_id = -1;
 	app.selection = [];
