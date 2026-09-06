@@ -97,6 +97,22 @@ fn Scene(source) {
 	scene.color = fn(e) { return e.color; };
 
 	scene.fixture = fn(e) { return e.fixtures[0]; };
+
+	# Box2D's collision filter as [category, mask, group] -- what this thing is,
+	# what it is willing to touch, and the group override. Named for LOVE's
+	# fixture:getFilterData() rather than "filter", which below is the
+	# predicate query and got there first. Older levels that predate the field
+	# read as "layer 1, hits everything", which is Box2D's own default.
+	scene.filter_data = fn(e) {
+		let f = e.fixtures[0];
+		let category = 1;
+		let mask = 65535;
+		let group = 0;
+		if (contains_key(f, "category")) { category = f.category; }
+		if (contains_key(f, "mask")) { mask = f.mask; }
+		if (contains_key(f, "group")) { group = f.group; }
+		return [category, mask, group];
+	};
 	scene.size = fn(e) { return [e.fixtures[0].w, e.fixtures[0].h]; };
 
 	scene.center = fn(e) {

@@ -57,6 +57,56 @@ fn panels_body_type_button(app, e, label) {
 	return 0;
 }
 
+# Box2D's collision filter, as two rows of numbered toggles: "layer" is what
+# this fixture is, "hits" is what it is willing to touch. Two fixtures collide
+# only when each one's layer is in the other's mask -- so a coin on layer 2
+# that hits only layer 1 will land on the ground and pass through other coins.
+#
+# The document keeps the full 16 bits; the inspector shows the low FILTER_BITS
+# of each, which is as many toggles as fit without the panel becoming a
+# switchboard.
+fn inspector_bit_row(app, label, value, id_base) {
+	love_ui_layout_row(2, [56, -1], 0);
+	love_ui_label(label);
+
+	let widths = [];
+	for (let i = 0; i < FILTER_BITS; i = i + 1) { append(widths, 22); }
+	append(widths, -1);
+	love_ui_layout_row(FILTER_BITS + 1, widths, 0);
+
+	let out = value;
+	for (let i = 0; i < FILTER_BITS; i = i + 1) {
+		let mark = "" + (i + 1);
+		if (bit_has(value, i)) { mark = "[" + (i + 1) + "]"; }
+
+		# every toggle shares the label of some other row's toggle, so the
+		# index goes on the id stack
+		love_ui_pushId(id_base + i);
+		if (love_ui_button(mark, ALIGN_CENTER)) { out = bit_toggle(out, i); }
+		love_ui_popId();
+	}
+	love_ui_label("");
+	return out;
+}
+
+fn inspector_filter(app, e, f) {
+	if (!love_ui_header("Filter", 0)) { return 0; }
+
+	let category = inspector_bit_row(app, "layer:", f.category, 900);
+	let mask = inspector_bit_row(app, "hits:", f.mask, 950);
+
+	if (category != f.category || mask != f.mask) {
+		doc_begin_edit(app);
+		let live = doc_shape(app, doc_selected(app));
+		live.category = category;
+		live.mask = mask;
+	}
+
+	love_ui_layout_row(1, [-1], 0);
+	love_ui_label("layer " + f.category + ", hits " + f.mask);
+	return 0;
+}
+
 fn panels_inspector(app) {
 	if (love_ui_begin_window("Inspector", app.screen_w - PANEL_W, TOOLBAR_H,
 	                         PANEL_W, app.screen_h - TOOLBAR_H, panels_dock_opts(app))) {
@@ -238,6 +288,8 @@ fn panels_inspector(app) {
 				e.body.fixed_rotation = !e.body.fixed_rotation;
 			}
 		}
+
+		inspector_filter(app, e, f);
 
 		if (love_ui_header("Appearance", OPT_EXPANDED)) {
 			love_ui_layout_row(2, [56, -1], 0);

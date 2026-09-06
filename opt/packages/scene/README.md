@@ -42,8 +42,12 @@ level that will not load is a bug, not a state every caller should poll for.
 ## Reading one entity
 
 `id`, `name`, `is_visible`, `position`, `angle`, `center`, `size`, `rect`,
-`color`, `fixture`, `body_type`, `sprite_path`, `groups`, `has_group`,
-`props`, `prop`, `has_prop`.
+`color`, `fixture`, `filter_data`, `body_type`, `sprite_path`, `groups`,
+`has_group`, `props`, `prop`, `has_prop`.
+
+`filter_data(e)` is `[category, mask, group]` — what the thing is, what it is willing
+to touch, and the group override — ready for `love_fixture_setFilterData()`. A
+level written before the filter existed reads as Box2D's own default.
 
 `sprite_path()` returns a path or `null` — the editor stores nothing else
 about a sprite. `love_graphics_newImage()` loads `.svg` and `.png` through the

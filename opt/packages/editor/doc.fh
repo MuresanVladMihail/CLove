@@ -22,7 +22,8 @@
 #                         "gravity_scale": 1 },
 #          "fixtures":  [ { "shape": "rect", "w": 700, "h": 90,
 #                           "density": 1, "friction": 0.4,
-#                           "restitution": 0.1, "sensor": false } ] } ] }
+#                           "restitution": 0.1, "sensor": false,
+#                           "category": 1, "mask": 65535, "group": 0 } ] } ] }
 #
 #  Only authored data goes in the file. A sprite is stored as a path and
 #  nothing else -- love_graphics_newImage() loads .svg and .png through the
@@ -69,7 +70,12 @@ fn doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b) {
 			"shape": kind,
 			"w": w, "h": h,
 			"density": 1, "friction": 0.4, "restitution": 0.1,
-			"sensor": false
+			"sensor": false,
+			# Box2D's collision filter. category is what this thing *is*,
+			# mask is what it is willing to touch: two fixtures collide only
+			# if each one's category is in the other's mask. The defaults --
+			# layer 1, hits everything -- are what you want until they are not.
+			"category": 1, "mask": 65535, "group": 0
 		} ]
 	};
 }
@@ -315,6 +321,13 @@ fn doc_migrate(app, parsed) {
 	for (let i = 0; i < len(parsed.entities); i = i + 1) {
 		if (!contains_key(parsed.entities[i], "groups")) { parsed.entities[i].groups = []; }
 		if (!contains_key(parsed.entities[i], "props")) { parsed.entities[i].props = {}; }
+
+		let fixtures = parsed.entities[i].fixtures;
+		for (let k = 0; k < len(fixtures); k = k + 1) {
+			if (!contains_key(fixtures[k], "category")) { fixtures[k].category = 1; }
+			if (!contains_key(fixtures[k], "mask")) { fixtures[k].mask = 65535; }
+			if (!contains_key(fixtures[k], "group")) { fixtures[k].group = 0; }
+		}
 	}
 	if (!contains_key(parsed, "next_id")) {
 		let highest = 0;

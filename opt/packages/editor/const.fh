@@ -139,6 +139,21 @@ fn round_to(v, places) {
 	return math_floor(v * m + 0.5) / m;
 }
 
+# --- collision filter bits --------------------------------------------------
+# Box2D's filter is two bit fields: category is what a fixture *is*, mask is
+# what it is willing to touch. The inspector shows the low FILTER_BITS of each
+# as toggles -- the document holds the full 16, so a hand-edited level can use
+# the rest.
+let FILTER_BITS = 8;
+
+fn bit_has(value, i) { return (value & (1 << i)) != 0; }
+
+fn bit_toggle(value, i) {
+	if (bit_has(value, i)) { return value - (1 << i); }
+	return value | (1 << i);
+}
+
+
 # A button that is drawn but does nothing when there is nothing for it to do.
 # Greying out beats a button that looks live and silently ignores the click.
 fn ui_button_enabled(label, enabled, align) {

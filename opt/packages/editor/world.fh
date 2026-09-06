@@ -47,6 +47,7 @@ fn sim_build(app) {
 		love_fixture_setFriction(fixture, f.friction);
 		love_fixture_setRestitution(fixture, f.restitution);
 		love_fixture_setSensor(fixture, f.sensor);
+		love_fixture_setFilterData(fixture, f.category, f.mask, f.group);
 
 		# The entity's id, on both the body and its fixture. A collision
 		# callback is handed fixtures and nothing else, so without this there

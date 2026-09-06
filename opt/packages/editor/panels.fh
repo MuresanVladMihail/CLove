@@ -255,6 +255,10 @@ fn panels_hierarchy(app) {
 				"editing; click it to switch, or for New / Save as / Rename / " +
 				"Delete. Every *.json beside the game is a level, editor.json " +
 				"excepted. Switching remembers where you were looking.");
+			love_ui_text("Filter: layer is what a fixture is, hits is what it " +
+				"is willing to touch -- two fixtures collide only when each " +
+				"one's layer is in the other's mask. A game reads it with " +
+				"scene.filter_data().");
 			love_ui_text("Z-order: the hierarchy list is the draw order, front " +
 				"last. Back / Down / Up / Front move the selection through it.");
 			love_ui_text("Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save, Ctrl+D " +

@@ -59,6 +59,13 @@ fn run() {
     check(!scene.has_group(scene.get(1), "shiny"), "entity 1 is not shiny");
     check(len(scene.group_names()) == 3, "three distinct groups are in use");
 
+    # --- the collision filter ---
+    # An entity written before the filter existed reads as Box2D's own default
+    let plain_filter = scene.filter_data(scene.get(1));
+    check(plain_filter[0] == 1, "a level without a filter is layer 1");
+    check(plain_filter[1] == 65535, "and hits everything");
+    check(plain_filter[2] == 0, "with no group override");
+
     # --- properties ---
     # authored values keep their type, so game code can use them directly
     let coin = scene.get(2);
