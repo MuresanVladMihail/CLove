@@ -1,0 +1,62 @@
+# Two small binding fixes: the mouse button spellings, and setCanvas() with
+# no arguments (LOVE's way of going back to drawing on the screen).
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn test_buttons() {
+    # Nothing is pressed in a test, so these are all false -- the point is
+    # that both spellings are accepted rather than erroring or lying.
+    check(!love_mouse_isDown("l"), "CLove's name for the left button");
+    check(!love_mouse_isDown(1), "LOVE's number for the left button");
+    check(!love_mouse_isDown("x2"), "the extra buttons are named too");
+    check(!love_mouse_isDown(5), "and numbered");
+}
+
+fn test_position() {
+    let p = love_mouse_getPosition();
+    check(len(p) == 2, "getPosition returns [x, y]");
+    check(p[0] == love_mouse_getX() && p[1] == love_mouse_getY(), "and it agrees with getX/getY");
+
+    love_mouse_setVisible(true);
+    check(love_mouse_isVisible(), "the cursor should be visible");
+}
+
+fn test_canvas() {
+    let c = love_graphics_newCanvas(64, 64);
+
+    love_graphics_setCanvas(c);
+    love_graphics_clear();
+    # No arguments: back to the screen. The arity check used to reject this,
+    # so the only way to unset a canvas was to pass something that was not
+    # one -- which is what the old canvas example did, and it did not run.
+    love_graphics_setCanvas();
+
+    # Round trip once more, and draw the canvas, which is the whole point.
+    love_graphics_setCanvas(c);
+    love_geometry_rectangle("fill", 0, 0, 32, 32);
+    love_graphics_setCanvas();
+    love_graphics_draw(c, 0, 0);
+}
+
+fn test_geometry() {
+    love_geometry_points([10, 10, 20, 20, 30, 30]);
+    love_geometry_polygon("fill", [0, 0, 10, 0, 10, 10]);
+    love_geometry_polygon("line", [0, 0, 10, 0, 10, 10, 0, 0]);
+    love_geometry_circle("fill", 20, 20, 5);
+    love_geometry_rectangle("line", 5, 5, 10, 10);
+}
+
+fn run() {
+    test_buttons();
+    test_position();
+    test_canvas();
+    test_geometry();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

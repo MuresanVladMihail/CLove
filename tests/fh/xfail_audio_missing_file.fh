@@ -1,0 +1,7 @@
+# A missing sound file is a script error, not a crash.
+fn love_load() {
+    love_audio_newSource("assets/there_is_no_such.wav", "static");
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

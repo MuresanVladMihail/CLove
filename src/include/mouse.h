@@ -13,6 +13,7 @@ int mouse_getwheel();
 void mouse_mousewheel(int y);
 void mouse_mousepressed(int x, int y, int button);
 void mouse_mousereleased(int x, int y, int button);
+bool mouse_isButtonName(const char *str);
 int mouse_isDown(const char *str);
 int mouse_isVisible(void);
 void mouse_getPosition(int *x, int *y);

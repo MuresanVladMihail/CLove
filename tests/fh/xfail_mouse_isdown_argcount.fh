@@ -1,0 +1,7 @@
+# love_mouse_isDown() read args[0] without ever looking at n_args.
+fn love_load() {
+    love_mouse_isDown();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

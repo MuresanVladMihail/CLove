@@ -64,7 +64,12 @@ static int fn_love_graphics_newShader(struct fh_program *prog,
         }
         fragmentSrc = fh_get_string(&args[1]);
 
-        if (isVertexShader(vertexSrc)) {
+        // Either argument may be GLSL source or a path to a file holding it.
+        // The test used to be inverted here -- source that already *was* a
+        // vertex shader got handed to filesystem_read() as a filename -- so
+        // newShader(vertexSource, fragmentSource), the form LOVE uses, always
+        // failed. The fragment branch just below has always had it right.
+        if (!isVertexShader(vertexSrc)) {
             filesystem_read(vertexSrc, &loadedFile1);
             if (!loadedFile1 || !isVertexShader(loadedFile1)) {
                 free(loadedFile1);
@@ -237,7 +242,7 @@ static int fn_love_shader_sendInteger(struct fh_program *prog,
    // }
     info.type = GL_INT;
 
-    int v = (int)args[2].data.num;
+    int v = (int)fh_get_number(&args[2]);
     graphics_Shader_sendIntegers(&shader->shader, &info, 1, (GLint*)&v);
 
     *ret = fh_new_null();
@@ -265,7 +270,7 @@ static int fn_love_shader_sendFloat(struct fh_program *prog,
    // }
     info.type = GL_FLOAT;
 
-    float v = (float)args[2].data.num;
+    float v = (float)fh_get_number(&args[2]);
     graphics_Shader_sendFloats(&shader->shader, &info, 1, (GLfloat*)&v);
 
     *ret = fh_new_null();
@@ -337,7 +342,7 @@ static int fn_love_shader_sendVector(struct fh_program *prog,
     for (uint32_t i = 0; i < arr->len; i++) {
         if (!fh_is_number(&arr->items[i]))
             return fh_set_error(prog, "Expected float got '%s'", fh_type_to_str(prog, arr->items[i].type));
-        v[i] = (GLfloat)arr->items[i].data.num;
+        v[i] = (GLfloat)fh_get_number(&arr->items[i]);
     }
     graphics_Shader_sendFloatVectors(&shader->shader, &info, 1, v);
     //free(v);
@@ -369,23 +374,32 @@ static int fn_love_shader_sendMatrice(struct fh_program *prog,
 
     struct fh_array *arr = GET_VAL_ARRAY(&args[2]);
 
-    if (arr->len == 2) {
+    // A mat2 is 4 floats, a mat3 is 9 and a mat4 is 16. This used to accept
+    // 2, 3 or 4 and hand them to the *vector* upload, so it both read past
+    // the end of the array and called the wrong glUniform for the location.
+    if (arr->len == 4) {
         info.type = GL_FLOAT_MAT2;
-    } else if (arr->len == 3) {
+    } else if (arr->len == 9) {
         info.type = GL_FLOAT_MAT3;
-    } else if (arr->len == 4) {
+    } else if (arr->len == 16) {
         info.type = GL_FLOAT_MAT4;
     } else
-        return fh_set_error(prog, "Invalid matrix length!");
-
+        return fh_set_error(prog,
+                "love_shader_sendMatrice(): expected 4, 9 or 16 numbers (mat2, mat3 or mat4), got %d",
+                (int)arr->len);
 
     float *v = malloc(sizeof(float) * arr->len);
+    if (!v)
+        return fh_set_error(prog, "out of memory");
+
     for (uint32_t i = 0; i < arr->len; i++) {
-        if (!fh_is_number(&arr->items[i]))
+        if (!fh_is_number(&arr->items[i])) {
+            free(v);
             return fh_set_error(prog, "Expected float got '%s'", fh_type_to_str(prog, arr->items[i].type));
-        v[i] = (float)arr->items[i].data.num;
+        }
+        v[i] = (float)fh_get_number(&arr->items[i]);
     }
-    graphics_Shader_sendFloatVectors(&shader->shader, &info, 1, (GLfloat*)v);
+    graphics_Shader_sendFloatMatrices(&shader->shader, &info, 1, v);
     free(v);
 
     *ret = fh_new_null();
@@ -433,6 +447,34 @@ static int fn_love_graphics_getMaxTextureUnits(struct fh_program *prog,
     return 0;
 }
 
+// LOVE spells all of the above as one Shader:send(name, value). Dispatching
+// on the FH value's type gives the same thing, and the typed entry points
+// stay available for when a script wants to be explicit.
+static int fn_love_shader_send(struct fh_program *prog,
+                               struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 3)
+        return fh_set_error(prog, "love_shader_send(): expected 3 arguments (shader, name, value), got %d", n_args);
+
+    if (!fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_SHADER) || !fh_is_string(&args[1]))
+        return fh_set_error(prog, "Expected shader and the 'extern' aka uniform name");
+
+    if (fh_is_bool(&args[2]))
+        return fn_love_shader_sendBool(prog, ret, args, n_args);
+    if (fh_is_number(&args[2]))
+        return fn_love_shader_sendFloat(prog, ret, args, n_args);
+    if (fh_is_c_obj_of_type(&args[2], FH_IMAGE_TYPE))
+        return fn_love_shader_sendTexture(prog, ret, args, n_args);
+    if (fh_is_array(&args[2])) {
+        struct fh_array *arr = GET_VAL_ARRAY(&args[2]);
+        if (arr->len == 4 || arr->len == 9 || arr->len == 16)
+            return fn_love_shader_sendMatrice(prog, ret, args, n_args);
+        return fn_love_shader_sendVector(prog, ret, args, n_args);
+    }
+
+    return fh_set_error(prog, "love_shader_send(): don't know how to send a '%s'",
+                        fh_type_to_str(prog, args[2].type));
+}
+
 #define DEF_FN(name) { #name, fn_##name }
 static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_graphics_newShader),
@@ -440,6 +482,7 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_graphics_getShader),
     DEF_FN(love_graphics_getMaxTextureUnits),
     DEF_FN(love_graphics_getShaderWarnings),
+    DEF_FN(love_shader_send),
     DEF_FN(love_shader_sendFloat),
     DEF_FN(love_shader_sendInteger),
     DEF_FN(love_shader_sendBool),

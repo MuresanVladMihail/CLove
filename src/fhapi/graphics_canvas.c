@@ -50,10 +50,13 @@ static int fn_love_graphics_newCanvas(struct fh_program *prog, struct fh_value *
 
 static int fn_love_graphics_setCanvas(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
 
-    if (n_args != 1)
-        return fh_set_error(prog, "love_graphics_setCanvas(): expected 1 argument, got %d", n_args);
+    // LOVE's love.graphics.setCanvas() with no arguments goes back to drawing
+    // on the screen, and the branch below already treats a non-canvas as
+    // "unset" -- but the arity check rejected the no-argument spelling.
+    if (n_args > 1)
+        return fh_set_error(prog, "love_graphics_setCanvas(): expected 0 or 1 arguments, got %d", n_args);
 
-    if (fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_CANVAS)) {
+    if (n_args == 1 && fh_is_c_obj_of_type(&args[0], FH_GRAPHICS_CANVAS)) {
        graphics_Canvas *c = fh_get_c_obj_value(&args[0]);
        graphics_setCanvas(c);
     } else {

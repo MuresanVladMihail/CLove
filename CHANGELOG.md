@@ -14,6 +14,40 @@ version 0.8.0 not yet released
 * added: New scripting language, FH.
 * added: Misc math utilities.
 * added: Very powerful particle system.
+* fixed: the wav decoder rejected every valid wav file. It wrote a NUL over
+	the last byte of the "RIFF" tag before comparing it to "RIFF", so the
+	comparison could never succeed. Rewritten to walk the RIFF chunks, which
+	also fixes files with a LIST/fact chunk before the samples (the old code
+	assumed the data always began at byte 44), reads the bit depth from
+	bitsPerSample rather than from the "fmt " chunk's size, no longer hands
+	OpenAL a length larger than the buffer it read, and frees that buffer --
+	it used to leak the whole decoded file per source.
+* fixed: love_audio_isLooping() always disagreed with love_audio_setLooping().
+	The setter took a const pointer, so it told OpenAL and never updated the
+	field the getter reads back.
+* fixed: love_graphics_newShader(vertexSource, fragmentSource) -- the form
+	LOVE uses -- always failed. The test was inverted, so source that already
+	was a vertex shader got passed to filesystem_read() as a filename.
+* fixed: shaders can declare uniforms with LOVE's `extern` again; GLSL
+	reserves the word, and nothing mapped it to `uniform`.
+* fixed: love_shader_sendMatrice() accepted 2, 3 or 4 numbers for a mat2/mat3/
+	mat4 (which are 4, 9 and 16), read past the end of the array and called
+	the vector upload instead of the matrix one. The typed senders also read
+	the float member of a value that could be carrying an integer, so passing
+	`1` instead of `1.0` gave garbage.
+* added: love_shader_send(shader, name, value), which dispatches on the value
+	the way LOVE's Shader:send does. SKILLS.md had documented it for a while;
+	it did not exist.
+* fixed: love_graphics_setCanvas() with no arguments -- LOVE's way of going
+	back to drawing on the screen -- was rejected by the arity check, even
+	though the body already treated a non-canvas argument as "unset".
+* fixed: love_mouse_isDown(), setVisible(), setX() and setY() read args[0]
+	without checking n_args. love_mouse_isDown() also returned a permanent
+	`false` for an unknown button name rather than an error (the engine used 0
+	for both "not pressed" and "no such button"), and it now accepts LOVE's
+	numbers 1..5 as well as CLove's "l"/"r"/"m"/"x1"/"x2".
+* fixed: love_geometry_points() reinterpreted whatever it was handed as an
+	array without checking that it was one.
 * fixed: the particle system leaked and could corrupt the heap.
 	love_particleSystem_setBufferSize() malloc'd a new particle buffer without
 	freeing the old one (200 systems resized twice leaked ~4.9 MB) and left the

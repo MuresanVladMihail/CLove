@@ -1,0 +1,13 @@
+# A mat2/3/4 is 4, 9 or 16 numbers. Anything else used to be uploaded anyway,
+# reading past the end of the array.
+fn love_load() {
+    let frag = "extern mat4 warp;" +
+               "vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
+               "  return warp * Texel(tex, uv) * color;" +
+               "}";
+    let s = love_graphics_newShader(frag);
+    love_shader_sendMatrice(s, "warp", [1.0, 2.0, 3.0]);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

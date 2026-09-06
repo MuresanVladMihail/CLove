@@ -76,6 +76,13 @@ static int fn_love_geometry_points(struct fh_program *prog,
         return fh_set_error(prog, "Expected 1 argument for love_geometry_points");
     }
 
+    // GET_VAL_ARRAY below reinterprets the value's object pointer as an
+    // array, so anything else has to be rejected first.
+    if (!fh_is_array(&args[0])) {
+        return fh_set_error(prog, "love_geometry_points(): expected a flat x,y array, got %s",
+                            fh_type_to_str(prog, args[0].type));
+    }
+
     struct fh_value *arr = &args[0];
     int len = fh_get_array_len(arr);
     float *vertices = malloc(sizeof(float)*len);

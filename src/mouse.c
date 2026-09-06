@@ -131,6 +131,10 @@ void mouse_getPosition(int *x, int *y) {
     *y = moduleData.y;
 }
 
+bool mouse_isButtonName(const char *str) {
+    return buttonEnum(str) != 0;
+}
+
 int mouse_isDown(const char *str) {
     int x = buttonEnum(str);
     if (moduleData.button == x)

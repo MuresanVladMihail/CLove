@@ -1,0 +1,7 @@
+# love_geometry_points() reinterpreted whatever it was given as an array.
+fn love_load() {
+    love_geometry_points(42);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

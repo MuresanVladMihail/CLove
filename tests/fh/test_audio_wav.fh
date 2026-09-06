@@ -1,0 +1,60 @@
+# love.audio's static WAV path. The decoder used to write a NUL over the last
+# byte of the "RIFF" tag before comparing it to "RIFF", so it rejected every
+# valid wav file; it also assumed the samples begin at byte 44, read the
+# "fmt " chunk's *size* as the bit depth, handed OpenAL a length larger than
+# the buffer it had read, and never freed that buffer.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn test_stereo16() {
+    let s = love_audio_newSource("assets/tone_stereo16.wav", "static");
+    check(s != null, "a 16-bit stereo wav should load");
+    check(love_audio_getType(s) == "static", "it is a static source");
+    check(!love_audio_isPlaying(s), "a fresh source is not playing");
+
+    love_audio_setVolume(s, 0.0);
+    love_audio_play(s);
+    check(love_audio_isPlaying(s), "play() should start it");
+    love_audio_stop(s);
+    check(love_audio_isStopped(s), "stop() should stop it");
+}
+
+fn test_mono8() {
+    # The bit depth came from the "fmt " chunk size, which is 16 for every PCM
+    # file, so an 8-bit file was always described to OpenAL as 16-bit.
+    let s = love_audio_newSource("assets/tone_mono8.wav", "static");
+    check(s != null, "an 8-bit mono wav should load");
+}
+
+fn test_extra_chunk() {
+    # A LIST chunk sits between "fmt " and "data" here, so the samples do not
+    # start at byte 44. Anything that came out of a real recorder or editor
+    # looks like this.
+    let s = love_audio_newSource("assets/tone_extrachunk.wav", "static");
+    check(s != null, "a wav with an extra chunk before the data should load");
+}
+
+fn test_volume_and_pitch() {
+    let s = love_audio_newSource("assets/tone_stereo16.wav", "static");
+    love_audio_setVolume(s, 0.25);
+    check(love_audio_getVolume(s) > 0.2 && love_audio_getVolume(s) < 0.3, "volume should round-trip");
+    love_audio_setPitch(s, 1.5);
+    check(love_audio_getPitch(s) > 1.4 && love_audio_getPitch(s) < 1.6, "pitch should round-trip");
+    love_audio_setLooping(s, true);
+    check(love_audio_isLooping(s), "looping should stick");
+}
+
+fn run() {
+    test_stereo16();
+    test_mono8();
+    test_extra_chunk();
+    test_volume_and_pitch();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}
