@@ -293,13 +293,20 @@ static int fn_love_font_getWrap(struct fh_program *prog,
     const char *line = fh_get_string(&args[1]);
     int wraplimit = (int) fh_get_number(&args[2]);
 
-    char *wrappedtext = malloc(strlen(line));
+    // getWrap() allocates and grows its own buffer now. The malloc here used
+    // to be strlen(line) -- one byte short of even an unwrapped copy, before
+    // any newline was inserted.
+    char *wrappedtext = NULL;
     int wrappedlines;
 
     if (isBitmap) {
         wrappedlines = graphics_BitmapFont_getWrap(bitmap, line, wraplimit, &wrappedtext);
     } else {
         wrappedlines = graphics_Font_getWrap(font, line, wraplimit, &wrappedtext);
+    }
+
+    if (wrappedlines < 0) {
+        return fh_set_error(prog, "out of memory");
     }
 
     int pin_state = fh_get_pin_state(prog);
@@ -346,7 +353,17 @@ static int fn_love_font_setFilter(struct fh_program *prog,
     const char *min = fh_get_string(&args[1]);
     const char *mag = fh_get_string(&args[2]);
 
+    // Start from the filter the font already has, so mipmapMode and
+    // mipmapLodBias keep their real values. Declaring the struct and setting
+    // only min/mag/anisotropy left those two as whatever was on the stack --
+    // and a garbage mipmapMode sent graphics_Texture_setFilter down its
+    // mipmap branch, which is why a bitmap font drew as a solid black block.
     graphics_Filter newFilter;
+    if (isBitmapFont) {
+        graphics_BitmapFont_getFilter(bitmapFont, &newFilter);
+    } else {
+        graphics_Font_getFilter(font, &newFilter);
+    }
 
     newFilter.maxAnisotropy = (float) fh_optnumber(args, n_args, 3, 1.0);
 

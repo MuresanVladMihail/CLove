@@ -18,6 +18,7 @@
 
 #include "../include/utils.h"
 #include "../include/utf8.h"
+#include "../include/textwrap.h"
 #include "../include/minmax.h"
 #include "../include/font.h"
 #include "../include/quad.h"
@@ -226,32 +227,13 @@ int graphics_Font_new(graphics_Font *dst, char const *filename, int ptsize) {
 }
 
 
-int graphics_Font_getWrap(graphics_Font *font, char const *line, int wraplimit, char **wrappedtext) {
-    int width = 0, uni = 0, wrappedlines = 1;
-    size_t i = 0;
-    size_t len = strlen(line);
-    char *c = NULL;
-    while ((uni = utf8_scan(&line))) {
-        c = *wrappedtext;
-        graphics_Glyph const *g = graphics_Font_findGlyph(font, uni);
-        width += g->advance;
-        if (i + 1 >= len) {
-            len <<= 2 + 1;
-            *wrappedtext = realloc(*wrappedtext, len);
-            c = *wrappedtext;
-        }
-        if (width >= wraplimit && (uni != '\n' && uni != ' ')) {
-            wrappedlines++;
-            c[i++] = '\n';
-            width = 0;
-        }
-        c[i++] = (char) uni;
-    }
-    if (c) {
-        c[i] = '\0';
-    }
+static int font_advance(void *ctx, uint32_t codepoint) {
+    graphics_Glyph const *g = graphics_Font_findGlyph((graphics_Font *) ctx, codepoint);
+    return g ? g->advance : 0;
+}
 
-    return wrappedlines;
+int graphics_Font_getWrap(graphics_Font *font, char const *line, int wraplimit, char **wrappedtext) {
+    return graphics_wrapText(line, wraplimit, font_advance, font, wrappedtext);
 }
 
 static void prepareBatches(graphics_Font *font, size_t chars) {
