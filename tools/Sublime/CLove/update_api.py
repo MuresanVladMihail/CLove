@@ -172,8 +172,14 @@ def render_variables(names):
 def write_syntax(names):
     text = open(SYNTAX, encoding='utf-8').read()
     lo, hi = text.index(BEGIN), text.index(END) + len(END)
-    open(SYNTAX, 'w', encoding='utf-8').write(
-        text[:lo] + render_variables(names) + text[hi:])
+
+    # Render before opening for writing. open(..., 'w') truncates immediately,
+    # and render_variables() exits when it meets a love_<area>_ prefix that is
+    # not in AREA_ORDER -- so writing it inline destroyed the file the script
+    # was meant to update, and the next run then failed on the missing markers.
+    body = render_variables(names)
+
+    open(SYNTAX, 'w', encoding='utf-8').write(text[:lo] + body + text[hi:])
 
 
 def write_completions(groups):

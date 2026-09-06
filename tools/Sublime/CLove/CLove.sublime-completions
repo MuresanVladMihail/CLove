@@ -178,6 +178,17 @@
       "details": "j is the array [id, button]"
     },
     {
+      "trigger": "love_audio_getDuration",
+      "contents": "love_audio_getDuration($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
       "trigger": "love_audio_getPitch",
       "contents": "love_audio_getPitch($0)",
       "annotation": "audio",
@@ -299,6 +310,17 @@
       "details": "src/fhapi/audio.c"
     },
     {
+      "trigger": "love_audio_seek",
+      "contents": "love_audio_seek($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
       "trigger": "love_audio_setGlobalVolume",
       "contents": "love_audio_setGlobalVolume($0)",
       "annotation": "audio",
@@ -367,6 +389,17 @@
     {
       "trigger": "love_audio_stop",
       "contents": "love_audio_stop($0)",
+      "annotation": "audio",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/audio.c"
+    },
+    {
+      "trigger": "love_audio_tell",
+      "contents": "love_audio_tell($0)",
       "annotation": "audio",
       "kind": [
         "function",
@@ -979,6 +1012,39 @@
         "CLove API"
       ],
       "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_canvas_getDimensions",
+      "contents": "love_canvas_getDimensions($0)",
+      "annotation": "canvas",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_canvas.c"
+    },
+    {
+      "trigger": "love_canvas_getHeight",
+      "contents": "love_canvas_getHeight($0)",
+      "annotation": "canvas",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_canvas.c"
+    },
+    {
+      "trigger": "love_canvas_getWidth",
+      "contents": "love_canvas_getWidth($0)",
+      "annotation": "canvas",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_canvas.c"
     },
     {
       "trigger": "love_contact_getFixtures",
@@ -2334,6 +2400,17 @@
       "details": "src/fhapi/graphics_font.c"
     },
     {
+      "trigger": "love_graphics_printf",
+      "contents": "love_graphics_printf($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_font.c"
+    },
+    {
       "trigger": "love_graphics_push",
       "contents": "love_graphics_push($0)",
       "annotation": "graphics",
@@ -2622,6 +2699,17 @@
     {
       "trigger": "love_image_refresh",
       "contents": "love_image_refresh($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_save",
+      "contents": "love_image_save($0)",
       "annotation": "image",
       "kind": [
         "function",
@@ -2974,6 +3062,17 @@
     {
       "trigger": "love_math_noise",
       "contents": "love_math_noise($0)",
+      "annotation": "math",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/math.c"
+    },
+    {
+      "trigger": "love_math_triangulate",
+      "contents": "love_math_triangulate($0)",
       "annotation": "math",
       "kind": [
         "function",
@@ -4730,6 +4829,61 @@
         "CLove API"
       ],
       "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_system_getClipboardText",
+      "contents": "love_system_getClipboardText($0)",
+      "annotation": "system",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/system.c"
+    },
+    {
+      "trigger": "love_system_getOS",
+      "contents": "love_system_getOS($0)",
+      "annotation": "system",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/system.c"
+    },
+    {
+      "trigger": "love_system_getPowerInfo",
+      "contents": "love_system_getPowerInfo($0)",
+      "annotation": "system",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/system.c"
+    },
+    {
+      "trigger": "love_system_getProcessorCount",
+      "contents": "love_system_getProcessorCount($0)",
+      "annotation": "system",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/system.c"
+    },
+    {
+      "trigger": "love_system_setClipboardText",
+      "contents": "love_system_setClipboardText($0)",
+      "annotation": "system",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/system.c"
     },
     {
       "trigger": "love_timer_getAverageDelta",
