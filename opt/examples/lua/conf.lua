@@ -1,6 +1,6 @@
 
 function love.conf(t)
-   	t.window.identity = "."
+   	t.window.identity = "clove_lua_examples"
 	t.window.version = "0.8.0"
     t.window.width = 640
     t.window.height = 480

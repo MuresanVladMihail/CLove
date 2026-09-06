@@ -134,7 +134,7 @@ end
 
 
 function love.keypressed(key) 
-    if key == "esc" then
+    if key == "escape" then
         -- if we pressed the key ESC then close the demo
         love.event.quit()
     end
