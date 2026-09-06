@@ -50,6 +50,12 @@ fn panels_primitives_menu(app) {
 			log_line(app, "tool: circle");
 			close_menu = true;
 		}
+		if (love_ui_button("Polygon", ALIGN_LEFT)) {
+			app.tool = "polygon";
+			app.draft = [];
+			log_line(app, "tool: polygon -- click points, Return closes it");
+			close_menu = true;
+		}
 		love_ui_end_popup();
 	}
 
@@ -244,7 +250,11 @@ fn panels_hierarchy(app) {
 				"adds to the selection, and dragging from empty space rubber " +
 				"bands over one. Moving, Duplicate and Delete take the whole " +
 				"selection; the gizmo and the inspector work on one entity.");
-			love_ui_text("Primitives: pick Rect or Circle, then click in the viewport.");
+			love_ui_text("Primitives: pick Rect or Circle, then click in the " +
+				"viewport. Polygon lays down a collision mesh point by point " +
+				"-- click back on the first point or press Return to close it, " +
+				"Escape to throw it away. Afterwards its vertices are handles: " +
+				"drag one to move it, Shift+click to remove it.");
 			love_ui_text("Pan: drag with the right or middle button, space + left, " +
 				"or the arrow keys while the cursor is over the viewport.");
 			love_ui_text("Wheel zooms around the cursor. F frames the whole scene.");

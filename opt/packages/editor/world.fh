@@ -7,6 +7,28 @@
 # ============================================================================
 
 
+# A flat [x0,y0,...] Box2D will accept: convex and at most MAX_HULL_POINTS
+# long. Returns what it was given when it already qualifies, so a traced
+# outline is not hulled twice.
+fn sim_hull(app, points) {
+	if (points == null || len(points) < 6) { return null; }
+
+	let pts = [];
+	for (let i = 0; i + 1 < len(points); i = i + 2) {
+		append(pts, [points[i], points[i + 1]]);
+	}
+
+	let hull = trace_reduce_hull(app, trace_convex_hull(app, pts), MAX_HULL_POINTS);
+	if (len(hull) < 3) { return null; }
+
+	let flat = [];
+	for (let i = 0; i < len(hull); i = i + 1) {
+		append(flat, hull[i][0]);
+		append(flat, hull[i][1]);
+	}
+	return flat;
+}
+
 fn sim_body_of(app, id) {
 	for (let i = 0; i < len(app.runtime); i = i + 1) {
 		if (app.runtime[i][0] == id) { return app.runtime[i][1]; }
@@ -34,10 +56,14 @@ fn sim_build(app) {
 		let shape = love_physics_newRectangleShape(f.w, f.h);
 		if (f.shape == "circle") {
 			shape = love_physics_newCircleShape(f.w * 0.5);
-		} else if (f.shape == "traced") {
-			let poly = trace_points(app, e);
+		} else if (f.shape == "traced" || f.shape == "polygon") {
+			# Box2D wants a convex polygon of at most MAX_HULL_POINTS points.
+			# A traced outline is hulled on the way out of trace.fh; one drawn
+			# by hand can be anything, so it is hulled here -- a concave shape
+			# is accepted and simulated as its hull rather than refused.
+			let poly = sim_hull(app, doc_polygon(app, e));
 			if (poly == null) {
-				log_line(app, e.name + ": nothing to trace, using its box");
+				log_line(app, e.name + ": no usable polygon, using its box");
 			} else {
 				shape = love_physics_newPolygonShape(poly);
 			}

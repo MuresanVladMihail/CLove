@@ -154,6 +154,21 @@ fn bit_toggle(value, i) {
 }
 
 
+# New entities cycle through these, so a scene of untextured boxes is still
+# readable. Shared by every tool that makes one.
+let PALETTE = [
+	[214, 93, 93], [93, 176, 214], [140, 200, 110],
+	[220, 170, 80], [170, 130, 220], [90, 200, 190]
+];
+
+fn next_colour(app) {
+	let c = PALETTE[app.pal_i];
+	app.pal_i = app.pal_i + 1;
+	if (app.pal_i >= len(PALETTE)) { app.pal_i = 0; }
+	return c;
+}
+
+
 # A button that is drawn but does nothing when there is nothing for it to do.
 # Greying out beats a button that looks live and silently ignores the click.
 fn ui_button_enabled(label, enabled, align) {

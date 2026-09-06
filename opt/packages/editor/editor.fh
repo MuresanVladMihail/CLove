@@ -156,13 +156,7 @@ fn spawn_at(app, wx, wy) {
 		h = 56;
 	}
 
-	let palette = [
-		[214, 93, 93], [93, 176, 214], [140, 200, 110],
-		[220, 170, 80], [170, 130, 220], [90, 200, 190]
-	];
-	let c = palette[app.pal_i];
-	app.pal_i = app.pal_i + 1;
-	if (app.pal_i > 5) { app.pal_i = 0; }
+	let c = next_colour(app);
 
 	let name = "Rect " + app.doc_data.next_id;
 	if (app.tool == "circle") { name = "Circle " + app.doc_data.next_id; }
@@ -252,6 +246,165 @@ fn marquee_finish(app) {
 	return 0;
 }
 
+# --- drawing a collision polygon -------------------------------------------
+#
+# The Polygon tool lays down points with the mouse: each click adds one, and
+# clicking back on the first (or pressing Return) closes the shape and makes an
+# entity of it. Escape throws the draft away.
+#
+# The points are stored local to the entity, centred on it, which is the same
+# convention a traced outline uses -- so everything downstream treats the two
+# alike.
+
+fn polygon_click(app, wx, wy) {
+	# closing: back on the first point, once there are enough to be a polygon
+	if (len(app.draft) >= 6) {
+		let dx = wx - app.draft[0];
+		let dy = wy - app.draft[1];
+		let near = 10 / app.cam.zoom;
+		if (math_abs(dx) < near && math_abs(dy) < near) {
+			polygon_finish(app);
+			return 0;
+		}
+	}
+
+	append(app.draft, snap_value(app, wx));
+	append(app.draft, snap_value(app, wy));
+	return 0;
+}
+
+fn polygon_finish(app) {
+	if (len(app.draft) < 6) {
+		app.draft = [];
+		log_line(app, "a polygon needs three points");
+		return 0;
+	}
+
+	let b = doc_polygon_bounds(app, app.draft);
+	let c = next_colour(app);
+
+	let e = doc_add(app, "Polygon " + app.doc_data.next_id, "polygon",
+		b[0], b[1], b[2], b[3], c[0], c[1], c[2]);
+
+	# world -> local, centred on the entity, the convention trace.fh uses
+	let f = doc_shape(app, e);
+	f.points = [];
+	let cx = b[0] + b[2] * 0.5;
+	let cy = b[1] + b[3] * 0.5;
+	for (let i = 0; i + 1 < len(app.draft); i = i + 2) {
+		append(f.points, round_to(app.draft[i] - cx, 2));
+		append(f.points, round_to(app.draft[i + 1] - cy, 2));
+	}
+
+	app.draft = [];
+	doc_select_only(app, e.id);
+	log_line(app, e.name + ": " + (len(f.points) / 2) + " points");
+	return 0;
+}
+
+# --- editing one ------------------------------------------------------------
+#
+# A handle per vertex, in screen space so it stays the same size at any zoom --
+# the same reason the gizmo's grips are screen space.
+
+fn polygon_vertex_at(app, e, sx, sy) {
+	let poly = doc_polygon(app, e);
+	if (poly == null || doc_shape(app, e).shape != "polygon") { return -1; }
+
+	let c = doc_center(app, e);
+	let ca = math_cos(e.transform.angle);
+	let sa = math_sin(e.transform.angle);
+
+	for (let i = 0; i + 1 < len(poly); i = i + 2) {
+		let wx = c[0] + poly[i] * ca - poly[i + 1] * sa;
+		let wy = c[1] + poly[i] * sa + poly[i + 1] * ca;
+		let p = cam_to_screen(app, wx, wy);
+		if (math_abs(sx - p[0]) <= HANDLE_HALF + 2 &&
+		    math_abs(sy - p[1]) <= HANDLE_HALF + 2) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+fn polygon_move_vertex(app, e, index, wx, wy) {
+	let f = doc_shape(app, e);
+	let c = doc_center(app, e);
+
+	# world -> local, undoing the entity's rotation
+	let ca = math_cos(-e.transform.angle);
+	let sa = math_sin(-e.transform.angle);
+	let dx = snap_value(app, wx) - c[0];
+	let dy = snap_value(app, wy) - c[1];
+
+	let lx = round_to(dx * ca - dy * sa, 2);
+	let ly = round_to(dx * sa + dy * ca, 2);
+	if (f.points[index] == lx && f.points[index + 1] == ly) { return 0; }
+
+	doc_begin_edit(app);
+	let live = doc_shape(app, doc_find(app, e.id));
+	live.points[index] = lx;
+	live.points[index + 1] = ly;
+	return 0;
+}
+
+fn polygon_delete_vertex(app, e, index) {
+	let f = doc_shape(app, e);
+	if (len(f.points) <= 6) {
+		log_line(app, "a polygon needs three points");
+		return 0;
+	}
+
+	doc_begin_edit(app);
+	let live = doc_shape(app, doc_find(app, e.id));
+	let kept = [];
+	for (let i = 0; i + 1 < len(live.points); i = i + 2) {
+		if (i != index) {
+			append(kept, live.points[i]);
+			append(kept, live.points[i + 1]);
+		}
+	}
+	live.points = kept;
+	doc_polygon_recentre(app, doc_find(app, e.id));
+	return 0;
+}
+
+# Splits the longest edge, which is where a point is most likely wanted and
+# needs no aiming.
+fn polygon_add_vertex(app, e) {
+	let f = doc_shape(app, e);
+	if (f.shape != "polygon") { return 0; }
+
+	let n = len(f.points);
+	let best = 0;
+	let best_len = -1.0;
+	for (let i = 0; i < n; i = i + 2) {
+		let j = (i + 2) % n;
+		let dx = f.points[j] - f.points[i];
+		let dy = f.points[j + 1] - f.points[i + 1];
+		let d = dx * dx + dy * dy;
+		if (d > best_len) { best_len = d; best = i; }
+	}
+
+	doc_begin_edit(app);
+	let live = doc_shape(app, doc_find(app, e.id));
+	let j = (best + 2) % n;
+	let mx = round_to((live.points[best] + live.points[j]) * 0.5, 2);
+	let my = round_to((live.points[best + 1] + live.points[j + 1]) * 0.5, 2);
+
+	let out = [];
+	for (let i = 0; i < n; i = i + 2) {
+		append(out, live.points[i]);
+		append(out, live.points[i + 1]);
+		if (i == best) {
+			append(out, mx);
+			append(out, my);
+		}
+	}
+	live.points = out;
+	return 0;
+}
+
 fn viewport_input(app, dt) {
 	let m = love_mouse_getPosition();
 	app.mx = m[0];
@@ -320,18 +473,37 @@ fn viewport_input(app, dt) {
 	if (pressed && press_inside && !app.confirm && app.browser == null &&
 	    app.scene_pending == null && app.name_dialog == null &&
 	    app.delete_scene == null && !app.quitting) {
-		if (app.tool == "select") {
+		if (app.tool == "polygon") {
+			polygon_click(app, pwx, pwy);
+		} else if (app.tool == "select") {
+			# A vertex of the selected polygon wins over everything: it is the
+			# smallest target on screen and it sits on top of the shape it
+			# belongs to. Shift removes one instead of moving it.
+			let sel = doc_selected(app);
+			let vertex = -1;
+			if (sel != null && len(app.selection) == 1) {
+				vertex = polygon_vertex_at(app, sel, px, py);
+			}
+			if (vertex >= 0) {
+				if (add) {
+					polygon_delete_vertex(app, sel, vertex);
+				} else {
+					app.vertex = vertex;
+				}
+			}
+
 			# a grip of the current selection wins over picking something new,
 			# so a handle that overhangs another entity still works. The grips
 			# only appear for one entity, so this cannot fire on a multi
 			# selection.
-			let sel = doc_selected(app);
 			let handle = null;
-			if (sel != null && len(app.selection) == 1) {
+			if (vertex < 0 && sel != null && len(app.selection) == 1) {
 				handle = gizmo_hit(app, sel, px, py);
 			}
 
-			if (handle != null) {
+			if (vertex >= 0) {
+				# already handled above
+			} else if (handle != null) {
 				gizmo_begin(app, sel, handle, pwx, pwy);
 			} else {
 				let hit = hit_test(app, pwx, pwy);
@@ -358,7 +530,10 @@ fn viewport_input(app, dt) {
 		}
 	}
 
-	if (app.gizmo != null && down) {
+	if (app.vertex >= 0 && down) {
+		let e = doc_selected(app);
+		if (e != null) { polygon_move_vertex(app, e, app.vertex, app.wx, app.wy); }
+	} else if (app.gizmo != null && down) {
 		let e = doc_selected(app);
 		if (e != null) { gizmo_apply(app, e); }
 	} else if (app.dragging && down) {
@@ -367,6 +542,14 @@ fn viewport_input(app, dt) {
 
 	if (released) {
 		if (app.marquee != null) { marquee_finish(app); }
+
+		# the box follows the points once a vertex has been let go, so the
+		# entity's position still means its top-left corner
+		if (app.vertex >= 0) {
+			let e = doc_selected(app);
+			if (e != null) { doc_polygon_recentre(app, e); }
+		}
+		app.vertex = -1;
 		app.dragging = false;
 		app.gizmo = null;
 	}
@@ -379,7 +562,17 @@ fn shortcut(app, name, ctrl) {
 	# Esc backs out of whatever is open, one layer at a time. It used to be
 	# polled with love_keyboard_isDown(), which meant a quick tap between two
 	# frames did nothing at all.
+	if (!ctrl && (name == "return" || name == "enter")) {
+		if (len(app.draft) > 0) { polygon_finish(app); }
+		return 0;
+	}
+
 	if (!ctrl && (name == "escape" || name == "esc")) {
+		if (len(app.draft) > 0) {
+			app.draft = [];
+			log_line(app, "polygon cancelled");
+			return 0;
+		}
 		if (app.browser != null) { browser_close(app); return 0; }
 		if (app.name_dialog != null) { app.name_dialog = null; return 0; }
 		if (app.delete_scene != null) { app.delete_scene = null; return 0; }
@@ -496,6 +689,8 @@ fn editor_new(opts) {
 	app.drag_start = [];      # [id, x, y] per selected entity when it started
 	app.marquee = null;       # [x, y] of a rubber band's first corner
 	app.marquee_add = false;  # was Shift held when it started
+	app.vertex = -1;          # index into a polygon's points, while dragging one
+	app.draft = [];           # the polygon being drawn, in world units
 
 	app.mouse_down = false;
 	app.mx = 0;

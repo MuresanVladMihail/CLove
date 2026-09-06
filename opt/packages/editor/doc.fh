@@ -123,6 +123,60 @@ fn doc_find(app, id) {
 
 fn doc_shape(app, e) { return e.fixtures[0]; }
 
+# The local polygon for an entity, centred on its origin, flat [x0,y0,...] --
+# or null when it has none. "traced" comes from the artwork and is recomputed;
+# "polygon" is drawn by hand and lives in the document. Everything downstream
+# (Play, the outline, the vertex handles) goes through this, so the two are the
+# same thing from here on.
+fn doc_polygon(app, e) {
+	let f = doc_shape(app, e);
+	if (f.shape == "polygon") {
+		if (!contains_key(f, "points") || len(f.points) < 6) { return null; }
+		return f.points;
+	}
+	if (f.shape == "traced") { return trace_points(app, e); }
+	return null;
+}
+
+# The box a set of local points sits in, which is what the fixture's w/h has to
+# be for framing, picking and the gizmo to mean anything.
+fn doc_polygon_bounds(app, points) {
+	let minx = points[0];
+	let maxx = points[0];
+	let miny = points[1];
+	let maxy = points[1];
+	for (let i = 0; i + 1 < len(points); i = i + 2) {
+		if (points[i] < minx) { minx = points[i]; }
+		if (points[i] > maxx) { maxx = points[i]; }
+		if (points[i + 1] < miny) { miny = points[i + 1]; }
+		if (points[i + 1] > maxy) { maxy = points[i + 1]; }
+	}
+	return [minx, miny, maxx - minx, maxy - miny];
+}
+
+# Keeps the fixture box around the points and the points centred in it, so the
+# entity's position still means its top-left corner and picking still works.
+fn doc_polygon_recentre(app, e) {
+	let f = doc_shape(app, e);
+	if (f.shape != "polygon" || !contains_key(f, "points")) { return 0; }
+
+	let b = doc_polygon_bounds(app, f.points);
+	let cx = b[0] + b[2] * 0.5;
+	let cy = b[1] + b[3] * 0.5;
+
+	for (let i = 0; i + 1 < len(f.points); i = i + 2) {
+		f.points[i] = round_to(f.points[i] - cx, 2);
+		f.points[i + 1] = round_to(f.points[i + 1] - cy, 2);
+	}
+
+	# the box moved under the points, so the entity moves with it
+	e.transform.x = round_to(e.transform.x + cx + (f.w - b[2]) * 0.5, 2);
+	e.transform.y = round_to(e.transform.y + cy + (f.h - b[3]) * 0.5, 2);
+	f.w = round_to(b[2], 2);
+	f.h = round_to(b[3], 2);
+	return 0;
+}
+
 # Entities are positioned by their top-left corner in the document; Box2D
 # wants the body centre, so the two are converted at the boundary.
 fn doc_bounds(app, e) {
