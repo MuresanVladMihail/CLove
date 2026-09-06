@@ -54,7 +54,7 @@ function love.update(dt)
 	local mx = love.mouse.getX()
 	local my = love.mouse.getY()
 
-	if love.keyboard.isDown("esc") then
+	if love.keyboard.isDown("escape") then
 		love.event.quit()
 	end
 end

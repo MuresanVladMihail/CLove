@@ -39,7 +39,7 @@ function love.keypressed(k)
 	if k == "d" then 
 		print("Hey!")
 	end
-	if k == " " or k == "esc" then
+	if k == " " or k == "escape" then
 		print("QUIT")
 	end
 end

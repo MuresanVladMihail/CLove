@@ -32,7 +32,7 @@ local z = -300
 local y = 0
 local x = 0
 function love.update(dt)
-	if love.keyboard.isDown("esc") then love.event.quit() end 
+	if love.keyboard.isDown("escape") then love.event.quit() end 
 
 	rot = rot + dt / 8
 

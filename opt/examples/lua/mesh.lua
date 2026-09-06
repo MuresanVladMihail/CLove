@@ -39,7 +39,7 @@ function love.load()
 end
 
 function love.update(dt) 
-    if love.keyboard.isDown("esc") then love.event.quit() end
+    if love.keyboard.isDown("escape") then love.event.quit() end
     if love.keyboard.isDown("a") then 	mesh:setTexture(image) end
     if love.keyboard.isDown("d") then 	mesh:setTexture(nil) end
     if love.keyboard.isDown("e") then 

@@ -171,7 +171,7 @@ fn log_window(self) {
 }
 
 fn love_update(dt, self) {
-	if (love_keyboard_isDown("esc")) {
+	if (love_keyboard_isDown("escape")) {
 		love_event_quit();
 	}
 

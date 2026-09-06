@@ -1,76 +1,71 @@
-fn love_joystick_pressed(j) {
-}
+# Text: the default font, a TTF at a chosen size, and a bitmap font.
+#
+# love_graphics_print(text, x, y, r, sx, sy) draws with whatever font is
+# current. The metric calls (getWidth, getHeight, getBaseline, getAscent,
+# getDescent, getWrap) are what you need to lay text out yourself.
+#
+#   cd opt/examples/fh/font && ../../../../build/clove
 
-fn love_mousepressed(m) {
-}
-
-fn love_mousereleased(m) {
-}
-
-fn love_wheelmoved(y) {
-}
-
-fn love_textinput(text) {
-}
-
-fn love_keypressed(key) {
-}
-
-fn love_keyreleased(key) {
-}
-
-fn love_quit() {
-}
-
-fn love_focus(focused) {
-}
-
-fn love_update(dt) {
-
-}
-
-fn love_load()  {
+fn love_load() {
     let self = {};
 
-    let big = love_graphics_newFont(64);
-    self.bigFont = big;
+    # A size on its own uses CLove's built-in font.
+    self.big = love_graphics_newFont(64);
 
-    self.small = love_graphics_newFont("vera.ttf", 32);
+    # A path plus a size loads a TTF.
+    self.small = love_graphics_newFont("../assets/vera.ttf", 28);
     love_font_setFilter(self.small, "linear", "linear", love_graphics_getMaxAnisotropy());
 
-    println(love_font_getHeight(self.bigFont), " ",
-            love_font_getWidth(self.bigFont, "Hello world!"), " ",
-            love_font_getBaseline(self.bigFont), " ",
-            love_font_getAscent(self.bigFont), " ",
-            love_font_getDescent(self.bigFont));
+    # A bitmap font is an image plus the glyphs it contains, in order, and
+    # the width of one cell.
+    self.bitmap = love_graphics_newBitmapFont("../assets/bitmapfont.png", " abcd\n", 9);
+    love_font_setFilter(self.bitmap, "nearest", "nearest", 1.0);
 
-    self.text = love_font_getWrap(self.small, "Hellothereboy!", 30);
-    println("Total wrapped lines: ", self.text[1]);
+    # getWrap returns [wrapped text, line count].
+    self.wrapped = love_font_getWrap(self.small,
+        "getWrap breaks a string to a width, at spaces, and tells you how many lines it took.", 300);
 
-    let text = " abcd\n";
-    self.bitmapFont = love_graphics_newBitmapFont("f1.png", text, 9);
-    love_font_setFilter(self.bitmapFont, "nearest", "nearest", 1.0);
-    println("BitmapFont filter: \n", love_font_getFilter(self.bitmapFont));
+    println("big font  height=", love_font_getHeight(self.big),
+            " width('Hello world!')=", love_font_getWidth(self.big, "Hello world!"),
+            " baseline=", love_font_getBaseline(self.big),
+            " ascent=", love_font_getAscent(self.big),
+            " descent=", love_font_getDescent(self.big));
+    println("wrapped into ", self.wrapped[1], " lines");
 
-    self.text_bitmap = love_font_getWrap(self.bitmapFont, "abcd dcba dac cac acc cac", 40);
-    println("Total wrapped lines for text bitmap: ", self.text_bitmap[1]);
-
-    love_draw(self);
     return self;
 }
 
+fn love_update(dt, self) {
+    if (love_keyboard_isDown("escape")) { love_event_quit(); }
+}
+
 fn love_draw(self) {
-    love_graphics_setFont(self.bigFont);
-    love_graphics_print("Hello world!", 350, 170);
-    let cf = love_graphics_getFont();
-    love_graphics_setFont(cf);
+    love_graphics_setBackgroundColor(26, 28, 36);
+    love_graphics_setColor(235, 235, 245);
+
+    love_graphics_setFont(self.big);
+    love_graphics_print("Hello world!", 40, 60);
+
     love_graphics_setFont(self.small);
-    love_graphics_print("Hi", 450, 50, 90, 10, 10);
-    love_graphics_print(self.text[0], 300, 50);
-    love_graphics_setFont(self.bitmapFont);
-    love_graphics_print(self.text_bitmap[0], 460, 250, 0, 2, 2);
+    love_graphics_print("Vera, 28pt", 40, 160);
+    love_graphics_print(self.wrapped[0], 40, 200);
+
+    # print takes a rotation and a scale, like draw does.
+    love_graphics_setColor(255, 190, 100);
+    love_graphics_print("rotated", 640, 120, 0.4);
+
+    # This strip has black glyphs with a white outline, so it needs a light
+    # background to read at all -- a bitmap font carries its own colours and
+    # setColor only multiplies them.
+    love_graphics_setColor(225, 225, 230);
+    love_geometry_rectangle("fill", 30, 385, 300, 70);
+    love_graphics_setColor(255, 255, 255);
+    love_graphics_setFont(self.bitmap);
+    love_graphics_print("abcd dcba", 45, 400, 0, 3, 3);
+
+    love_graphics_setFont(self.small);
+    love_graphics_setColor(160, 165, 180);
+    love_graphics_print("escape to quit", 40, 500);
 }
 
-fn main() {
-
-}
+fn main() {}

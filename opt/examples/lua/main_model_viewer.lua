@@ -18,7 +18,7 @@ end
 
 function love.update(dt)
     
-    if love.keyboard.isDown("esc") then
+    if love.keyboard.isDown("escape") then
         love.event.quit()
     end
 end
