@@ -26,7 +26,8 @@
 #      view.fh     the viewport
 #      browser.fh  the "pick an image" dialog
 #      scenes.fh   levels: the Scene menu and switching between them
-#      panels.fh   the microui panels
+#      inspector.fh   the right-hand panel
+#      panels.fh   the toolbar, hierarchy, console, status bar, theme
 #
 #  Every *.json beside the game is a level; the Scene menu in the toolbar
 #  switches between them. editor.json is the exception -- it holds the editor's
@@ -61,6 +62,7 @@ include "cursor.fh"
 include "view.fh"
 include "browser.fh"
 include "scenes.fh"
+include "inspector.fh"
 include "panels.fh"
 
 

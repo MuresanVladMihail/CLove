@@ -12,6 +12,7 @@
 let ALIGN_LEFT   = 0;
 let ALIGN_CENTER = 1;      # MU_OPT_ALIGNCENTER
 let OPT_EXPANDED = 4096;   # MU_OPT_EXPANDED -- headers and trees start open
+let OPT_DISABLED = 4;      # MU_OPT_NOINTERACT -- draws, never fires
 
 # --- layout -----------------------------------------------------------------
 # FH global initializers must be constant expressions, so the viewport numbers
@@ -122,6 +123,14 @@ fn love_wheelmoved(y) {
 fn round_to(v, places) {
 	let m = math_pow(10, places);
 	return math_floor(v * m + 0.5) / m;
+}
+
+# A button that is drawn but does nothing when there is nothing for it to do.
+# Greying out beats a button that looks live and silently ignores the click.
+fn ui_button_enabled(label, enabled, align) {
+	if (enabled) { return love_ui_button(label, align); }
+	love_ui_button(label, align + OPT_DISABLED);
+	return false;
 }
 
 fn point_in(x, y, rx, ry, rw, rh) {

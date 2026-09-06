@@ -726,9 +726,19 @@ static int fn_love_ui_opt(struct fh_program *prog,
     } else if (strcmp(opt, "popup") == 0) {
         num = MU_OPT_POPUP;
     } else if (strcmp(opt, "autosize") == 0) {
-        num = MU_OPT_AUTOSIZE;;
+        num = MU_OPT_AUTOSIZE;
+    } else if (strcmp(opt, "nointeract") == 0) {
+        /* Draws the widget but never hovers, focuses or fires it -- what a
+         * greyed-out button is made of. */
+        num = MU_OPT_NOINTERACT;
+    } else if (strcmp(opt, "noscroll") == 0) {
+        num = MU_OPT_NOSCROLL;
+    } else if (strcmp(opt, "expanded") == 0) {
+        num = MU_OPT_EXPANDED;
+    } else if (strcmp(opt, "closed") == 0) {
+        num = MU_OPT_CLOSED;
     } else {
-        return fh_set_error(prog, "invalid alignment %s\n", opt);
+        return fh_set_error(prog, "love_ui_opt(): unknown option \"%s\"", opt);
     }
     *ret = fh_new_number(num);
     return 0;

@@ -376,7 +376,10 @@ what that looks like is a control that only responds when it happens to be the
 last one drawn. Give each one a number of its own.
 
 `opt` values come from `love_ui_opt("noclose" / "noframe" / "notitle" /
-"noresize" / "popup" / "autosize")` and `love_ui_align("center" / "right")`;
+"noresize" / "popup" / "autosize" / "nointeract" / "noscroll" / "expanded" /
+"closed")` and `love_ui_align("center" / "right")`; `nointeract` is what a
+greyed-out control is made of — the widget draws but never hovers, focuses or
+fires;
 they are microui's `MU_OPT_*` bits and combine by addition. Passing `notitle +
 noresize` to `love_ui_begin_window` turns a window into a fixed panel — see
 `opt/examples/fh/editor` for a docked-panel layout, and `opt/examples/fh/ui`

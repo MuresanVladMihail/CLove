@@ -1,0 +1,303 @@
+# ============================================================================
+#  inspector.fh -- the right-hand panel
+# ----------------------------------------------------------------------------
+#  Everything about the selected entity: its name, its groups and properties,
+#  the collision shape, the sprite, the transform, the body and its appearance.
+#
+#  It lives apart from panels.fh because it is half the UI on its own: the
+#  toolbar, the hierarchy, the console, the status bar and the theme window
+#  together are shorter than this one panel.
+#
+#  Two rules the code here has to respect, both from microui:
+#
+#   * A slider, number field or text box takes its widget id from the address
+#     it is handed, which is the same stack slot on every call -- so each one
+#     needs an explicit id from const.fh, or they collide and none of them
+#     respond.
+#   * Nothing it draws can be drawn outside a window, a panel or a popup.
+# ============================================================================
+
+
+fn panels_groups_to_text(app, e) {
+	let out = "";
+	for (let i = 0; i < len(e.groups); i = i + 1) {
+		if (i > 0) { out = out + ", "; }
+		out = out + e.groups[i];
+	}
+	return out;
+}
+
+fn panels_text_to_groups(app, text) {
+	let out = [];
+	let parts = string_split(text, ",");
+	for (let i = 0; i < len(parts); i = i + 1) {
+		let g = string_trim(parts[i]);
+		if (len(g) > 0) { append(out, g); }
+	}
+	return out;
+}
+
+fn panels_shape_button(app, f, label) {
+	let caption = "  " + label;
+	if (f.shape == label) { caption = "> " + label; }
+	if (love_ui_button(caption, ALIGN_CENTER)) {
+		doc_begin_edit(app);
+		f.shape = label;
+	}
+	return 0;
+}
+
+fn panels_body_type_button(app, e, label) {
+	let caption = "  " + label;
+	if (e.body.type == label) { caption = "> " + label; }
+	if (love_ui_button(caption, ALIGN_CENTER)) {
+		doc_begin_edit(app);
+		e.body.type = label;
+	}
+	return 0;
+}
+
+fn panels_inspector(app) {
+	if (love_ui_begin_window("Inspector", SCREEN_W - PANEL_W, TOOLBAR_H,
+	                         PANEL_W, SCREEN_H - TOOLBAR_H, panels_dock_opts(app))) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_label("INSPECTOR");
+
+		let e = doc_selected(app);
+		if (e == null) {
+			love_ui_text("Nothing selected. Pick an entity in the viewport or in the hierarchy.");
+			love_ui_end_window();
+			return 0;
+		}
+
+		let f = doc_shape(app, e);
+
+		if (app.mode == "play") {
+			love_ui_text("Playing. Edits apply to the document, not to the running simulation.");
+		}
+
+		if (love_ui_header("Identity", OPT_EXPANDED)) {
+			love_ui_layout_row(2, [56, -1], 0);
+			love_ui_label("Id:");
+			love_ui_label("" + e.id);
+			love_ui_label("Name:");
+
+			let box = love_ui_textbox(NAME_BOX, e.name);
+			# box[0] is a MU_RES_* bitmask, box[1] the current text
+			if (box[0] != 0 && len(box[1]) > 0 && box[1] != e.name) {
+				doc_begin_edit(app);
+				e.name = box[1];
+			}
+		}
+
+		if (love_ui_header("Groups", OPT_EXPANDED)) {
+			love_ui_layout_row(1, [-1], 0);
+			let current = panels_groups_to_text(app, e);
+			let box = love_ui_textbox(GROUP_BOX, current);
+			if (box[0] != 0 && box[1] != current) {
+				doc_begin_edit(app);
+				e.groups = panels_text_to_groups(app, box[1]);
+			}
+			love_ui_label("comma separated, queried by the scene package");
+		}
+
+		# groups say what a thing is, props say with what parameters -- between
+		# them a game keeps its behaviour in code and the level stays data
+		props_panel(app, e);
+
+		if (love_ui_header("Collision", OPT_EXPANDED)) {
+			love_ui_layout_row(3, [62, 72, -1], 0);
+			panels_shape_button(app, f, "rect");
+			panels_shape_button(app, f, "circle");
+			panels_shape_button(app, f, "traced");
+
+			love_ui_layout_row(1, [-1], 0);
+			if (f.shape == "traced") {
+				let poly = trace_points(app, e);
+				if (poly == null) {
+					love_ui_text("Nothing to trace: give it vector art first.");
+				} else {
+					love_ui_label((len(poly) / 2) + " vertices, hulled");
+				}
+			}
+		}
+
+		if (love_ui_header("Sprite", OPT_EXPANDED)) {
+			# Only the path is stored. love_graphics_newImage() takes .svg
+			# and .png alike, so the format never has to be recorded.
+			love_ui_layout_row(1, [-1], 0);
+			let current = "";
+			if (e.sprite != null) { current = e.sprite.path; }
+
+			let box = love_ui_textbox(SPRITE_BOX, current);
+			if (box[0] != 0 && box[1] != current) {
+				doc_begin_edit(app);
+				if (len(box[1]) == 0) {
+					e.sprite = null;
+				} else {
+					e.sprite = { "path": box[1] };
+				}
+			}
+
+			# typing a path works, but browsing for one is the usual way in
+			love_ui_layout_row(2, [-90, -1], 0);
+			if (love_ui_button("Browse...", ALIGN_CENTER)) { browser_open(app, e); }
+			if (love_ui_button("Clear", ALIGN_CENTER)) {
+				if (e.sprite != null) {
+					doc_begin_edit(app);
+					e.sprite = null;
+					love_ui_clear_textbox(SPRITE_BOX);
+				}
+			}
+
+			love_ui_layout_row(1, [-1], 0);
+
+			let img = sprite_of(app, e);
+			if (img == null) {
+				love_ui_label("no sprite -- drawing the fixture");
+			} else if (love_image_isVector(img)) {
+				love_ui_label("vector, rasterised at " +
+					love_image_getVectorScale(img) + "x");
+			} else {
+				love_ui_label("bitmap " + love_image_getWidth(img) +
+					"x" + love_image_getHeight(img));
+			}
+		}
+
+		if (love_ui_header("Transform", OPT_EXPANDED)) {
+			# love_ui_number() is a drag-to-edit field: no fixed range,
+			# which is what coordinates and sizes want.
+			love_ui_layout_row(2, [56, -1], 0);
+			love_ui_label("X:");
+			let x = love_ui_number(e.transform.x, 1, ID_NUM_X);
+			love_ui_label("Y:");
+			let y = love_ui_number(e.transform.y, 1, ID_NUM_Y);
+			love_ui_label("W:");
+			let w = love_ui_number(f.w, 1, ID_NUM_W);
+			love_ui_label("H:");
+			let h = love_ui_number(f.h, 1, ID_NUM_H);
+			love_ui_label("Angle:");
+			let a = love_ui_number(e.transform.angle, 0.01, ID_NUM_ANGLE);
+
+			x = round_to(x, 2);
+			y = round_to(y, 2);
+			w = round_to(math_max(w, 4), 2);
+			h = round_to(math_max(h, 4), 2);
+			a = round_to(a, 4);
+
+			if (x != e.transform.x || y != e.transform.y ||
+			    w != f.w || h != f.h || a != e.transform.angle) {
+				doc_begin_edit(app);
+				e.transform.x = x;
+				e.transform.y = y;
+				e.transform.angle = a;
+				f.w = w;
+				f.h = h;
+			}
+		}
+
+		if (love_ui_header("Body", OPT_EXPANDED)) {
+			# microui reads a negative width as "container width + w", so a
+			# row of them makes the first cell swallow the whole line.
+			love_ui_layout_row(3, [62, 72, -1], 0);
+			panels_body_type_button(app, e, "static");
+			panels_body_type_button(app, e, "dynamic");
+			panels_body_type_button(app, e, "kinematic");
+
+			love_ui_layout_row(2, [86, -1], 0);
+			love_ui_label("Density:");
+			let d = love_ui_number(f.density, 0.05, ID_NUM_DENSITY);
+			love_ui_label("Friction:");
+			let fr = love_ui_number(f.friction, 0.02, ID_NUM_FRICTION);
+			love_ui_label("Bounce:");
+			let re = love_ui_number(f.restitution, 0.02, ID_NUM_BOUNCE);
+			love_ui_label("Gravity:");
+			let gs = love_ui_number(e.body.gravity_scale, 0.05, ID_NUM_GRAVITY);
+
+			d  = round_to(math_max(d, 0), 3);
+			fr = round_to(math_max(fr, 0), 3);
+			re = round_to(math_max(re, 0), 3);
+			gs = round_to(gs, 3);
+
+			if (d != f.density || fr != f.friction || re != f.restitution ||
+			    gs != e.body.gravity_scale) {
+				doc_begin_edit(app);
+				f.density = d;
+				f.friction = fr;
+				f.restitution = re;
+				e.body.gravity_scale = gs;
+			}
+
+			love_ui_layout_row(1, [-1], 0);
+			if (love_ui_checkbox("Sensor", f.sensor, 4)) {
+				doc_begin_edit(app);
+				f.sensor = !f.sensor;
+			}
+			if (love_ui_checkbox("Fixed rotation", e.body.fixed_rotation, 5)) {
+				doc_begin_edit(app);
+				e.body.fixed_rotation = !e.body.fixed_rotation;
+			}
+		}
+
+		if (love_ui_header("Appearance", OPT_EXPANDED)) {
+			love_ui_layout_row(2, [56, -1], 0);
+			love_ui_label("R:");
+			let r = love_ui_slider(e.color[0], 0, 255, 1, ID_COL_R, ALIGN_CENTER);
+			love_ui_label("G:");
+			let g = love_ui_slider(e.color[1], 0, 255, 1, ID_COL_G, ALIGN_CENTER);
+			love_ui_label("B:");
+			let b = love_ui_slider(e.color[2], 0, 255, 1, ID_COL_B, ALIGN_CENTER);
+
+			r = round_to(r, 0);
+			g = round_to(g, 0);
+			b = round_to(b, 0);
+
+			if (r != e.color[0] || g != e.color[1] || b != e.color[2]) {
+				doc_begin_edit(app);
+				e.color[0] = r;
+				e.color[1] = g;
+				e.color[2] = b;
+			}
+
+			# a swatch painted straight into the next layout cell
+			love_ui_layout_row(1, [-1], 28);
+			let sw = love_ui_layout_next();
+			love_ui_rect(sw[0], sw[1], sw[2], sw[3], e.color[0], e.color[1], e.color[2], 255);
+			love_ui_control_text(tointeger(e.color[0]) + ", " +
+				tointeger(e.color[1]) + ", " + tointeger(e.color[2]),
+				sw[0], sw[1], sw[2], sw[3], 0, love_ui_align("center"));
+
+			# The colour modulates the sprite as well as the plain shape, so
+			# getting back to "untinted" wants to be one click, not three
+			# sliders dragged to the end.
+			love_ui_layout_row(2, [-90, -1], 0);
+			if (e.sprite == null) {
+				love_ui_label("fill colour");
+			} else {
+				love_ui_label("tints the sprite");
+			}
+			if (love_ui_button("White", ALIGN_CENTER)) {
+				if (e.color[0] != 255 || e.color[1] != 255 || e.color[2] != 255) {
+					doc_begin_edit(app);
+					e.color[0] = 255;
+					e.color[1] = 255;
+					e.color[2] = 255;
+				}
+			}
+
+			love_ui_layout_row(1, [-1], 0);
+			if (love_ui_checkbox("Visible", e.visible, 6)) {
+				doc_begin_edit(app);
+				e.visible = !e.visible;
+			}
+		}
+
+		love_ui_layout_row(1, [-1], 0);
+		if (love_ui_button("Delete entity", ALIGN_CENTER)) { app.confirm = true; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+# --- console, status, theme, confirm --------------------------------
