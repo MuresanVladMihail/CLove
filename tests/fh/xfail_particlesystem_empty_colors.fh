@@ -1,0 +1,10 @@
+# A colour curve with no colours would make update() interpolate over
+# count - 1 == SIZE_MAX and index the array off into space.
+fn love_load() {
+    let img = love_graphics_newImage("assets/vector.svg");
+    let ps = love_graphics_newParticleSystem(img, 16);
+    love_particleSystem_setColors(ps, []);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

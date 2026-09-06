@@ -55,6 +55,9 @@ typedef enum {
 typedef enum {
     graphics_AreaSpreadDistribution_uniform,
     graphics_AreaSpreadDistribution_normal,
+    graphics_AreaSpreadDistribution_ellipse,
+    graphics_AreaSpreadDistribution_borderellipse,
+    graphics_AreaSpreadDistribution_borderrectangle,
     graphics_AreaSpreadDistribution_none
 } graphics_AreaSpreadDistribution;
 
@@ -82,6 +85,8 @@ typedef struct {
 
     graphics_AreaSpreadDistribution areaSpreadDistribution;
     float areaSpread[2];
+    float areaSpreadAngle;
+    bool directionRelativeToCenter;
 
     float lifetime;
     float life;
@@ -124,7 +129,8 @@ typedef struct {
     graphics_Color *colors;
     size_t colorCount;
 
-    graphics_Quad const **quads;
+    // Owned copies, not the caller's pointers -- see setQuads().
+    graphics_Quad *quads;
     size_t quadCount;
 
     bool relativeRotation;
@@ -136,6 +142,8 @@ void graphics_ParticleSystem_free(graphics_ParticleSystem *ps);
 
 void graphics_ParticleSystem_setAreaSpread(graphics_ParticleSystem *ps, graphics_AreaSpreadDistribution mode, float dx, float dy);
 void graphics_ParticleSystem_getAreaSpread(graphics_ParticleSystem const *ps, graphics_AreaSpreadDistribution *mode, float *dx, float *dy);
+void graphics_ParticleSystem_setEmissionArea(graphics_ParticleSystem *ps, graphics_AreaSpreadDistribution mode, float dx, float dy, float angle, bool directionRelativeToCenter);
+void graphics_ParticleSystem_getEmissionArea(graphics_ParticleSystem const *ps, graphics_AreaSpreadDistribution *mode, float *dx, float *dy, float *angle, bool *directionRelativeToCenter);
 void graphics_ParticleSystem_setBufferSize(graphics_ParticleSystem *ps, size_t size);
 size_t graphics_ParticleSystem_getBufferSize(graphics_ParticleSystem const *ps);
 void graphics_ParticleSystem_setColors(graphics_ParticleSystem *ps, size_t count, graphics_Color const *colors);
@@ -145,6 +153,7 @@ graphics_Image const* graphics_ParticleSystem_getTexture(graphics_ParticleSystem
 float const *graphics_ParticleSystem_getSizes(graphics_ParticleSystem const *ps, size_t *count);
 void graphics_ParticleSystem_setSizes(graphics_ParticleSystem *ps, size_t count, float const *sizes);
 void graphics_ParticleSystem_setQuads(graphics_ParticleSystem *ps, size_t count, graphics_Quad const * const *quads);
+graphics_Quad const *graphics_ParticleSystem_getQuads(graphics_ParticleSystem const *ps, size_t *count);
 void graphics_ParticleSystem_setRelativeRotation(graphics_ParticleSystem *ps, bool enable);
 void graphics_ParticleSystem_setInsertMode(graphics_ParticleSystem *ps, graphics_ParticleInsertMode mode);
 graphics_ParticleInsertMode graphics_ParticleSystem_getInsertMode(graphics_ParticleSystem const *ps);

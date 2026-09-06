@@ -1,0 +1,10 @@
+# setQuads() takes quads. The type check used to be inverted, so this passed
+# and a real quad array failed.
+fn love_load() {
+    let img = love_graphics_newImage("assets/vector.svg");
+    let ps = love_graphics_newParticleSystem(img, 16);
+    love_particleSystem_setQuads(ps, [1, 2, 3]);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

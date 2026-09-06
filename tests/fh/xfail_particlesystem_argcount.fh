@@ -1,0 +1,10 @@
+# love_particleSystem_setParticleLifetime() needs the system and both bounds;
+# reading args[] past n_args is an out-of-bounds read.
+fn love_load() {
+    let img = love_graphics_newImage("assets/vector.svg");
+    let ps = love_graphics_newParticleSystem(img, 16);
+    love_particleSystem_setParticleLifetime(ps);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

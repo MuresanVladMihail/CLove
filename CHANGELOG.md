@@ -14,6 +14,27 @@ version 0.8.0 not yet released
 * added: New scripting language, FH.
 * added: Misc math utilities.
 * added: Very powerful particle system.
+* fixed: the particle system leaked and could corrupt the heap.
+	love_particleSystem_setBufferSize() malloc'd a new particle buffer without
+	freeing the old one (200 systems resized twice leaked ~4.9 MB) and left the
+	live list pointing into it, and the emission loop in update() had no
+	capacity check at all, so a high emission rate with a small buffer walked
+	the free pointer off the end of the allocation. Also: setTexture() never
+	reached the batch that does the drawing, so it did nothing on screen; the
+	spawn size was indexed with the cast on the wrong side of the
+	multiplication; clone() leaked the destination's buffers and handed back a
+	second script handle onto one system; setQuads() kept the caller's Quad
+	pointers, so a system outlived the quads a script gave it; and an empty
+	colour array made update() interpolate over SIZE_MAX.
+* fixed: love_particleSystem_setSizes() was never registered, so scripts could
+	not call it, and it read every size past the first from beyond the end of
+	the array. love_particleSystem_setQuads()'s type check was inverted --
+	it rejected exactly the arrays it should have accepted.
+* added: love_particleSystem_setParticleLifetime() (it had no binding at all),
+	love_particleSystem_getQuads(), and LOVE 11's emission areas --
+	love_particleSystem_setEmissionArea() / getEmissionArea() with the
+	"ellipse", "borderellipse" and "borderrectangle" distributions, an area
+	rotation angle and directionRelativeToCenter.
 * added: Lua can be enabled or disabled at compile time.
 * added: Build system for web!
 * added: More C flags for compilation.

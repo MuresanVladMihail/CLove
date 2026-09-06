@@ -21,6 +21,7 @@ static const graphics_Color defaultColor = {1.0f, 1.0f, 1.0f, 1.0f};
 static const graphics_Quad defaultQuad = {0.0f, 0.0f, 1.0f, 1.0f};
 static const graphics_Quad *defaultQuadPtr = &defaultQuad;
 static const float defaultSize = 1.0f;
+static const float TWO_PI = 6.28318530717958647692f;
 
 static RandomGenerator rng;
 
@@ -43,20 +44,81 @@ static void initParticle(graphics_ParticleSystem const *ps, graphics_Particle *p
     }
     p->lifetime = p->life;
 
+    // The offset from the emitter's centre is computed on its own so the
+    // emission area can be rotated as a whole and so a particle can be aimed
+    // away from the centre (LOVE's directionRelativeToCenter).
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+
     switch(ps->areaSpreadDistribution) {
     case graphics_AreaSpreadDistribution_uniform:
-        p->position[0] += RandomGenerator_random2((RandomGenerator*)&rng, -1.0, 1.0) * ps->areaSpread[0];
-        p->position[1] += RandomGenerator_random2(&rng, -1.0, 1.0) * ps->areaSpread[1];
+        offsetX = RandomGenerator_random2((RandomGenerator*)&rng, -1.0, 1.0) * ps->areaSpread[0];
+        offsetY = RandomGenerator_random2((RandomGenerator*)&rng, -1.0, 1.0) * ps->areaSpread[1];
         break;
     case graphics_AreaSpreadDistribution_normal:
-        p->position[0] += RandomGenerator_randomNormal((RandomGenerator*)&rng, ps->areaSpread[0]);
-        p->position[1] += RandomGenerator_randomNormal((RandomGenerator*)&rng, ps->areaSpread[1]);
+        offsetX = RandomGenerator_randomNormal((RandomGenerator*)&rng, ps->areaSpread[0]);
+        offsetY = RandomGenerator_randomNormal((RandomGenerator*)&rng, ps->areaSpread[1]);
         break;
+    case graphics_AreaSpreadDistribution_ellipse: {
+        // sqrt() of a uniform radius, otherwise the middle gets crowded.
+        float theta = (float)RandomGenerator_random2((RandomGenerator*)&rng, 0.0, TWO_PI);
+        float r = sqrtf((float)RandomGenerator_random((RandomGenerator*)&rng));
+        offsetX = ps->areaSpread[0] * r * cosf(theta);
+        offsetY = ps->areaSpread[1] * r * sinf(theta);
+        break;
+    }
+    case graphics_AreaSpreadDistribution_borderellipse: {
+        float theta = (float)RandomGenerator_random2((RandomGenerator*)&rng, 0.0, TWO_PI);
+        offsetX = ps->areaSpread[0] * cosf(theta);
+        offsetY = ps->areaSpread[1] * sinf(theta);
+        break;
+    }
+    case graphics_AreaSpreadDistribution_borderrectangle: {
+        // Uniform along the perimeter of the 2dx by 2dy rectangle, so the
+        // long sides get proportionally more particles than the short ones.
+        float w = ps->areaSpread[0];
+        float h = ps->areaSpread[1];
+        float perimeter = 4.0f * (w + h);
+        if(perimeter <= 0.0f) {
+            break;
+        }
+        float d = (float)RandomGenerator_random2((RandomGenerator*)&rng, 0.0, perimeter);
+        if(d < 2.0f * w) {
+            offsetX = -w + d;
+            offsetY = -h;
+        } else if(d < 2.0f * w + 2.0f * h) {
+            offsetX = w;
+            offsetY = -h + (d - 2.0f * w);
+        } else if(d < 4.0f * w + 2.0f * h) {
+            offsetX = w - (d - 2.0f * w - 2.0f * h);
+            offsetY = h;
+        } else {
+            offsetX = -w;
+            offsetY = h - (d - 4.0f * w - 2.0f * h);
+        }
+        break;
+    }
     default:
         break;
     }
 
-    float direction = ps->direction + RandomGenerator_random2(&rng, -1.0, 1.0) * ps->spread;
+    if(ps->areaSpreadAngle != 0.0f) {
+        float c = cosf(ps->areaSpreadAngle);
+        float s = sinf(ps->areaSpreadAngle);
+        float rx = offsetX * c - offsetY * s;
+        offsetY   = offsetX * s + offsetY * c;
+        offsetX   = rx;
+    }
+
+    p->position[0] += offsetX;
+    p->position[1] += offsetY;
+
+    float base = ps->direction;
+    if(ps->directionRelativeToCenter && (offsetX != 0.0f || offsetY != 0.0f)) {
+        base = atan2f(offsetY, offsetX);
+    }
+
+    float direction = base + RandomGenerator_random2(&rng, -1.0, 1.0) * ps->spread;
 
     float speed = RandomGenerator_random2(&rng, ps->speedMin, ps->speedMax);
     p->velocity[0] = cos(direction) * speed;
@@ -73,7 +135,11 @@ static void initParticle(graphics_ParticleSystem const *ps, graphics_Particle *p
 
     p->sizeOffset = RandomGenerator_random(&rng);
     p->sizeIntervalSize = (1.0 - RandomGenerator_random2(&rng, 0.0, ps->sizeVariation)) - p->sizeOffset;
-    p->size = ps->sizes[(size_t)(p->sizeOffset - 0.5f) * (ps->sizeCount -1 )];
+    // The cast has to happen after the multiplication: written as
+    // (size_t)(sizeOffset - 0.5f) * (sizeCount - 1) it truncated the offset
+    // to 0 (and to an enormous value for the negative half), so the spawn
+    // size was always sizes[0] and, for half the particles, a wild read.
+    p->size = ps->sizes[(size_t)(p->sizeOffset * (float)(ps->sizeCount - 1))];
 
     p->spinStart = calculateVariation(ps->spinStart, ps->spinEnd,   ps->spinVariation);
     p->spinEnd   = calculateVariation(ps->spinEnd,   ps->spinStart, ps->spinVariation);
@@ -183,6 +249,12 @@ static graphics_Particle* removeParticle(graphics_ParticleSystem *ps, graphics_P
 }
 
 static void addParticle(graphics_ParticleSystem *ps, float t) {
+    // Only emit() used to check this, so a high emission rate with a small
+    // buffer walked pFree off the end of pMem and corrupted the heap.
+    if(ps->activeParticles >= ps->maxParticles || ps->pMem == 0) {
+        return;
+    }
+
     graphics_Particle *p = ps->pFree++;
     initParticle(ps, p, t);
 
@@ -202,13 +274,13 @@ static void addParticle(graphics_ParticleSystem *ps, float t) {
 }
 
 void graphics_ParticleSystem_new(graphics_ParticleSystem *ps, graphics_Image const *texture, size_t buffer) {
-    ps->sizes = 0;
-    ps->colors = 0;
-    ps->quads = 0;
-    ps->active = false;
-    ps->colorCount = 0;
-    ps->quadCount = 0;
-    ps->sizeCount = 0;
+    // Everything below relies on the pointers and the counts starting at
+    // zero: setBufferSize() frees the old pMem and setColors()/setSizes()/
+    // setQuads() compare against the current count before reallocating.
+    memset(ps, 0, sizeof(*ps));
+    if(buffer < 1) {
+        buffer = 1;
+    }
     graphics_Batch_new(&ps->batch, texture, buffer, graphics_BatchUsage_stream);
 
     graphics_ParticleSystem_setBufferSize(ps, buffer);
@@ -217,8 +289,8 @@ void graphics_ParticleSystem_new(graphics_ParticleSystem *ps, graphics_Image con
     graphics_ParticleSystem_setInsertMode(ps, graphics_ParticleInsertMode_random);
     graphics_ParticleSystem_setEmissionRate(ps, 0.0f);
     graphics_ParticleSystem_setPosition(ps, 0.0f, 0.0f);
-    graphics_ParticleSystem_setAreaSpread(ps,
-        graphics_AreaSpreadDistribution_none, 0.0f, 0.0f);
+    graphics_ParticleSystem_setEmissionArea(ps,
+        graphics_AreaSpreadDistribution_none, 0.0f, 0.0f, 0.0f, false);
     graphics_ParticleSystem_setEmitterLifetime(ps, -1.0f);
     graphics_ParticleSystem_setParticleLifetime(ps, 0.5f, 2.0f);
     graphics_ParticleSystem_setDirection(ps, 0.0f);
@@ -240,10 +312,12 @@ void graphics_ParticleSystem_new(graphics_ParticleSystem *ps, graphics_Image con
 }
 
 void graphics_ParticleSystem_clone(graphics_ParticleSystem const* ps, graphics_ParticleSystem *psNew) {
-    psNew->sizes = 0;
-    psNew->colors = 0;
-    psNew->quads = 0;
-    psNew->active = false;
+    // The destination is a fresh, uninitialised system: zero it and build
+    // its batch first. Blanking sizes/colors/quads without freeing them used
+    // to leak the destination's buffers whenever clone() overwrote a system
+    // that already had some.
+    memset(psNew, 0, sizeof(*psNew));
+    graphics_Batch_new(&psNew->batch, ps->texture, ps->maxParticles, graphics_BatchUsage_stream);
 
     graphics_ParticleSystem_setBufferSize(psNew, ps->maxParticles);
     graphics_ParticleSystem_reset(psNew);
@@ -251,7 +325,8 @@ void graphics_ParticleSystem_clone(graphics_ParticleSystem const* ps, graphics_P
     graphics_ParticleSystem_setInsertMode(psNew, ps->insertMode);
     graphics_ParticleSystem_setEmissionRate(psNew, ps->emissionRate);
     graphics_ParticleSystem_setPosition(psNew, ps->position[0], ps->position[1]);
-    graphics_ParticleSystem_setAreaSpread(psNew, ps->areaSpreadDistribution, ps->areaSpread[0], ps->areaSpread[1]);
+    graphics_ParticleSystem_setEmissionArea(psNew, ps->areaSpreadDistribution, ps->areaSpread[0], ps->areaSpread[1],
+                                            ps->areaSpreadAngle, ps->directionRelativeToCenter);
     graphics_ParticleSystem_setEmitterLifetime(psNew, ps->lifetime);
     graphics_ParticleSystem_setParticleLifetime(psNew, ps->particleLifeMin, ps->particleLifeMax);
     graphics_ParticleSystem_setDirection(psNew, ps->direction);
@@ -270,7 +345,14 @@ void graphics_ParticleSystem_clone(graphics_ParticleSystem const* ps, graphics_P
     graphics_ParticleSystem_setSpinVariation(psNew, ps->spinVariation);
     graphics_ParticleSystem_setOffset(psNew, ps->offsetX, ps->offsetY);
     graphics_ParticleSystem_setColors(psNew, ps->colorCount, ps->colors);
-    graphics_ParticleSystem_setQuads(psNew, ps->quadCount, ps->quads);
+
+    // The quads are stored by value, so they copy directly rather than going
+    // through setQuads(), which takes an array of pointers.
+    if(ps->quadCount > 0) {
+        psNew->quads = malloc(sizeof(graphics_Quad) * ps->quadCount);
+        memcpy(psNew->quads, ps->quads, sizeof(graphics_Quad) * ps->quadCount);
+        psNew->quadCount = ps->quadCount;
+    }
     graphics_ParticleSystem_setRelativeRotation(psNew, ps->relativeRotation);
 }
 
@@ -290,12 +372,37 @@ void graphics_ParticleSystem_free(graphics_ParticleSystem *ps) {
     free(ps->colors);
     free(ps->quads);
     free(ps->sizes);
+    ps->pMem = 0;
+    ps->pFree = 0;
+    ps->pHead = 0;
+    ps->pTail = 0;
+    ps->colors = 0;
+    ps->quads = 0;
+    ps->sizes = 0;
+    ps->activeParticles = 0;
+    ps->maxParticles = 0;
+    ps->colorCount = 0;
+    ps->quadCount = 0;
+    ps->sizeCount = 0;
 }
 
 void graphics_ParticleSystem_setBufferSize(graphics_ParticleSystem *ps, size_t size) {
+    if(size < 1) {
+        size = 1;
+    }
+    if(size == ps->maxParticles && ps->pMem != 0) {
+        return;
+    }
+
+    // This used to malloc unconditionally: every call leaked the previous
+    // buffer and left pHead/pTail pointing into it, and the batch kept its
+    // old capacity so a grown system dropped the extra particles at draw
+    // time. Resizing throws the live particles away, as it does in LOVE.
+    free(ps->pMem);
     ps->pMem = malloc(sizeof(graphics_Particle) * size);
-    ps->pFree = ps->pMem;
     ps->maxParticles = size;
+    graphics_Batch_changeBufferSize(&ps->batch, (int)size);
+    graphics_ParticleSystem_reset(ps);
 }
 
 size_t graphics_ParticleSystem_getBufferSize(graphics_ParticleSystem const *ps) {
@@ -303,9 +410,25 @@ size_t graphics_ParticleSystem_getBufferSize(graphics_ParticleSystem const *ps) 
 }
 
 void graphics_ParticleSystem_setAreaSpread(graphics_ParticleSystem *ps, graphics_AreaSpreadDistribution mode, float dx, float dy) {
+    graphics_ParticleSystem_setEmissionArea(ps, mode, dx, dy, ps->areaSpreadAngle, ps->directionRelativeToCenter);
+}
+
+void graphics_ParticleSystem_setEmissionArea(graphics_ParticleSystem *ps, graphics_AreaSpreadDistribution mode,
+                                             float dx, float dy, float angle, bool directionRelativeToCenter) {
     ps->areaSpreadDistribution = mode;
     ps->areaSpread[0] = dx;
     ps->areaSpread[1] = dy;
+    ps->areaSpreadAngle = angle;
+    ps->directionRelativeToCenter = directionRelativeToCenter;
+}
+
+void graphics_ParticleSystem_getEmissionArea(graphics_ParticleSystem const *ps, graphics_AreaSpreadDistribution *mode,
+                                             float *dx, float *dy, float *angle, bool *directionRelativeToCenter) {
+    *mode = ps->areaSpreadDistribution;
+    *dx = ps->areaSpread[0];
+    *dy = ps->areaSpread[1];
+    *angle = ps->areaSpreadAngle;
+    *directionRelativeToCenter = ps->directionRelativeToCenter;
 }
 
 void graphics_ParticleSystem_getAreaSpread(graphics_ParticleSystem const *ps, graphics_AreaSpreadDistribution *mode, float *dx, float *dy) {
@@ -315,6 +438,12 @@ void graphics_ParticleSystem_getAreaSpread(graphics_ParticleSystem const *ps, gr
 }
 
 void graphics_ParticleSystem_setColors(graphics_ParticleSystem *ps, size_t count, graphics_Color const *colors) {
+    // update() interpolates over count-1; a count of zero would wrap that to
+    // SIZE_MAX and index the array off into space.
+    if(count < 1 || colors == 0) {
+        return;
+    }
+
     size_t size = sizeof(graphics_Color) * count;
     if(count != ps->colorCount) {
         free(ps->colors);
@@ -464,6 +593,9 @@ void graphics_ParticleSystem_getTangentialAcceleration(graphics_ParticleSystem c
 
 void graphics_ParticleSystem_setTexture(graphics_ParticleSystem *ps, graphics_Image const* texture) {
     ps->texture = texture;
+    // The batch is what actually binds a texture when the system draws;
+    // setting only ps->texture made setTexture() a no-op on screen.
+    ps->batch.texture = texture;
 }
 
 graphics_Image const* graphics_ParticleSystem_getTexture(graphics_ParticleSystem const *ps) {
@@ -476,6 +608,10 @@ float const *graphics_ParticleSystem_getSizes(graphics_ParticleSystem const *ps,
 }
 
 void graphics_ParticleSystem_setSizes(graphics_ParticleSystem *ps, size_t count, float const *sizes) {
+    if(count < 1 || sizes == 0) {
+        return;
+    }
+
     if(ps->sizeCount != count) {
         free(ps->sizes);
         ps->sizes = malloc(sizeof(float) * count);
@@ -486,13 +622,28 @@ void graphics_ParticleSystem_setSizes(graphics_ParticleSystem *ps, size_t count,
 }
 
 void graphics_ParticleSystem_setQuads(graphics_ParticleSystem *ps, size_t count, graphics_Quad const * const *quads) {
+    if(count < 1 || quads == 0) {
+        return;
+    }
+
     if(ps->quadCount != count) {
         free(ps->quads);
-        ps->quads = malloc(sizeof(graphics_Quad*) * count);
+        ps->quads = malloc(sizeof(graphics_Quad) * count);
         ps->quadCount = count;
     }
 
-    memcpy(ps->quads, quads, sizeof(graphics_Quad*) * count);
+    // The quads are copied by value. Keeping the caller's pointers meant a
+    // system outlived the Quad objects a script had handed it and drew from
+    // freed memory; a Quad is four floats, so owning a copy is cheaper than
+    // any kind of retain.
+    for(size_t i = 0; i < count; ++i) {
+        ps->quads[i] = *quads[i];
+    }
+}
+
+graphics_Quad const *graphics_ParticleSystem_getQuads(graphics_ParticleSystem const *ps, size_t *count) {
+    *count = ps->quadCount;
+    return ps->quads;
 }
 
 void graphics_ParticleSystem_setRelativeRotation(graphics_ParticleSystem *ps, bool enable) {
@@ -648,12 +799,14 @@ void graphics_ParticleSystem_update(graphics_ParticleSystem *ps, float dt) {
     }
 
     if(ps->active) {
-        float rate = 1.0f / ps->emissionRate;
-        ps->emitCounter += dt;
-        float total = ps->emitCounter - rate;
-        while(ps->emitCounter > rate) {
-            addParticle(ps, 1.0f - (ps->emitCounter - rate) / total);
-            ps->emitCounter -= rate;
+        if(ps->emissionRate > 0.0f) {
+            float rate = 1.0f / ps->emissionRate;
+            ps->emitCounter += dt;
+            float total = ps->emitCounter - rate;
+            while(ps->emitCounter > rate) {
+                addParticle(ps, 1.0f - (ps->emitCounter - rate) / total);
+                ps->emitCounter -= rate;
+            }
         }
 
         ps->life -= dt;
@@ -672,7 +825,7 @@ void graphics_ParticleSystem_draw(graphics_ParticleSystem *ps, float x, float y,
     graphics_Batch_bind(b);
     graphics_Batch_clear(b);
     for(graphics_Particle *p = ps->pHead; p; p = p->next) {
-        graphics_Quad const* q = ps->quads[p->quadIndex];
+        graphics_Quad const* q = &ps->quads[p->quadIndex];
         graphics_Batch_setColor(b, p->color.red, p->color.green, p->color.blue, p->color.alpha);
         graphics_Batch_add(b, q, p->position[0], p->position[1], p->angle, p->size, p->size, ps->offsetX, ps->offsetY, 0.0f, 0.0f);
     }
