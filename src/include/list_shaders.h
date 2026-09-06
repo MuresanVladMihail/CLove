@@ -8,6 +8,10 @@ static GLchar const defaultVertexSource[] =
 
 static GLchar const vertexHeader[] =
         "#version 330 core\n"
+        /* LOVE declares a shader uniform with `extern`, which GLSL reserves.
+         * Mapping it here is what lets a LOVE shader compile unchanged; a
+         * shader that already says `uniform` is unaffected. */
+        "#define extern uniform\n"
         "uniform mat4 projection;\n"
         "uniform mat4 view;\n"
         "uniform mat4 model;\n"
@@ -38,6 +42,7 @@ static GLchar const defaultFragmentSource[] =
 
 static GLchar const fragmentHeader[] =
         "#version 330 core\n"
+        "#define extern uniform\n"
         "#define Image sampler2D\n"
         "#define Texel(s, c) texture((s), (c))\n"
         "in vec2 fUV;\n"

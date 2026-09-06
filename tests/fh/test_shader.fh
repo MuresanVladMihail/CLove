@@ -1,0 +1,88 @@
+# love_graphics_newShader() with inline GLSL. The two-argument form -- the one
+# LOVE uses -- had its test inverted: source that already *was* a vertex
+# shader got handed to filesystem_read() as a filename, so it always failed.
+# LOVE also spells a uniform `extern`, which GLSL reserves.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+# A global `let` has to be a constant expression in FH, and a concatenation
+# is not one, so the pass-through vertex shader is built on demand.
+fn vert() {
+    return "vec4 position(mat4 transform_projection, vec4 vertex_position) {" +
+           "  return transform_projection * vertex_position;" +
+           "}";
+}
+
+fn test_inline_pair() {
+    let frag = "vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
+               "  return Texel(tex, uv) * color;" +
+               "}";
+    let s = love_graphics_newShader(vert(), frag);
+    check(s != null, "an inline vertex + fragment pair should compile");
+    love_graphics_setShader(s);
+    love_graphics_setShader(null);
+}
+
+fn test_fragment_only() {
+    let frag = "vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
+               "  return vec4(1.0, 0.0, 0.0, 1.0);" +
+               "}";
+    let s = love_graphics_newShader(frag);
+    check(s != null, "a fragment shader on its own should compile");
+}
+
+fn test_extern_uniform() {
+    # `extern` is LOVE's spelling of `uniform`.
+    let frag = "extern float amount;" +
+               "extern Image other;" +
+               "vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
+               "  return mix(Texel(tex, uv), Texel(other, uv), amount) * color;" +
+               "}";
+    let s = love_graphics_newShader(vert(), frag);
+    check(s != null, "a shader declaring uniforms with `extern` should compile");
+
+    # love_shader_send() dispatches on the value, the way LOVE's Shader:send
+    # does. SKILLS.md documented it long before it existed.
+    love_shader_send(s, "amount", 0.5);
+    love_shader_send(s, "other", love_graphics_newImage("assets/vector.svg"));
+
+    # An integer literal has to work too: the typed setters read the float
+    # member of a value that was carrying an int.
+    love_shader_sendFloat(s, "amount", 1);
+}
+
+fn test_send_shapes() {
+    let frag = "extern vec3 tint;" +
+               "extern mat4 warp;" +
+               "extern bool flag;" +
+               "extern int steps;" +
+               "vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
+               "  vec4 p = warp * vec4(uv, 0.0, 1.0);" +
+               "  float k = flag ? float(steps) : 1.0;" +
+               "  return vec4(tint * k * p.x, 1.0) * color;" +
+               "}";
+    let s = love_graphics_newShader(vert(), frag);
+
+    love_shader_send(s, "tint", [1.0, 0.5, 0.25]);
+    love_shader_send(s, "flag", true);
+    love_shader_sendInteger(s, "steps", 3);
+
+    # A mat4 is 16 numbers. sendMatrice used to accept 4 and read past the
+    # end of the array with the wrong glUniform call.
+    love_shader_send(s, "warp", [1.0, 0, 0, 0,  0, 1.0, 0, 0,  0, 0, 1.0, 0,  0, 0, 0, 1.0]);
+}
+
+fn run() {
+    test_inline_pair();
+    test_fragment_only();
+    test_extern_uniform();
+    test_send_shapes();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

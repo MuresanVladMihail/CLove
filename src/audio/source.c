@@ -59,8 +59,11 @@ void audio_SourceCommon_init(audio_SourceCommon *source) {
 		clove_error("Error: Could not set openAL looping \n");
 }
 
-void audio_SourceCommon_setLooping(audio_SourceCommon const* source, bool value){
-    alSourcei(source->source, AL_LOOPING, value == true ? AL_TRUE : AL_FALSE);
+void audio_SourceCommon_setLooping(audio_SourceCommon *source, bool value){
+    // The parameter used to be const, so this only told OpenAL and never
+    // updated source->loop -- which is exactly what isLooping() reads back.
+    source->loop = value;
+    alSourcei(source->source, AL_LOOPING, value ? AL_TRUE : AL_FALSE);
 }
 
 void audio_SourceCommon_play(audio_SourceCommon *source) {

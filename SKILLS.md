@@ -107,8 +107,16 @@ panning a camera.
   `batch_set` / `batch_bind` / `batch_unbind` / `batch_flush` / `batch_clear`.
 - **Canvas / render-to-texture** (`graphics_canvas.c`): `love_graphics_newCanvas`,
   `love_graphics_setCanvas`.
-- **Shaders** (`graphics_shader.c`): `love_graphics_newShader`,
-  `love_graphics_setShader`, `love_shader_send`.
+- **Shaders** (`graphics_shader.c`): `love_graphics_newShader(vertexSrc,
+  fragmentSrc)` — either argument may be GLSL source or a path to a file
+  holding it, and a fragment shader may be passed on its own. Uniforms are
+  declared with LOVE's `extern` (it maps to `uniform`) and set with
+  `love_shader_send(shader, name, value)`, which dispatches on the value:
+  a number, a bool, an image, a 2-4 element array (vec2/3/4) or a 4/9/16
+  element array (mat2/3/4). The typed forms — `love_shader_sendFloat`,
+  `sendInteger`, `sendBool`, `sendVector`, `sendMatrice`, `sendTexture` —
+  are still there when you want to be explicit. `love_graphics_setShader`
+  with `null` goes back to the default one.
 - **Meshes** (`graphics_mesh.c`).
 - **Particle systems** (`graphics_particlesystem.c`) — see below.
 - **Window** (`graphics_window.c`): `love_window_getWidth` / `getHeight` /

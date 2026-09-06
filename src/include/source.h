@@ -42,4 +42,4 @@ float audio_SourceCommon_getPitch(audio_SourceCommon const* source);
 void audio_SourceCommon_setPitch(audio_SourceCommon const* source, float gain);
 void audio_SourceCommon_setPosition(audio_SourceCommon const* source, float x, float y, float z);
 void audio_SourceCommon_setVelocity(audio_SourceCommon const* source, float x, float y, float z);
-void audio_SourceCommon_setLooping(audio_SourceCommon const* source, bool value);
+void audio_SourceCommon_setLooping(audio_SourceCommon *source, bool value);
