@@ -62,6 +62,14 @@ one frame and reads whatever position the pointer has drifted to since. Latch
 the event and use the position it carries. `opt/examples/fh/editor` does this
 for its gizmo handles.
 
+The same holds for the keyboard, and it bites twice. `love_keyboard_isDown()`
+misses a key tapped between two frames, so one-shot commands belong in
+`love_keypressed`; and a modifier read *later*, when the shortcut is handled,
+may already have been released — Ctrl+S arrives as a bare S. Read the modifier
+inside the callback, where the key that triggered it is still down, and carry
+it with the event. Keep polling for what is genuinely held, like an arrow key
+panning a camera.
+
 `love_event_quit()` ends the game; `love_event_reload()` requests a reload.
 
 ## Graphics — `src/fhapi/graphics*.c`
@@ -376,7 +384,10 @@ what that looks like is a control that only responds when it happens to be the
 last one drawn. Give each one a number of its own.
 
 `opt` values come from `love_ui_opt("noclose" / "noframe" / "notitle" /
-"noresize" / "popup" / "autosize")` and `love_ui_align("center" / "right")`;
+"noresize" / "popup" / "autosize" / "nointeract" / "noscroll" / "expanded" /
+"closed")` and `love_ui_align("center" / "right")`; `nointeract` is what a
+greyed-out control is made of — the widget draws but never hovers, focuses or
+fires;
 they are microui's `MU_OPT_*` bits and combine by addition. Passing `notitle +
 noresize` to `love_ui_begin_window` turns a window into a fixed panel — see
 `opt/examples/fh/editor` for a docked-panel layout, and `opt/examples/fh/ui`
@@ -387,6 +398,7 @@ Three more calls exist for the awkward corners of microui's state:
 | Call | What it answers |
 | --- | --- |
 | `love_ui_mouse_over()` | Whether the pointer is over any window, panel or popup. A game drawing its own viewport underneath floating UI asks this before acting on a click, so a press meant for a window does not also land in the scene. |
+| `love_ui_capturesKeyboard()` | Whether microui is taking keystrokes — a text box being typed into, or any control being dragged. Ask this before acting on a bare-key shortcut, or typing a name fires every shortcut the name happens to contain. |
 | `love_ui_popup_open(name)` | Whether that popup is on screen. `love_ui_begin_popup` still answers true on the frame the popup is being dismissed, so it cannot tell you this by itself. Call it from the window that opened the popup — the name is hashed against the id stack. |
 | `love_ui_setWindowOpen(name, open)` | Re-opens a window microui's own close button has latched shut. Once that button is pressed the container's open flag is 0 and `love_ui_begin_window` answers false for good. |
 

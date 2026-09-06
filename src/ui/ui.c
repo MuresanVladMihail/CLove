@@ -173,6 +173,17 @@ void ui_set_window_open(const char *name, int open) {
     if (cnt != NULL) { cnt->open = open; }
 }
 
+/* Does microui hold the keyboard?
+ *
+ * ctx->focus is non-zero while a control is being interacted with, which for a
+ * text box means every keystroke is going into it. A program with bare-key
+ * shortcuts asks this first, so that typing an entity's name does not also
+ * trigger whatever Delete or D is bound to. A slider being dragged answers yes
+ * too, which is the wanted answer for the same reason. */
+int ui_captures_keyboard(void) {
+    return moduleData.ctx != NULL && moduleData.ctx->focus != 0;
+}
+
 int ui_mouse_over(void) {
     return moduleData.ctx != NULL && moduleData.ctx->hover_root != NULL;
 }

@@ -16,6 +16,7 @@ mu_Context *ui_get_context(void);
 int ui_in_container(void);
 int ui_popup_open(const char *name);
 int ui_mouse_over(void);
+int ui_captures_keyboard(void);
 void ui_set_window_open(const char *name, int open);
 
 void ui_layout_row(int no_items, int widths[], int height);
