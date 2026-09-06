@@ -310,9 +310,83 @@ void graphics_Font_render(graphics_Font *font, char const *text, int px, int py,
 }
 
 
+/* Wrapped, aligned text -- LOVE's love.graphics.printf.
+ *
+ * This was a `//TODO make me` stub: it was declared, called nothing, and drew
+ * nothing. It wraps with graphics_Font_getWrap() and then places each line
+ * itself, because alignment needs the width of every line separately and
+ * render() only knows how to lay out one block from the top left.
+ *
+ * All of the lines go into the same batches, so the whole paragraph is still
+ * one draw call per glyph texture, the same as render(). */
 void graphics_Font_printf(graphics_Font *font, char const *text, int px, int py, int limit, graphics_TextAlign align,
                           float r, float sx, float sy, float ox, float oy, float kx, float ky) {
-    //TODO make me
+    if (!font || !text) {
+        return;
+    }
+
+    char *wrapped = NULL;
+    if (graphics_Font_getWrap(font, text, limit, &wrapped) < 0 || wrapped == NULL) {
+        return;
+    }
+
+    prepareBatches(font, strlen(wrapped));
+
+    float lineStep = floorf(font->height * font->lineHeight + 0.5f);
+    float y = (float) font->ascent;
+
+    char const *at = wrapped;
+    bool more = true;
+
+    while (more) {
+        char const *lineEnd = strchr(at, '\n');
+        size_t lineLen = lineEnd ? (size_t) (lineEnd - at) : strlen(at);
+        more = lineEnd != NULL;
+
+        /* getWidth() wants a terminated string, and the line is a slice of a
+         * longer one, so it gets its own copy for the measurement. */
+        char *line = malloc(lineLen + 1);
+        if (!line) {
+            break;
+        }
+        memcpy(line, at, lineLen);
+        line[lineLen] = '\0';
+
+        float x = 0.0f;
+        if (align != graphics_TextAlign_left && limit > 0) {
+            float w = (float) graphics_Font_getWidth(font, line);
+            if (align == graphics_TextAlign_center) {
+                x = ((float) limit - w) * 0.5f;
+            } else if (align == graphics_TextAlign_right) {
+                x = (float) limit - w;
+            }
+            /* "justify" spaces a line out to the full width, which needs a
+             * per-space stretch rather than an offset; until that exists it
+             * behaves as left, which is what LOVE falls back to for the last
+             * line of a paragraph anyway. */
+        }
+
+        char const *p = line;
+        uint32_t cp;
+        while ((cp = utf8_scan(&p))) {
+            graphics_Glyph const *glyph = graphics_Font_findGlyph(font, cp);
+            graphics_Batch_add(&moduleData.batches[glyph->textureIdx], &glyph->textureCoords,
+                               x + glyph->bearingX, y - glyph->bearingY, 0, 1, 1, 0, 0, 0, 0);
+            x += glyph->advance;
+        }
+
+        free(line);
+
+        y += lineStep;
+        at = lineEnd ? lineEnd + 1 : at + lineLen;
+    }
+
+    free(wrapped);
+
+    for (int i = 0; i < moduleData.batchcount; ++i) {
+        graphics_Batch_unbind(&moduleData.batches[i]);
+        graphics_Batch_draw(&moduleData.batches[i], px, py, r, sx, sy, ox, oy, kx, ky);
+    }
 }
 
 int graphics_Font_getAscent(graphics_Font const *font) {

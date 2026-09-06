@@ -160,6 +160,72 @@ static int fn_love_graphics_print(struct fh_program *prog,
     return 0;
 }
 
+/* love_graphics_printf(text, x, y, limit [, align [, r, sx, sy, ox, oy, kx, ky]])
+ *
+ * Wrapped, aligned text -- LOVE's love.graphics.printf. `limit` is the width
+ * to wrap at, in pixels, and the alignment is relative to that width, not to
+ * the window. graphics_Font_printf() was a stub that drew nothing until now,
+ * so this is the first time it has been reachable at all. */
+static int fn_love_graphics_printf(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 4)
+        return fh_set_error(prog,
+                "love_graphics_printf(): expected at least 4 arguments "
+                "(text, x, y, limit), got %d", n_args);
+
+    if (!fh_is_string(&args[0]))
+        return fh_set_error(prog, "love_graphics_printf(): expected a string to print");
+
+    for (int i = 1; i <= 3; i++) {
+        if (!fh_is_number(&args[i]))
+            return fh_set_error(prog, "love_graphics_printf(): argument %d must be a number", i + 1);
+    }
+
+    if (!moduleData.currentFont && !moduleData.isBitmapFont) {
+        graphics_loadDefaultFont();
+    }
+
+    const char *text = fh_get_string(&args[0]);
+    double x = fh_get_number(&args[1]);
+    double y = fh_get_number(&args[2]);
+    int limit = (int) fh_get_number(&args[3]);
+
+    graphics_TextAlign align = graphics_TextAlign_left;
+    if (n_args > 4 && !fh_is_null(&args[4])) {
+        if (!fh_is_string(&args[4]))
+            return fh_set_error(prog, "love_graphics_printf(): the alignment must be a string");
+
+        const char *a = fh_get_string(&args[4]);
+        if (strcmp(a, "left") == 0)         align = graphics_TextAlign_left;
+        else if (strcmp(a, "center") == 0)  align = graphics_TextAlign_center;
+        else if (strcmp(a, "right") == 0)   align = graphics_TextAlign_right;
+        else if (strcmp(a, "justify") == 0) align = graphics_TextAlign_justify;
+        else
+            return fh_set_error(prog,
+                    "love_graphics_printf(): '%s' is not an alignment "
+                    "(\"left\", \"center\", \"right\" or \"justify\")", a);
+    }
+
+    double r  = fh_optnumber(args, n_args, 5, 0);
+    double sx = fh_optnumber(args, n_args, 6, 1.0);
+    double sy = fh_optnumber(args, n_args, 7, 1.0);
+    double ox = fh_optnumber(args, n_args, 8, 0);
+    double oy = fh_optnumber(args, n_args, 9, 0);
+    double kx = fh_optnumber(args, n_args, 10, 0);
+    double ky = fh_optnumber(args, n_args, 11, 0);
+
+    if (moduleData.isBitmapFont) {
+        graphics_BitmapFont_printf(moduleData.currentBitmapFont, text, (int) x, (int) y, limit, align,
+                                   r, sx, sy, ox, oy, kx, ky);
+    } else {
+        graphics_Font_printf(moduleData.currentFont, text, (int) x, (int) y, limit, align,
+                             r, sx, sy, ox, oy, kx, ky);
+    }
+
+    *ret = fh_new_null();
+    return 0;
+}
+
 static int fn_love_font_getHeight(struct fh_program *prog,
                                   struct fh_value *ret, struct fh_value *args, int n_args) {
     if (n_args > 1)
@@ -459,6 +525,7 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_font_setFilter),
     DEF_FN(love_font_getFilter),
     DEF_FN(love_graphics_print),
+    DEF_FN(love_graphics_printf),
 };
 
 void fh_graphics_font_register(struct fh_program *prog) {

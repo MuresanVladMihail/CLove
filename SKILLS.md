@@ -109,6 +109,9 @@ panning a camera.
   `love_quad_getViewport(q) -> [x,y,w,h]`.
 - **Text** (`graphics_font.c`, `graphics_bitmapfont.c`): `love_graphics_newFont`,
   `love_graphics_setFont` / `getFont`, `love_graphics_print(text, x, y, ...)`.
+  `love_graphics_printf(text, x, y, limit [, align [, r, sx, sy, ...]])` wraps
+  to `limit` pixels and aligns each line inside that width — `"left"`,
+  `"center"`, `"right"`. It works with a bitmap font too.
   Metrics work without a font of your own: `love_font_getWidth(text)` and
   `love_font_getHeight()` measure with the default font, and
   `love_graphics_print` loads it on demand. Pass a font first

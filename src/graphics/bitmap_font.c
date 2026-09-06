@@ -144,6 +144,78 @@ void graphics_BitmapFont_render(graphics_BitmapFont *dst, char const *text,
     graphics_setShader(shader);
 }
 
+/* The bitmap equivalent of graphics_Font_printf(). Every cell is the same
+ * width here, so a line's width is just its length times glyph_width -- no
+ * per-glyph measurement needed. */
+void graphics_BitmapFont_printf(graphics_BitmapFont *dst, char const *text,
+                                int x, int y, int limit, graphics_TextAlign align,
+                                float r, float sx, float sy, float ox, float oy, float kx, float ky) {
+    if (!dst || !text) {
+        return;
+    }
+
+    char *wrapped = NULL;
+    if (graphics_BitmapFont_getWrap(dst, text, limit, &wrapped) < 0 || wrapped == NULL) {
+        return;
+    }
+
+    graphics_Batch_clear(dst->batches);
+
+    float posy = 0.0f;
+    char const *at = wrapped;
+    bool more = true;
+
+    while (more) {
+        char const *lineEnd = strchr(at, '\n');
+        size_t lineLen = lineEnd ? (size_t) (lineEnd - at) : strlen(at);
+        more = lineEnd != NULL;
+
+        /* Count codepoints, not bytes, so a multi-byte character is one cell. */
+        int glyphs = 0;
+        {
+            char const *p = at;
+            char const *stop = at + lineLen;
+            while (p < stop && utf8_scan(&p)) {
+                glyphs++;
+            }
+        }
+
+        float posx = 0.0f;
+        if (align != graphics_TextAlign_left && limit > 0) {
+            float w = (float) glyphs * dst->glyph_width;
+            if (align == graphics_TextAlign_center) {
+                posx = ((float) limit - w) * 0.5f;
+            } else if (align == graphics_TextAlign_right) {
+                posx = (float) limit - w;
+            }
+        }
+
+        char const *p = at;
+        char const *stop = at + lineLen;
+        while (p < stop) {
+            uint32_t g = utf8_scan(&p);
+            if (g == 0) {
+                break;
+            }
+            glyph_t *map = find_glyph(dst, g);
+            if (map != NULL && map->word == g) {
+                graphics_Batch_add(dst->batches, map->quad, posx + map->offsetx,
+                                   posy + map->offsety, 0, 1, 1, 0, 0, 0, 0);
+            }
+            posx += dst->glyph_width;
+        }
+
+        posy += floor(dst->glyph_height + 1.0 + 0.5);
+        at = lineEnd ? lineEnd + 1 : at + lineLen;
+    }
+
+    free(wrapped);
+
+    graphics_Batch_bind(dst->batches);
+    graphics_Batch_draw(dst->batches, x, y, r, sx, sy, ox, oy, kx, ky);
+    graphics_Batch_unbind(dst->batches);
+}
+
 void graphics_BitmapFont_free(graphics_BitmapFont *dst) {
     graphics_Batch_free(dst->batches);
     for (size_t i = 0; i < dst->allocated_glyphs; i++) {

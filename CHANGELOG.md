@@ -33,6 +33,11 @@ version 0.8.0 not yet released
 * added: love_math_triangulate(points), and math_triangulate() in the engine
 	beside math_isConvex(). The editor package had sixty lines of ear clipping
 	in FH because there was nothing to call.
+* added: love_graphics_printf(text, x, y, limit [, align, ...]) -- wrapped,
+	aligned text. graphics_Font_printf() existed as a `//TODO make me` stub
+	that drew nothing, and had no binding; it is implemented for both TTF and
+	bitmap fonts now, with "left", "center" and "right" ("justify" behaves as
+	left until per-space stretching exists).
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384
