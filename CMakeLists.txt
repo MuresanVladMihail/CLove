@@ -119,6 +119,7 @@ file(GLOB SOURCE_FILES CONFIGURE_DEPENDS
     src/tools/*.c         src/tools/*.h
     src/math/*.c          src/math/*.h
     src/timer/*.c         src/timer/*.h
+    src/tween/*.c         src/tween/*.h
     src/net/*.c           src/net/*.h
     src/physics/*.c       src/physics/*.h
     src/ui/*.c            src/ui/*.h

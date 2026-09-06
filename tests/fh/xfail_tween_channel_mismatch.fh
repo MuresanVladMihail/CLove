@@ -1,0 +1,7 @@
+# `from` and `to` have to carry the same number of values.
+fn love_load() {
+    love_tween_new([0, 0], [1, 1, 1], 1.0);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

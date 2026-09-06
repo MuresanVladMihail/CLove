@@ -30,8 +30,14 @@ END = '  # >>> END GENERATED <<<'
 
 # Areas in the order they appear in the generated `clove_api` variable.
 AREA_ORDER = ['graphics', 'geometry', 'image', 'quad', 'font', 'mesh', 'shader',
-              'particleSystem', 'window', 'audio', 'keyboard', 'mouse', 'timer',
-              'math', 'filesystem', 'ui', 'event', 'misc']
+              'particleSystem', 'window', 'audio', 'keyboard', 'mouse', 'joystick',
+              'timer', 'math', 'tween', 'filesystem', 'ui', 'event',
+              # love.physics: the world, the objects in it, and every joint kind
+              'physics', 'world', 'body', 'shape', 'fixture', 'contact', 'joint',
+              'distancejoint', 'frictionjoint', 'motorjoint', 'mousejoint',
+              'prismaticjoint', 'revolutejoint', 'ropejoint', 'weldjoint',
+              'wheeljoint',
+              'misc']
 
 # Lifecycle callbacks: (name, snippet body, short description).  The input
 # callbacks take a *single array*, not one parameter per value -- see
@@ -52,10 +58,13 @@ CALLBACKS = [
      'in config.fh; called once before the window exists'),
     ('love_focus',
      'fn love_focus(focused) {\n\t$0\n}',
-     'focused is a bool'),
+     'focused is a bool; called when the window gains or loses focus'),
+    ('love_resize',
+     'fn love_resize(w, h) {\n\t$0\n}',
+     'called whenever the window changes size'),
     ('love_quit',
      'fn love_quit() {\n\t$0\n}',
-     'called as the game shuts down'),
+     'called as the game shuts down; return true to abort the quit'),
     ('love_keypressed',
      'fn love_keypressed(key) {\n\t# key = [name, keycode, isrepeat]\n\t$0\n}',
      'key is the array [name, keycode, isrepeat]'),

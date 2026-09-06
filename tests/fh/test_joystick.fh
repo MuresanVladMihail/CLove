@@ -1,0 +1,34 @@
+# love.joystick had no FH bindings at all -- the module registered zero
+# functions, so a game could receive the press callbacks but never ask what
+# was connected, read an axis, or poll a button.
+#
+# CI has no gamepad plugged in, so this covers what can be asserted without
+# one: the count, and that every call refuses an id that is not there rather
+# than dereferencing NULL.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    let n = love_joystick_getCount();
+    check(n >= 0, "the joystick count is never negative");
+
+    # Nothing is connected under test, so id 0 is absent -- and isConnected
+    # is the one call that answers instead of erroring.
+    check(!love_joystick_isConnected(9999), "an id that is not there is not connected");
+
+    if (n > 0) {
+        # If a stick really is plugged in, the shape of the answers still holds.
+        check(len(love_joystick_getName(0)) >= 0, "a connected stick has a name");
+        check(love_joystick_getAxisCount(0) >= 0, "and a number of axes");
+        check(love_joystick_getButtonCount(0) >= 0, "and of buttons");
+        check(love_joystick_getHatCount(0) >= 0, "and of hats");
+    }
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

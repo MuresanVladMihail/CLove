@@ -54,7 +54,18 @@
         "c",
         "CLove callback"
       ],
-      "details": "focused is a bool"
+      "details": "focused is a bool; called when the window gains or loses focus"
+    },
+    {
+      "trigger": "love_resize",
+      "contents": "fn love_resize(w, h) {\n\t$0\n}",
+      "annotation": "callback",
+      "kind": [
+        "snippet",
+        "c",
+        "CLove callback"
+      ],
+      "details": "called whenever the window changes size"
     },
     {
       "trigger": "love_quit",
@@ -65,7 +76,7 @@
         "c",
         "CLove callback"
       ],
-      "details": "called as the game shuts down"
+      "details": "called as the game shuts down; return true to abort the quit"
     },
     {
       "trigger": "love_keypressed",
@@ -354,6 +365,743 @@
       "details": "src/fhapi/audio.c"
     },
     {
+      "trigger": "love_body_applyAngularImpulse",
+      "contents": "love_body_applyAngularImpulse($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_applyForce",
+      "contents": "love_body_applyForce($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_applyLinearImpulse",
+      "contents": "love_body_applyLinearImpulse($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_applyTorque",
+      "contents": "love_body_applyTorque($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_destroy",
+      "contents": "love_body_destroy($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getAngle",
+      "contents": "love_body_getAngle($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getAngularDamping",
+      "contents": "love_body_getAngularDamping($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getAngularVelocity",
+      "contents": "love_body_getAngularVelocity($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getFixtures",
+      "contents": "love_body_getFixtures($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getGravityScale",
+      "contents": "love_body_getGravityScale($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getInertia",
+      "contents": "love_body_getInertia($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getJoints",
+      "contents": "love_body_getJoints($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getLinearDamping",
+      "contents": "love_body_getLinearDamping($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getLinearVelocity",
+      "contents": "love_body_getLinearVelocity($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getLinearVelocityFromLocalPoint",
+      "contents": "love_body_getLinearVelocityFromLocalPoint($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getLinearVelocityFromWorldPoint",
+      "contents": "love_body_getLinearVelocityFromWorldPoint($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getLocalCenter",
+      "contents": "love_body_getLocalCenter($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getLocalPoint",
+      "contents": "love_body_getLocalPoint($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getLocalVector",
+      "contents": "love_body_getLocalVector($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getMass",
+      "contents": "love_body_getMass($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getMassData",
+      "contents": "love_body_getMassData($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getPosition",
+      "contents": "love_body_getPosition($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getType",
+      "contents": "love_body_getType($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getUserData",
+      "contents": "love_body_getUserData($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getWorld",
+      "contents": "love_body_getWorld($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getWorldCenter",
+      "contents": "love_body_getWorldCenter($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getWorldPoint",
+      "contents": "love_body_getWorldPoint($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getWorldPoints",
+      "contents": "love_body_getWorldPoints($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getWorldVector",
+      "contents": "love_body_getWorldVector($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getX",
+      "contents": "love_body_getX($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_getY",
+      "contents": "love_body_getY($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_isActive",
+      "contents": "love_body_isActive($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_isAwake",
+      "contents": "love_body_isAwake($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_isBullet",
+      "contents": "love_body_isBullet($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_isDestroyed",
+      "contents": "love_body_isDestroyed($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_isFixedRotation",
+      "contents": "love_body_isFixedRotation($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_isSleepingAllowed",
+      "contents": "love_body_isSleepingAllowed($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_resetMassData",
+      "contents": "love_body_resetMassData($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setActive",
+      "contents": "love_body_setActive($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setAngle",
+      "contents": "love_body_setAngle($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setAngularDamping",
+      "contents": "love_body_setAngularDamping($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setAngularVelocity",
+      "contents": "love_body_setAngularVelocity($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setAwake",
+      "contents": "love_body_setAwake($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setBullet",
+      "contents": "love_body_setBullet($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setFixedRotation",
+      "contents": "love_body_setFixedRotation($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setGravityScale",
+      "contents": "love_body_setGravityScale($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setLinearDamping",
+      "contents": "love_body_setLinearDamping($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setLinearVelocity",
+      "contents": "love_body_setLinearVelocity($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setPosition",
+      "contents": "love_body_setPosition($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setSleepingAllowed",
+      "contents": "love_body_setSleepingAllowed($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setTransform",
+      "contents": "love_body_setTransform($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setType",
+      "contents": "love_body_setType($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setUserData",
+      "contents": "love_body_setUserData($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setX",
+      "contents": "love_body_setX($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_body_setY",
+      "contents": "love_body_setY($0)",
+      "annotation": "body",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_contact_getFixtures",
+      "contents": "love_contact_getFixtures($0)",
+      "annotation": "contact",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_contact_getFriction",
+      "contents": "love_contact_getFriction($0)",
+      "annotation": "contact",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_contact_getNormal",
+      "contents": "love_contact_getNormal($0)",
+      "annotation": "contact",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_contact_getPositions",
+      "contents": "love_contact_getPositions($0)",
+      "annotation": "contact",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_contact_getRestitution",
+      "contents": "love_contact_getRestitution($0)",
+      "annotation": "contact",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_contact_isTouching",
+      "contents": "love_contact_isTouching($0)",
+      "annotation": "contact",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_distancejoint_getDampingRatio",
+      "contents": "love_distancejoint_getDampingRatio($0)",
+      "annotation": "distancejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_distancejoint_getFrequency",
+      "contents": "love_distancejoint_getFrequency($0)",
+      "annotation": "distancejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_distancejoint_getLength",
+      "contents": "love_distancejoint_getLength($0)",
+      "annotation": "distancejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_distancejoint_setDampingRatio",
+      "contents": "love_distancejoint_setDampingRatio($0)",
+      "annotation": "distancejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_distancejoint_setFrequency",
+      "contents": "love_distancejoint_setFrequency($0)",
+      "annotation": "distancejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_distancejoint_setLength",
+      "contents": "love_distancejoint_setLength($0)",
+      "annotation": "distancejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
       "trigger": "love_event_quit",
       "contents": "love_event_quit($0)",
       "annotation": "event",
@@ -420,6 +1168,17 @@
       "details": "src/fhapi/filesystem.c"
     },
     {
+      "trigger": "love_filesystem_getHomeDirectory",
+      "contents": "love_filesystem_getHomeDirectory($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
       "trigger": "love_filesystem_getInfo",
       "contents": "love_filesystem_getInfo($0)",
       "annotation": "filesystem",
@@ -464,6 +1223,17 @@
       "details": "src/fhapi/filesystem.c"
     },
     {
+      "trigger": "love_filesystem_getWorkingDirectory",
+      "contents": "love_filesystem_getWorkingDirectory($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
       "trigger": "love_filesystem_isDir",
       "contents": "love_filesystem_isDir($0)",
       "annotation": "filesystem",
@@ -477,6 +1247,17 @@
     {
       "trigger": "love_filesystem_isSymLink",
       "contents": "love_filesystem_isSymLink($0)",
+      "annotation": "filesystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/filesystem.c"
+    },
+    {
+      "trigger": "love_filesystem_list",
+      "contents": "love_filesystem_list($0)",
       "annotation": "filesystem",
       "kind": [
         "function",
@@ -574,6 +1355,292 @@
       "details": "src/fhapi/filesystem.c"
     },
     {
+      "trigger": "love_fixture_destroy",
+      "contents": "love_fixture_destroy($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getBody",
+      "contents": "love_fixture_getBody($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getBoundingBox",
+      "contents": "love_fixture_getBoundingBox($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getCategory",
+      "contents": "love_fixture_getCategory($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getDensity",
+      "contents": "love_fixture_getDensity($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getFilterData",
+      "contents": "love_fixture_getFilterData($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getFriction",
+      "contents": "love_fixture_getFriction($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getGroupIndex",
+      "contents": "love_fixture_getGroupIndex($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getMask",
+      "contents": "love_fixture_getMask($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getMassData",
+      "contents": "love_fixture_getMassData($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getRestitution",
+      "contents": "love_fixture_getRestitution($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getShape",
+      "contents": "love_fixture_getShape($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_getUserData",
+      "contents": "love_fixture_getUserData($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_isDestroyed",
+      "contents": "love_fixture_isDestroyed($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_isSensor",
+      "contents": "love_fixture_isSensor($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_rayCast",
+      "contents": "love_fixture_rayCast($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setCategory",
+      "contents": "love_fixture_setCategory($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setDensity",
+      "contents": "love_fixture_setDensity($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setFilterData",
+      "contents": "love_fixture_setFilterData($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setFriction",
+      "contents": "love_fixture_setFriction($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setGroupIndex",
+      "contents": "love_fixture_setGroupIndex($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setMask",
+      "contents": "love_fixture_setMask($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setRestitution",
+      "contents": "love_fixture_setRestitution($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setSensor",
+      "contents": "love_fixture_setSensor($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_setUserData",
+      "contents": "love_fixture_setUserData($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_fixture_testPoint",
+      "contents": "love_fixture_testPoint($0)",
+      "annotation": "fixture",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
       "trigger": "love_font_getAscent",
       "contents": "love_font_getAscent($0)",
       "annotation": "font",
@@ -660,6 +1727,50 @@
         "CLove API"
       ],
       "details": "src/fhapi/graphics_font.c"
+    },
+    {
+      "trigger": "love_frictionjoint_getMaxForce",
+      "contents": "love_frictionjoint_getMaxForce($0)",
+      "annotation": "frictionjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_frictionjoint_getMaxTorque",
+      "contents": "love_frictionjoint_getMaxTorque($0)",
+      "annotation": "frictionjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_frictionjoint_setMaxForce",
+      "contents": "love_frictionjoint_setMaxForce($0)",
+      "annotation": "frictionjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_frictionjoint_setMaxTorque",
+      "contents": "love_frictionjoint_setMaxTorque($0)",
+      "annotation": "frictionjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
     },
     {
       "trigger": "love_geometry_circle",
@@ -891,6 +2002,17 @@
         "CLove API"
       ],
       "details": "src/fhapi/graphics_batch.c"
+    },
+    {
+      "trigger": "love_graphics_captureScreenshot",
+      "contents": "love_graphics_captureScreenshot($0)",
+      "annotation": "graphics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics.c"
     },
     {
       "trigger": "love_graphics_clear",
@@ -1432,6 +2554,28 @@
       "details": "src/fhapi/image.c"
     },
     {
+      "trigger": "love_image_getVectorContours",
+      "contents": "love_image_getVectorContours($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_getVectorScale",
+      "contents": "love_image_getVectorScale($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
       "trigger": "love_image_getWidth",
       "contents": "love_image_getWidth($0)",
       "annotation": "image",
@@ -1445,6 +2589,17 @@
     {
       "trigger": "love_image_getWrap",
       "contents": "love_image_getWrap($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_image_isVector",
+      "contents": "love_image_isVector($0)",
       "annotation": "image",
       "kind": [
         "function",
@@ -1498,6 +2653,17 @@
       "details": "src/fhapi/image.c"
     },
     {
+      "trigger": "love_image_setVectorScale",
+      "contents": "love_image_setVectorScale($0)",
+      "annotation": "image",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/image.c"
+    },
+    {
       "trigger": "love_image_setWrap",
       "contents": "love_image_setWrap($0)",
       "annotation": "image",
@@ -1507,6 +2673,226 @@
         "CLove API"
       ],
       "details": "src/fhapi/image.c"
+    },
+    {
+      "trigger": "love_joint_destroy",
+      "contents": "love_joint_destroy($0)",
+      "annotation": "joint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_joint_getAnchors",
+      "contents": "love_joint_getAnchors($0)",
+      "annotation": "joint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_joint_getBodies",
+      "contents": "love_joint_getBodies($0)",
+      "annotation": "joint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_joint_getCollideConnected",
+      "contents": "love_joint_getCollideConnected($0)",
+      "annotation": "joint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_joint_getReactionForce",
+      "contents": "love_joint_getReactionForce($0)",
+      "annotation": "joint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_joint_getReactionTorque",
+      "contents": "love_joint_getReactionTorque($0)",
+      "annotation": "joint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_joint_getType",
+      "contents": "love_joint_getType($0)",
+      "annotation": "joint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_joint_isDestroyed",
+      "contents": "love_joint_isDestroyed($0)",
+      "annotation": "joint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_joystick_getAxis",
+      "contents": "love_joystick_getAxis($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_getAxisCount",
+      "contents": "love_joystick_getAxisCount($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_getBallCount",
+      "contents": "love_joystick_getBallCount($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_getButtonCount",
+      "contents": "love_joystick_getButtonCount($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_getCount",
+      "contents": "love_joystick_getCount($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_getGamepadAxis",
+      "contents": "love_joystick_getGamepadAxis($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_getHat",
+      "contents": "love_joystick_getHat($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_getHatCount",
+      "contents": "love_joystick_getHatCount($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_getName",
+      "contents": "love_joystick_getName($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_isConnected",
+      "contents": "love_joystick_isConnected($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_isDown",
+      "contents": "love_joystick_isDown($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
+    },
+    {
+      "trigger": "love_joystick_isGamepad",
+      "contents": "love_joystick_isGamepad($0)",
+      "annotation": "joystick",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/joystick.c"
     },
     {
       "trigger": "love_keyboard_hasKeyRepeat",
@@ -1619,6 +3005,116 @@
       "details": "src/fhapi/graphics_mesh.c"
     },
     {
+      "trigger": "love_motorjoint_getAngularOffset",
+      "contents": "love_motorjoint_getAngularOffset($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_getCorrectionFactor",
+      "contents": "love_motorjoint_getCorrectionFactor($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_getLinearOffset",
+      "contents": "love_motorjoint_getLinearOffset($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_getMaxForce",
+      "contents": "love_motorjoint_getMaxForce($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_getMaxTorque",
+      "contents": "love_motorjoint_getMaxTorque($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_setAngularOffset",
+      "contents": "love_motorjoint_setAngularOffset($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_setCorrectionFactor",
+      "contents": "love_motorjoint_setCorrectionFactor($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_setLinearOffset",
+      "contents": "love_motorjoint_setLinearOffset($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_setMaxForce",
+      "contents": "love_motorjoint_setMaxForce($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_motorjoint_setMaxTorque",
+      "contents": "love_motorjoint_setMaxTorque($0)",
+      "annotation": "motorjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
       "trigger": "love_mouse_getPosition",
       "contents": "love_mouse_getPosition($0)",
       "annotation": "mouse",
@@ -1718,6 +3214,94 @@
       "details": "src/fhapi/mouse.c"
     },
     {
+      "trigger": "love_mousejoint_getDampingRatio",
+      "contents": "love_mousejoint_getDampingRatio($0)",
+      "annotation": "mousejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_mousejoint_getFrequency",
+      "contents": "love_mousejoint_getFrequency($0)",
+      "annotation": "mousejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_mousejoint_getMaxForce",
+      "contents": "love_mousejoint_getMaxForce($0)",
+      "annotation": "mousejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_mousejoint_getTarget",
+      "contents": "love_mousejoint_getTarget($0)",
+      "annotation": "mousejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_mousejoint_setDampingRatio",
+      "contents": "love_mousejoint_setDampingRatio($0)",
+      "annotation": "mousejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_mousejoint_setFrequency",
+      "contents": "love_mousejoint_setFrequency($0)",
+      "annotation": "mousejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_mousejoint_setMaxForce",
+      "contents": "love_mousejoint_setMaxForce($0)",
+      "annotation": "mousejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_mousejoint_setTarget",
+      "contents": "love_mousejoint_setTarget($0)",
+      "annotation": "mousejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
       "trigger": "love_particleSystem_clone",
       "contents": "love_particleSystem_clone($0)",
       "annotation": "particleSystem",
@@ -1786,6 +3370,17 @@
     {
       "trigger": "love_particleSystem_getDirection",
       "contents": "love_particleSystem_getDirection($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getEmissionArea",
+      "contents": "love_particleSystem_getEmissionArea($0)",
       "annotation": "particleSystem",
       "kind": [
         "function",
@@ -1874,6 +3469,17 @@
     {
       "trigger": "love_particleSystem_getPosition",
       "contents": "love_particleSystem_getPosition($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_getQuads",
+      "contents": "love_particleSystem_getQuads($0)",
       "annotation": "particleSystem",
       "kind": [
         "function",
@@ -2114,6 +3720,17 @@
       "details": "src/fhapi/graphics_particlesystem.c"
     },
     {
+      "trigger": "love_particleSystem_setEmissionArea",
+      "contents": "love_particleSystem_setEmissionArea($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
       "trigger": "love_particleSystem_setEmissionRate",
       "contents": "love_particleSystem_setEmissionRate($0)",
       "annotation": "particleSystem",
@@ -2180,6 +3797,17 @@
       "details": "src/fhapi/graphics_particlesystem.c"
     },
     {
+      "trigger": "love_particleSystem_setParticleLifetime",
+      "contents": "love_particleSystem_setParticleLifetime($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
       "trigger": "love_particleSystem_setPosition",
       "contents": "love_particleSystem_setPosition($0)",
       "annotation": "particleSystem",
@@ -2237,6 +3865,17 @@
     {
       "trigger": "love_particleSystem_setSizeVariation",
       "contents": "love_particleSystem_setSizeVariation($0)",
+      "annotation": "particleSystem",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_particlesystem.c"
+    },
+    {
+      "trigger": "love_particleSystem_setSizes",
+      "contents": "love_particleSystem_setSizes($0)",
       "annotation": "particleSystem",
       "kind": [
         "function",
@@ -2345,6 +3984,380 @@
       "details": "src/fhapi/graphics_particlesystem.c"
     },
     {
+      "trigger": "love_physics_getMeter",
+      "contents": "love_physics_getMeter($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newBody",
+      "contents": "love_physics_newBody($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newChainShape",
+      "contents": "love_physics_newChainShape($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newCircleShape",
+      "contents": "love_physics_newCircleShape($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newDistanceJoint",
+      "contents": "love_physics_newDistanceJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newEdgeShape",
+      "contents": "love_physics_newEdgeShape($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newFixture",
+      "contents": "love_physics_newFixture($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newFrictionJoint",
+      "contents": "love_physics_newFrictionJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newMotorJoint",
+      "contents": "love_physics_newMotorJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newMouseJoint",
+      "contents": "love_physics_newMouseJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newPolygonShape",
+      "contents": "love_physics_newPolygonShape($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newPrismaticJoint",
+      "contents": "love_physics_newPrismaticJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newRectangleShape",
+      "contents": "love_physics_newRectangleShape($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newRevoluteJoint",
+      "contents": "love_physics_newRevoluteJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newRopeJoint",
+      "contents": "love_physics_newRopeJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newWeldJoint",
+      "contents": "love_physics_newWeldJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newWheelJoint",
+      "contents": "love_physics_newWheelJoint($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_newWorld",
+      "contents": "love_physics_newWorld($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_physics_setMeter",
+      "contents": "love_physics_setMeter($0)",
+      "annotation": "physics",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_areLimitsEnabled",
+      "contents": "love_prismaticjoint_areLimitsEnabled($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_getJointSpeed",
+      "contents": "love_prismaticjoint_getJointSpeed($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_getJointTranslation",
+      "contents": "love_prismaticjoint_getJointTranslation($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_getLimits",
+      "contents": "love_prismaticjoint_getLimits($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_getLowerLimit",
+      "contents": "love_prismaticjoint_getLowerLimit($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_getMaxMotorForce",
+      "contents": "love_prismaticjoint_getMaxMotorForce($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_getMotorForce",
+      "contents": "love_prismaticjoint_getMotorForce($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_getMotorSpeed",
+      "contents": "love_prismaticjoint_getMotorSpeed($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_getUpperLimit",
+      "contents": "love_prismaticjoint_getUpperLimit($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_isMotorEnabled",
+      "contents": "love_prismaticjoint_isMotorEnabled($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_setLimits",
+      "contents": "love_prismaticjoint_setLimits($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_setLimitsEnabled",
+      "contents": "love_prismaticjoint_setLimitsEnabled($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_setMaxMotorForce",
+      "contents": "love_prismaticjoint_setMaxMotorForce($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_setMotorEnabled",
+      "contents": "love_prismaticjoint_setMotorEnabled($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_prismaticjoint_setMotorSpeed",
+      "contents": "love_prismaticjoint_setMotorSpeed($0)",
+      "annotation": "prismaticjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
       "trigger": "love_quad_getViewport",
       "contents": "love_quad_getViewport($0)",
       "annotation": "quad",
@@ -2365,6 +4378,226 @@
         "CLove API"
       ],
       "details": "src/fhapi/graphics_quad.c"
+    },
+    {
+      "trigger": "love_revolutejoint_areLimitsEnabled",
+      "contents": "love_revolutejoint_areLimitsEnabled($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_getJointAngle",
+      "contents": "love_revolutejoint_getJointAngle($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_getJointSpeed",
+      "contents": "love_revolutejoint_getJointSpeed($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_getLimits",
+      "contents": "love_revolutejoint_getLimits($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_getLowerLimit",
+      "contents": "love_revolutejoint_getLowerLimit($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_getMaxMotorTorque",
+      "contents": "love_revolutejoint_getMaxMotorTorque($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_getMotorSpeed",
+      "contents": "love_revolutejoint_getMotorSpeed($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_getMotorTorque",
+      "contents": "love_revolutejoint_getMotorTorque($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_getUpperLimit",
+      "contents": "love_revolutejoint_getUpperLimit($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_isMotorEnabled",
+      "contents": "love_revolutejoint_isMotorEnabled($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_setLimits",
+      "contents": "love_revolutejoint_setLimits($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_setLimitsEnabled",
+      "contents": "love_revolutejoint_setLimitsEnabled($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_setLowerLimit",
+      "contents": "love_revolutejoint_setLowerLimit($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_setMaxMotorTorque",
+      "contents": "love_revolutejoint_setMaxMotorTorque($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_setMotorEnabled",
+      "contents": "love_revolutejoint_setMotorEnabled($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_setMotorSpeed",
+      "contents": "love_revolutejoint_setMotorSpeed($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_revolutejoint_setUpperLimit",
+      "contents": "love_revolutejoint_setUpperLimit($0)",
+      "annotation": "revolutejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_ropejoint_getMaxLength",
+      "contents": "love_ropejoint_getMaxLength($0)",
+      "annotation": "ropejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_ropejoint_setMaxLength",
+      "contents": "love_ropejoint_setMaxLength($0)",
+      "annotation": "ropejoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_shader_send",
+      "contents": "love_shader_send($0)",
+      "annotation": "shader",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/graphics_shader.c"
     },
     {
       "trigger": "love_shader_sendBool",
@@ -2433,6 +4666,61 @@
       "details": "src/fhapi/graphics_shader.c"
     },
     {
+      "trigger": "love_shape_getChildCount",
+      "contents": "love_shape_getChildCount($0)",
+      "annotation": "shape",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_shape_getPoint",
+      "contents": "love_shape_getPoint($0)",
+      "annotation": "shape",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_shape_getPoints",
+      "contents": "love_shape_getPoints($0)",
+      "annotation": "shape",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_shape_getRadius",
+      "contents": "love_shape_getRadius($0)",
+      "annotation": "shape",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_shape_getType",
+      "contents": "love_shape_getType($0)",
+      "annotation": "shape",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
       "trigger": "love_timer_getAverageDelta",
       "contents": "love_timer_getAverageDelta($0)",
       "annotation": "timer",
@@ -2497,6 +4785,160 @@
         "CLove API"
       ],
       "details": "src/fhapi/timer.c"
+    },
+    {
+      "trigger": "love_tween_ease",
+      "contents": "love_tween_ease($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_get",
+      "contents": "love_tween_get($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_getDuration",
+      "contents": "love_tween_getDuration($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_getEasings",
+      "contents": "love_tween_getEasings($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_getProgress",
+      "contents": "love_tween_getProgress($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_isDone",
+      "contents": "love_tween_isDone($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_isPaused",
+      "contents": "love_tween_isPaused($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_new",
+      "contents": "love_tween_new($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_reset",
+      "contents": "love_tween_reset($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_seek",
+      "contents": "love_tween_seek($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_setLoops",
+      "contents": "love_tween_setLoops($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_setPaused",
+      "contents": "love_tween_setPaused($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_then",
+      "contents": "love_tween_then($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
+    },
+    {
+      "trigger": "love_tween_update",
+      "contents": "love_tween_update($0)",
+      "annotation": "tween",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/tween.c"
     },
     {
       "trigger": "love_ui_align",
@@ -2565,8 +5007,30 @@
       "details": "src/fhapi/ui.c"
     },
     {
+      "trigger": "love_ui_bringToFront",
+      "contents": "love_ui_bringToFront($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
       "trigger": "love_ui_button",
       "contents": "love_ui_button($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_capturesKeyboard",
+      "contents": "love_ui_capturesKeyboard($0)",
       "annotation": "ui",
       "kind": [
         "function",
@@ -2730,6 +5194,17 @@
       "details": "src/fhapi/ui.c"
     },
     {
+      "trigger": "love_ui_hovered",
+      "contents": "love_ui_hovered($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
       "trigger": "love_ui_label",
       "contents": "love_ui_label($0)",
       "annotation": "ui",
@@ -2829,8 +5304,30 @@
       "details": "src/fhapi/ui.c"
     },
     {
+      "trigger": "love_ui_mouse_over",
+      "contents": "love_ui_mouse_over($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
       "trigger": "love_ui_newContainer",
       "contents": "love_ui_newContainer($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_number",
+      "contents": "love_ui_number($0)",
       "annotation": "ui",
       "kind": [
         "function",
@@ -2853,6 +5350,39 @@
     {
       "trigger": "love_ui_opt",
       "contents": "love_ui_opt($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_popId",
+      "contents": "love_ui_popId($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_popup_open",
+      "contents": "love_ui_popup_open($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_pushId",
+      "contents": "love_ui_pushId($0)",
       "annotation": "ui",
       "kind": [
         "function",
@@ -2928,6 +5458,28 @@
       "details": "src/fhapi/ui.c"
     },
     {
+      "trigger": "love_ui_setWindowOpen",
+      "contents": "love_ui_setWindowOpen($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_ui_setWindowRect",
+      "contents": "love_ui_setWindowRect($0)",
+      "annotation": "ui",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/ui.c"
+    },
+    {
       "trigger": "love_ui_slider",
       "contents": "love_ui_slider($0)",
       "annotation": "ui",
@@ -2959,6 +5511,215 @@
         "CLove API"
       ],
       "details": "src/fhapi/ui.c"
+    },
+    {
+      "trigger": "love_weldjoint_getDampingRatio",
+      "contents": "love_weldjoint_getDampingRatio($0)",
+      "annotation": "weldjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_weldjoint_getFrequency",
+      "contents": "love_weldjoint_getFrequency($0)",
+      "annotation": "weldjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_weldjoint_getLinearDampingRatio",
+      "contents": "love_weldjoint_getLinearDampingRatio($0)",
+      "annotation": "weldjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_weldjoint_getLinearFrequency",
+      "contents": "love_weldjoint_getLinearFrequency($0)",
+      "annotation": "weldjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_weldjoint_setDampingRatio",
+      "contents": "love_weldjoint_setDampingRatio($0)",
+      "annotation": "weldjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_weldjoint_setFrequency",
+      "contents": "love_weldjoint_setFrequency($0)",
+      "annotation": "weldjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_weldjoint_setLinearDampingRatio",
+      "contents": "love_weldjoint_setLinearDampingRatio($0)",
+      "annotation": "weldjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_weldjoint_setLinearFrequency",
+      "contents": "love_weldjoint_setLinearFrequency($0)",
+      "annotation": "weldjoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_getMaxMotorTorque",
+      "contents": "love_wheeljoint_getMaxMotorTorque($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_getMotorSpeed",
+      "contents": "love_wheeljoint_getMotorSpeed($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_getMotorTorque",
+      "contents": "love_wheeljoint_getMotorTorque($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_getSpringDampingRatio",
+      "contents": "love_wheeljoint_getSpringDampingRatio($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_getSpringFrequency",
+      "contents": "love_wheeljoint_getSpringFrequency($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_isMotorEnabled",
+      "contents": "love_wheeljoint_isMotorEnabled($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_setMaxMotorTorque",
+      "contents": "love_wheeljoint_setMaxMotorTorque($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_setMotorEnabled",
+      "contents": "love_wheeljoint_setMotorEnabled($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_setMotorSpeed",
+      "contents": "love_wheeljoint_setMotorSpeed($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_setSpringDampingRatio",
+      "contents": "love_wheeljoint_setSpringDampingRatio($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_wheeljoint_setSpringFrequency",
+      "contents": "love_wheeljoint_setSpringFrequency($0)",
+      "annotation": "wheeljoint",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
     },
     {
       "trigger": "love_window_getDesktopDimension",
@@ -3146,6 +5907,182 @@
         "CLove API"
       ],
       "details": "src/fhapi/graphics_window.c"
+    },
+    {
+      "trigger": "love_world_destroy",
+      "contents": "love_world_destroy($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_getBodies",
+      "contents": "love_world_getBodies($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_getBodyCount",
+      "contents": "love_world_getBodyCount($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_getCallbacks",
+      "contents": "love_world_getCallbacks($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_getGravity",
+      "contents": "love_world_getGravity($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_getJointCount",
+      "contents": "love_world_getJointCount($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_getJoints",
+      "contents": "love_world_getJoints($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_isDestroyed",
+      "contents": "love_world_isDestroyed($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_isSleepingAllowed",
+      "contents": "love_world_isSleepingAllowed($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_queryBoundingBox",
+      "contents": "love_world_queryBoundingBox($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_rayCast",
+      "contents": "love_world_rayCast($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_rayCastClosest",
+      "contents": "love_world_rayCastClosest($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_setCallbacks",
+      "contents": "love_world_setCallbacks($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_setGravity",
+      "contents": "love_world_setGravity($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_setSleepingAllowed",
+      "contents": "love_world_setSleepingAllowed($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
+    },
+    {
+      "trigger": "love_world_update",
+      "contents": "love_world_update($0)",
+      "annotation": "world",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/physics.c"
     },
     {
       "trigger": "window_title",

@@ -13,6 +13,18 @@ version 0.8.0 not yet released
 * added: love_window_setMaxSize.
 * added: New scripting language, FH.
 * added: Misc math utilities.
+* added: love.tween, a small tweening module (src/tween/tween.c). A tween
+	carries a number or an array of them and reports back in the shape it was
+	given, so a point, a colour or a rectangle is one tween rather than four.
+	31 Penner easings, chained steps with per-step delays and curves, looping
+	with an optional yoyo, seek, pause, and love_tween_ease() for the curve on
+	its own. LOVE has no love.tween; this is CLove's.
+* added: love.joystick for FH. The module registered zero functions -- a game
+	could receive the press and release callbacks but never ask what was
+	connected, read an axis or poll a button. Twelve bindings now, mirroring
+	the Lua ones: getCount, getName, isConnected, isGamepad, isDown (by name
+	or by LOVE's number), getAxis, getGamepadAxis, getAxisCount,
+	getButtonCount, getBallCount, getHatCount, getHat.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384
