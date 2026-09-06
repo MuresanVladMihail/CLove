@@ -110,7 +110,10 @@ int fn_love_window_setVsync(struct fh_program *prog, struct fh_value *ret, struc
 }
 
 int fn_love_window_getDisplayName(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
-    int index = (int)fh_optnumber(&args[0], n_args, 0, 0);
+    // fh_optnumber() takes the args array and an index, not a pre-offset
+    // pointer -- passing &args[0] here read past the end of the caller's
+    // buffer whenever no display index was given.
+    int index = (int)fh_optnumber(args, n_args, 0, 0);
     const char *name = graphics_getDisplayName(index);
     *ret = fh_new_string(prog, name);
     return 0;
@@ -162,6 +165,9 @@ int fn_love_window_hasMouseFocus(struct fh_program *prog, struct fh_value *ret, 
 }
 
 int fn_love_window_setMode(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args < 2)
+        return fh_set_error(prog,
+                "love_window_setMode(): expected at least 2 arguments (width, height), got %d", n_args);
 
     for (int i = 0; i < 2; i++) {
         if (!fh_is_number(&args[i]))

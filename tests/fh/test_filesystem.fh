@@ -1,0 +1,109 @@
+# love.filesystem: the two roots, and the calls that move between them.
+#
+# love_filesystem_setSource() passed its arguments to PHYSFS_mount() the wrong
+# way round -- it mounted the *previous* source and used the new one as the
+# mount point, an absolute host path, which is not a valid place inside the
+# virtual filesystem. It also kept the caller's string rather than a copy, and
+# love_filesystem_getSource() free()d a pointer that was not its to release.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn test_directories() {
+    let wd = love_filesystem_getWorkingDirectory();
+    check(wd != null && len(wd) > 0, "there is a working directory");
+
+    let home = love_filesystem_getHomeDirectory();
+    check(home != null && len(home) > 0, "and a home directory");
+
+    let save = love_filesystem_getSaveDirectory();
+    check(save != null && len(save) > 0, "and a save directory");
+}
+
+fn test_source_round_trip() {
+    let wd = love_filesystem_getWorkingDirectory();
+
+    check(love_filesystem_setSource(wd), "mounting the working directory should succeed");
+    check(love_filesystem_getSource() == wd, "and getSource should report it back");
+
+    # Reading it twice must not corrupt anything: getSource used to free what
+    # it returned, so the second call read freed memory.
+    check(love_filesystem_getSource() == wd, "getSource is repeatable");
+    check(love_filesystem_getSource() == wd, "and again");
+}
+
+fn test_read_and_info() {
+    let wd = love_filesystem_getWorkingDirectory();
+    love_filesystem_setSource(wd);
+
+    # main.fh is this very file, copied in by the runner.
+    check(love_filesystem_exists("main.fh"), "the mounted source can be read from");
+
+    let info = love_filesystem_getInfo("main.fh");
+    check(info != false, "getInfo finds a file under the mounted source");
+    check(info[0] == "file", "and calls it a file");
+    check(info[1] > 0, "with a size");
+
+    let text = love_filesystem_read("main.fh");
+    check(len(text) > 0, "and read gives its contents back");
+}
+
+fn test_write_read_delete() {
+    love_filesystem_setIdentity("clove_test_identity");
+
+    love_filesystem_write("clove_test.txt", "hello");
+    check(love_filesystem_exists("clove_test.txt"), "a written file exists");
+    check(love_filesystem_read("clove_test.txt") == "hello", "and reads back what went in");
+
+    love_filesystem_append("clove_test.txt", " world");
+    check(love_filesystem_read("clove_test.txt") == "hello world", "append adds to the end");
+
+    # remove() used to call C's remove(), which addresses the real filesystem
+    # relative to the process's working directory -- a different place from
+    # where write() had just put the file -- and returned 0-for-success
+    # straight back as the bool, so the answer was inverted too.
+    check(love_filesystem_remove("clove_test.txt"), "remove reports success");
+    check(!love_filesystem_exists("clove_test.txt"), "and the file is gone");
+}
+
+fn test_rename() {
+    love_filesystem_setIdentity("clove_test_identity");
+
+    love_filesystem_write("before.txt", "contents");
+    check(love_filesystem_rename("before.txt", "after.txt"), "rename reports success");
+    check(!love_filesystem_exists("before.txt"), "the old name is gone");
+    check(love_filesystem_exists("after.txt"), "the new name is there");
+    check(love_filesystem_read("after.txt") == "contents", "with the same contents");
+
+    love_filesystem_remove("after.txt");
+}
+
+fn test_list() {
+    let entries = love_filesystem_list(".");
+    check(entries != null, "the working directory lists");
+    check(len(entries) > 0, "and has something in it");
+
+    let sawMain = false;
+    for (let i = 0; i < len(entries); i++) {
+        check(contains_key(entries[i], "name"), "an entry has a name");
+        check(contains_key(entries[i], "dir"), "and says whether it is a directory");
+        if (entries[i].name == "main.fh") { sawMain = true; }
+    }
+    check(sawMain, "main.fh should be in the listing");
+}
+
+fn run() {
+    test_directories();
+    test_source_round_trip();
+    test_read_and_info();
+    test_write_read_delete();
+    test_rename();
+    test_list();
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

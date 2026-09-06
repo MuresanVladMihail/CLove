@@ -36,7 +36,7 @@ static struct {
      * used when use_physfs is 'true' to
      * determine the mouting point
      */
-    const char* source;
+    char* source;
     /**
      * @brief hasIdentitySet most physfs features do not work
      * until you set the identity folder, we have to check for that
@@ -293,15 +293,31 @@ int filesystem_read(char const* filename, char** output) {
     if (!file)
         return -1;
     PHYSFS_sint64 size = PHYSFS_fileLength(file);
+    if (size < 0) {
+        PHYSFS_close(file);
+        return -1;
+    }
 
-    *output = malloc(size + 1);
+    *output = malloc((size_t) size + 1);
+    if (*output == NULL) {
+        PHYSFS_close(file);
+        return -1;
+    }
 
-    /*int len_read = */PHYSFS_read(file, *output, 1, size);
-    (*output)[size] = '\n';
+    PHYSFS_sint64 read = PHYSFS_read(file, *output, 1, (PHYSFS_uint32) size);
+    if (read < 0) {
+        read = 0;
+    }
+
+    // '\n' used to go here instead of the terminator, so the buffer was never
+    // terminated at all: every caller that treated it as a C string ran off
+    // the end of the allocation, and the text came back with a newline and
+    // whatever followed it in the heap.
+    (*output)[read] = '\0';
 
     PHYSFS_close(file);
 
-    return size;
+    return (int) read;
 
 #else
     FILE* infile = fopen(filename, "r");
@@ -313,12 +329,17 @@ int filesystem_read(char const* filename, char** output) {
     long size = ftell(infile);
     rewind(infile);
 
-    *output = malloc(size+1);
-    fread(*output, size, 1, infile);
-    fclose(infile);
-    (*output)[size] = 0;
+    *output = malloc((size_t) size + 1);
+    if (*output == NULL) {
+        fclose(infile);
+        return -1;
+    }
 
-    return size;
+    size_t read = fread(*output, 1, (size_t) size, infile);
+    fclose(infile);
+    (*output)[read] = '\0';
+
+    return (int) read;
 #endif
 }
 
@@ -371,21 +392,53 @@ bool filesystem_isSymLink(const char* name)
 }
 
 
-void filesystem_setSource(const char* source)
+bool filesystem_setSource(const char* source)
 {
-#ifdef USE_PHYSFS
-    if (! PHYSFS_mount(moduleData.source != NULL ? moduleData.source : SDL_GetBasePath(), source, 1))
-    {
-        clove_error("couldn't mount file:");
-        clove_error(source);
+    if (source == NULL || source[0] == '\0') {
+        clove_error("love.filesystem.setSource: expected a path\n");
+        return false;
+    }
 
+#ifdef USE_PHYSFS
+    // PHYSFS_mount(newDir, mountPoint, appendToPath). The arguments used to
+    // be the other way round: it mounted the *previous* source and passed the
+    // new one as the mount point -- an absolute host path, which is not a
+    // valid place inside the virtual filesystem. So setSource() never mounted
+    // what it was given, and could take PhysFS somewhere it aborts.
+    if (! PHYSFS_mount(source, NULL, 1))
+    {
+        clove_error("couldn't mount source: %s (%s)\n", source, PHYSFS_getLastError());
+        return false;
     }
 #endif
-    moduleData.source = source;
+
+    // The caller's string is theirs: a script's string can be collected the
+    // moment the call returns, and moduleData.source used to keep it.
+    char* copy = malloc(strlen(source) + 1);
+    if (copy == NULL) {
+        clove_error("love.filesystem.setSource: out of memory\n");
+        return false;
+    }
+    strcpy(copy, source);
+
+    free(moduleData.source);
+    moduleData.source = copy;
+    return true;
 }
 
 const char* filesystem_getSource() {
-    return moduleData.source != NULL ? moduleData.source : SDL_GetBasePath();
+    if (moduleData.source == NULL) {
+        // SDL_GetBasePath() hands back a buffer the caller owns. Keeping the
+        // first one makes this a borrow rather than a transfer, so callers do
+        // not have to guess whether to free what they got -- and one of them
+        // was freeing a pointer it did not own.
+        char* base = SDL_GetBasePath();
+        if (base == NULL) {
+            return "";
+        }
+        moduleData.source = base;
+    }
+    return moduleData.source;
 }
 
 bool filesystem_setIdentity(const char* name)
@@ -657,10 +710,39 @@ const char* filesystem_getUsrDir()
 }
 
 bool filesystem_remove(const char* name) {
-    return remove(name);
+#ifdef USE_PHYSFS
+    // write(), read() and exists() all speak PhysFS, relative to the write
+    // directory. remove() from <stdio.h> speaks the real filesystem, relative
+    // to the process's working directory -- so this used to look somewhere
+    // else entirely. And remove() returns 0 for success, which was being
+    // handed back as the bool, so the answer was inverted on top of that.
+    return PHYSFS_delete(name) != 0;
+#else
+    return remove(name) == 0;
+#endif
 }
 
 bool filesystem_rename(const char *old_name, const char *new_name) {
-    return rename(old_name, new_name);
+#ifdef USE_PHYSFS
+    // PhysFS has no rename, so this is a copy and a delete -- which is what
+    // renaming inside the write directory amounts to. rename() from <stdio.h>
+    // would have addressed a different filesystem, and returns 0 for success.
+    char* data = NULL;
+    int size = filesystem_read(old_name, &data);
+    if (size < 0) {
+        return false;
+    }
+
+    bool ok = filesystem_write(new_name, data) >= 0;
+    free(data);
+
+    if (!ok) {
+        return false;
+    }
+
+    return PHYSFS_delete(old_name) != 0;
+#else
+    return rename(old_name, new_name) == 0;
+#endif
 }
 

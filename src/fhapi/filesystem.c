@@ -151,16 +151,20 @@ static int fn_love_filesystem_setSource(struct fh_program *prog,
     if (!fh_is_string(&args[0]))
         return fh_set_error(prog, "Illegal parameter, expected source:string");
     const char *source = fh_get_string(&args[0]);
-    filesystem_setSource(source);
-    *ret = fh_make_null();
+    *ret = fh_new_bool(filesystem_setSource(source));
     return 0;
 }
 
 static int fn_love_filesystem_getSource(struct fh_program *prog,
                                         struct fh_value *ret, struct fh_value *args, int n_args) {
-    const char *source = filesystem_getSource();
-    *ret = fh_new_string(prog, source);
-    free((char*)source);
+    UNUSED(args);
+    if (n_args != 0)
+        return fh_set_error(prog, "love_filesystem_getSource(): expected no arguments, got %d", n_args);
+
+    // Borrowed, not owned. This used to free() what it was handed, which is
+    // either the module's own string or SDL's base path -- neither is the
+    // binding's to release.
+    *ret = fh_new_string(prog, filesystem_getSource());
     return 0;
 }
 

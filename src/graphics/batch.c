@@ -15,7 +15,7 @@
 
 static struct {
 	GLuint ibo;
-	uint16_t *sharedIndexBufferData;
+	uint32_t *sharedIndexBufferData;
 	int indexBufferSize;
 	mat4x4 tr2d;
 	mat3x3 transform;
@@ -31,22 +31,28 @@ static void graphics_batch_makeIndexBuffer(int quadCount) {
 	// Round up to multiple of 128
 	quadCount = (quadCount + 127) & ~127;
 
-	size_t indexCount = quadCount * 6;
-	size_t sizeBytes = indexCount * sizeof(uint16_t);
+	// 32-bit indices. They used to be uint16_t, and a quad's first vertex is
+	// 4 * i -- so from quad 16384 on, the index wrapped and every sprite past
+	// that drew another sprite's geometry. A batch simply could not hold more
+	// than 16384 quads, silently.
+	size_t indexCount = (size_t) quadCount * 6;
+	size_t sizeBytes = indexCount * sizeof(uint32_t);
 
-	uint16_t *newData = realloc(moduleData.sharedIndexBufferData, sizeBytes);
+	uint32_t *newData = realloc(moduleData.sharedIndexBufferData, sizeBytes);
 	if (!newData) {
 		return;
 	}
 
 	moduleData.sharedIndexBufferData = newData;
 	for (int i = moduleData.indexBufferSize; i < quadCount; ++i) {
-		moduleData.sharedIndexBufferData[6 * i] = 4 * i;
-		moduleData.sharedIndexBufferData[6 * i + 1] = 4 * i + 1;
-		moduleData.sharedIndexBufferData[6 * i + 2] = 4 * i + 2;
-		moduleData.sharedIndexBufferData[6 * i + 3] = 4 * i + 2;
-		moduleData.sharedIndexBufferData[6 * i + 4] = 4 * i + 1;
-		moduleData.sharedIndexBufferData[6 * i + 5] = 4 * i + 3;
+		uint32_t base = (uint32_t) i * 4u;
+		size_t at = (size_t) i * 6u;
+		moduleData.sharedIndexBufferData[at]     = base;
+		moduleData.sharedIndexBufferData[at + 1] = base + 1u;
+		moduleData.sharedIndexBufferData[at + 2] = base + 2u;
+		moduleData.sharedIndexBufferData[at + 3] = base + 2u;
+		moduleData.sharedIndexBufferData[at + 4] = base + 1u;
+		moduleData.sharedIndexBufferData[at + 5] = base + 3u;
 	}
 
 	graphics_bindDefaultVao();
@@ -223,7 +229,7 @@ void graphics_Batch_draw(graphics_Batch *batch,
 
 	graphics_drawBatch(&fullQuad, &moduleData.tr2d,
 	                   batch->insertPos * 6,
-	                   GL_TRIANGLES, GL_UNSIGNED_SHORT,
+	                   GL_TRIANGLES, GL_UNSIGNED_INT,
 	                   (float *) &batch->color, 1.0f, 1.0f);
 
 	glBindVertexArray(0);

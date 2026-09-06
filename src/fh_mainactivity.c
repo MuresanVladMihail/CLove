@@ -48,6 +48,7 @@
 
 typedef struct {
     bool called_quit;
+    bool lastFocus;
     struct fh_program *prog;
     struct fh_value delta;
     struct fh_value focus;
@@ -97,7 +98,17 @@ static void focus_function(void) {
     // also pollute the program error state every frame
     if (!fh_function_exists(loopData.prog, "love_focus"))
         return;
-    loopData.focus.data.b = graphics_hasFocus();
+
+    // It is an event, not a poll. This ran every frame, so a game that logged
+    // or reacted in love_focus() got sixty identical calls a second, and paid
+    // for a script call on each one.
+    bool focused = graphics_hasFocus();
+    if (focused == loopData.lastFocus) {
+        return;
+    }
+    loopData.lastFocus = focused;
+
+    loopData.focus.data.b = focused;
     if (fh_call_function(loopData.prog, "love_focus", &loopData.focus, 1, NULL) == -2) {
         clove_error("Error: %s\n", fh_get_error(loopData.prog));
     }
@@ -318,6 +329,9 @@ int fh_main_activity_load(int argc, char *argv[]) {
     clove_reload = false;
     clove_running = true;
     loopData.called_quit = false;
+    // Seeded from the window's state, so the first love_focus() a game sees is
+    // a real change rather than an echo of how it started.
+    loopData.lastFocus = graphics_hasFocus();
     loopData.prog = fh_new_program();
     if (!loopData.prog) {
         clove_error("ERROR: out of memory for initializing language FH\n");

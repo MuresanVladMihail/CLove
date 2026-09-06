@@ -1,0 +1,11 @@
+# FH_GRAPHICS_CANVAS and FH_GRAPHICS_QUAD were both type id 7, so a canvas
+# satisfied every "is this a quad?" check and vice versa -- and
+# love_quad_getViewport(canvas) happily read four floats out of a
+# graphics_Canvas and handed them back as a viewport.
+fn love_load() {
+    let c = love_graphics_newCanvas(64, 64);
+    love_quad_getViewport(c);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}
