@@ -169,8 +169,27 @@ The patch is `source_current_buffer()`, `source_offset_units()`,
 plus the four case bodies that call them. It leans on state the mixer already
 keeps: `src->offset` (bytes into the *converted* float32 data, at the
 buffer's channel count) and `src->offset_latched`, which `source_play()`
-already honours. Re-apply it if mojoAL is re-synced;
-`tests/fh/test_audio_wav.fh` fails without it.
+already honours. `tests/fh/test_audio_wav.fh` fails without it.
+
+**Upstream has since implemented this itself**, with the same two function
+names — so the patch is a backport, not a divergence, and it is written to
+match upstream's semantics so that dropping it later is clean: an offset out
+of range is `AL_INVALID_VALUE` rather than a clamp (CLove clamps in
+`audio_StaticSource_seek()` instead), and seeking a *streaming* source is
+`AL_INVALID_OPERATION`, which is what upstream does too — only CLove knows
+about the vorbis decoder behind the queue, so `audio_StreamSource_seek()`
+moves the decoder and rebuilds the queue itself.
+
+What blocks simply taking upstream is that **mojoAL has moved to SDL3**
+(`SDL_PutAudioStreamData` and friends) while CLove vendors SDL 2.32.10. So
+the upgrade is an SDL3 port of the engine, not a file copy. When that
+happens, delete this patch — do not merge it.
+
+One thing the patch does *not* copy from upstream: their streaming getter
+assumes every queued buffer is the same length
+(`processed * buffer->len + offset`). CLove counts each buffer's real size as
+it is unqueued, in `audio_StreamSource`'s `samplesPlayed`, which is where the
+decoder lives anyway.
 
 One upstream quirk the patch does **not** change: `alGetBufferi(AL_SIZE)`
 reports mojoAL's float32 length while `AL_BITS` reports the source file's

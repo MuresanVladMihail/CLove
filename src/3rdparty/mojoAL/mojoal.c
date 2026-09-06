@@ -3251,48 +3251,68 @@ static ALfloat source_get_offset(const ALsource *src, ALenum param)
 
 static void source_set_offset(ALsource *src, ALenum param, ALfloat value)
 {
+    ALCcontext *ctx = get_current_context();
     int channels, bits, freq;
     const ALbuffer *buffer;
-    ALsizei frames = 0;
-    ALsizei bytes;
+    ALsizei bytes = 0;
     int convertedFrame;
 
-    if (value < 0.0f) {
-        value = 0.0f;
+    /* Upstream refuses to seek a streaming source ("not implemented" there
+     * too). CLove does not need it to: only CLove knows about the vorbis
+     * decoder behind the queue, so audio_StreamSource_seek() moves the
+     * decoder and rebuilds the queue instead. */
+    if (!src->buffer) {
+        set_al_error(ctx, AL_INVALID_OPERATION);
+        return;
     }
+
     if (!source_offset_units(src, &channels, &bits, &freq)) {
+        set_al_error(ctx, AL_INVALID_OPERATION);
         return;
     }
     buffer = source_current_buffer(src);
+    convertedFrame = channels * (int) sizeof (float);
 
     switch (param) {
-        case AL_SEC_OFFSET:    frames = (ALsizei) (value * (ALfloat) freq); break;
-        case AL_SAMPLE_OFFSET: frames = (ALsizei) value; break;
+        case AL_SEC_OFFSET:
+            bytes = (ALsizei) (value * (ALfloat) freq) * convertedFrame;
+            break;
+        case AL_SAMPLE_OFFSET:
+            bytes = (ALsizei) value * convertedFrame;
+            break;
         case AL_BYTE_OFFSET: {
             const int srcFrame = channels * (bits / 8);
-            frames = srcFrame > 0 ? (ALsizei) (value / (ALfloat) srcFrame) : 0;
+            bytes = srcFrame > 0 ? ((ALsizei) value / srcFrame) * convertedFrame : 0;
             break;
         }
-        default: return;
+        default:
+            set_al_error(ctx, AL_INVALID_ENUM);
+            return;
     }
 
-    convertedFrame = channels * (int) sizeof (float);
-    bytes = frames * convertedFrame;
-    if (bytes > buffer->len) {
-        bytes = buffer->len;
+    /* Out of range is an error, not a clamp -- that is what real OpenAL and
+     * upstream mojoAL both do. CLove's love_audio_seek() clamps before it gets
+     * here, so a game still gets the friendlier behaviour. */
+    if ((bytes < 0) || (bytes > buffer->len)) {
+        set_al_error(ctx, AL_INVALID_VALUE);
+        return;
     }
-    /* The mixer asserts src->offset < buffer->len, so the very end has to
-     * stay one frame short of it. */
+
+    /* Land on a sample frame boundary, and stay one frame short of the very
+     * end: the mixer asserts src->offset < buffer->len. */
+    bytes -= bytes % convertedFrame;
     if ((bytes >= buffer->len) && (buffer->len >= convertedFrame)) {
         bytes = buffer->len - convertedFrame;
     }
 
-    src->offset = bytes;
-
-    /* Whatever the resampler still holds belongs to the old position. */
+    /* Whatever the resampler still holds belongs to the old position. The
+     * mixer refills it from src->offset on its next pass, which is why this
+     * needs no equivalent of upstream's put_albuffer_to_audiostream(). */
     if (src->stream) {
         SDL_AudioStreamClear(src->stream);
     }
+
+    src->offset = bytes;
 
     /* AL says a value set while the source is not playing applies to the next
      * alSourcePlay(); source_play() reads this flag. */

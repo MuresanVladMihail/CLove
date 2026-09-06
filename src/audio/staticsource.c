@@ -100,9 +100,17 @@ void audio_StaticSource_seek(audio_StaticSource *source, float seconds) {
 	if (!source) {
 		return;
 	}
+
+	/* OpenAL treats an out-of-range offset as an error; a game wants it
+	 * clamped, so the clamping happens here rather than in the AL layer --
+	 * which keeps the mojoAL patch matching upstream's semantics. */
 	if (seconds < 0.0f) {
 		seconds = 0.0f;
 	}
+	if (source->duration > 0.0f && seconds > source->duration) {
+		seconds = source->duration;
+	}
+
 	alSourcef(source->common.source, AL_SEC_OFFSET, seconds);
 }
 
