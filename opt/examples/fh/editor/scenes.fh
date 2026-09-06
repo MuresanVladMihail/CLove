@@ -67,7 +67,32 @@ fn scenes_suggest_name(app) {
 
 # --- switching --------------------------------------------------------------
 
+# Where you were looking in each level, for this session. Switching to a level
+# and back should put the view where you left it, not reframe the whole scene
+# and make you find your way again. It is not written to editor.json: that
+# would mean a file write every time the camera moved.
+fn scenes_remember_camera(app) {
+	app.cameras[app.scene_path] = {
+		"x": app.cam.x, "y": app.cam.y, "zoom": app.cam.zoom
+	};
+	return 0;
+}
+
+fn scenes_restore_camera(app) {
+	if (!contains_key(app.cameras, app.scene_path)) {
+		cam_frame_all(app);   # first visit: show the whole level
+		return 0;
+	}
+	let c = app.cameras[app.scene_path];
+	app.cam.x = c.x;
+	app.cam.y = c.y;
+	app.cam.zoom = c.zoom;
+	return 0;
+}
+
 fn scenes_open(app, path) {
+	scenes_remember_camera(app);
+
 	if (io_filetype(path) == "file") {
 		if (!doc_load(app, path)) { return false; }
 	} else {
@@ -87,7 +112,7 @@ fn scenes_open(app, path) {
 	app.trace_cache = {};
 
 	prefs_touch(app);          # editor.json remembers the level you are on
-	cam_frame_all(app);
+	scenes_restore_camera(app);
 	return true;
 }
 
@@ -143,8 +168,19 @@ fn scenes_menu(app) {
 
 		love_ui_label("");
 		if (love_ui_button("New level...", ALIGN_LEFT)) {
-			love_ui_clear_textbox(NEW_SCENE_BOX);
-			app.new_scene = scenes_suggest_name(app);
+			scenes_ask_name(app, "new", scenes_suggest_name(app));
+			close_menu = true;
+		}
+		if (love_ui_button("Save as...", ALIGN_LEFT)) {
+			scenes_ask_name(app, "copy", scenes_suggest_name(app));
+			close_menu = true;
+		}
+		if (love_ui_button("Rename...", ALIGN_LEFT)) {
+			scenes_ask_name(app, "rename", app.scene_path);
+			close_menu = true;
+		}
+		if (love_ui_button("Delete level...", ALIGN_LEFT)) {
+			app.delete_scene = app.scene_path;
 			close_menu = true;
 		}
 		love_ui_end_popup();
@@ -190,34 +226,125 @@ fn scenes_unsaved_dialog(app) {
 	return 0;
 }
 
-fn scenes_new_dialog(app) {
-	if (app.new_scene == null) { return 0; }
+# One dialog for the three commands that need a file name. They differ only in
+# what the button says and what it does with the name, which is not enough to
+# justify three near-identical modals -- or three text box ids, and microui
+# only has so many.
+fn scenes_ask_name(app, mode, suggestion) {
+	love_ui_clear_textbox(NEW_SCENE_BOX);
+	app.name_dialog = { "mode": mode, "name": suggestion };
+	return 0;
+}
 
+fn scenes_dialog_title(mode) {
+	if (mode == "copy") { return "Save as"; }
+	if (mode == "rename") { return "Rename level"; }
+	return "New level";
+}
+
+fn scenes_apply_name(app, mode, name) {
+	if (mode == "new") {
+		scenes_request(app, name);
+		return 0;
+	}
+
+	if (mode == "copy") {
+		# the document as it stands, written under the new name, and the
+		# editor carries on there -- nothing is lost, so nothing to ask
+		doc_save(app, name);
+		scenes_remember_camera(app);
+		app.scene_path = name;
+		prefs_touch(app);
+		return 0;
+	}
+
+	# rename: a level that has never been written has no file to move
+	if (io_filetype(app.scene_path) == "file") {
+		io_rename(app.scene_path, name);
+	}
+	log_line(app, app.scene_path + " -> " + name);
+	app.scene_path = name;
+	prefs_touch(app);
+	return 0;
+}
+
+fn scenes_name_dialog(app) {
+	if (app.name_dialog == null) { return 0; }
+
+	let mode = app.name_dialog.mode;
 	let h = dialog_height(3);   # label, text box, buttons
-	if (love_ui_begin_window("New level", dialog_x(DIALOG_W), dialog_y(h),
-	                         DIALOG_W, h,
+	if (love_ui_begin_window(scenes_dialog_title(mode),
+	                         dialog_x(DIALOG_W), dialog_y(h), DIALOG_W, h,
 	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("File name, next to " + PREFS_PATH + ":");
 
-		let box = love_ui_textbox(NEW_SCENE_BOX, app.new_scene);
-		let name = box[1];
+		let box = love_ui_textbox(NEW_SCENE_BOX, app.name_dialog.name);
+		let name = string_trim(box[1]);
 
 		love_ui_layout_row(2, [-95, -1], 0);
-		if (love_ui_button("Create", ALIGN_CENTER)) {
+		if (love_ui_button("OK", ALIGN_CENTER)) {
 			if (len(name) > 0) {
 				if (!path_has_suffix(name, ".json")) { name = name + ".json"; }
-				if (io_filetype(name) == "file") {
+				if (name == app.scene_path) {
+					app.name_dialog = null;          # nothing to do
+				} else if (io_filetype(name) == "file") {
 					log_line(app, name + " already exists");
 				} else {
-					app.new_scene = null;
-					scenes_request(app, name);
+					app.name_dialog = null;
+					scenes_apply_name(app, mode, name);
 				}
 			}
 		}
-		if (love_ui_button("Cancel", ALIGN_CENTER)) { app.new_scene = null; }
+		if (love_ui_button("Cancel", ALIGN_CENTER)) { app.name_dialog = null; }
 
 		love_ui_end_window();
+	}
+	return 0;
+}
+
+# Removing a level takes the file with it, so it asks first and names the file
+# it is about to remove.
+fn scenes_delete_dialog(app) {
+	if (app.delete_scene == null) { return 0; }
+
+	let h = dialog_height(3);
+	if (love_ui_begin_window("Delete level", dialog_x(DIALOG_W), dialog_y(h),
+	                         DIALOG_W, h,
+	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_text("Delete " + app.delete_scene +
+			"? The file is removed from disk and this cannot be undone.");
+
+		love_ui_layout_row(2, [-95, -1], 0);
+		if (love_ui_button("Delete", ALIGN_CENTER)) {
+			let gone = app.delete_scene;
+			app.delete_scene = null;
+			scenes_delete(app, gone);
+		}
+		if (love_ui_button("Cancel", ALIGN_CENTER)) { app.delete_scene = null; }
+
+		love_ui_end_window();
+	}
+	return 0;
+}
+
+fn scenes_delete(app, path) {
+	if (io_filetype(path) == "file") { io_remove(path); }
+	log_line(app, "deleted " + path);
+
+	if (path != app.scene_path) { return 0; }
+
+	# The level that was open is gone: fall back to whatever is left, or to an
+	# empty scene.json when nothing is.
+	app.dirty = false;          # there is no file to be dirty against
+	let left = scenes_list(app);
+	if (len(left) > 0) {
+		app.scene_path = "";    # force scenes_request past its same-file check
+		scenes_request(app, left[0]);
+	} else {
+		app.scene_path = "";
+		scenes_request(app, SCENE_PATH);
 	}
 	return 0;
 }
@@ -255,6 +382,7 @@ fn scenes_quit_dialog(app) {
 
 fn scenes_dialogs(app) {
 	scenes_unsaved_dialog(app);
-	scenes_new_dialog(app);
+	scenes_name_dialog(app);
+	scenes_delete_dialog(app);
 	return 0;
 }

@@ -202,8 +202,10 @@ fn love_load() {
 
 	# levels. app.scene_path comes from prefs_defaults()/prefs_load().
 	app.scene_files = [];     # the menu's listing, refreshed when it opens
+	app.cameras = {};         # where you were looking in each level, per session
 	app.scene_pending = null; # a switch waiting on the unsaved-changes modal
-	app.new_scene = null;     # the suggested name, while the New level modal is up
+	app.name_dialog = null;   # { mode, name } while New / Save as / Rename is up
+	app.delete_scene = null;  # the level the Delete confirmation is about
 	app.quitting = false;     # the quit modal is up
 	app.force_quit = false;   # the user answered it: stop asking
 	app.style_open = false;   # the Theme editor's microui container is open
@@ -372,7 +374,8 @@ fn viewport_input(app, dt) {
 	}
 
 	if (pressed && press_inside && !app.confirm && app.browser == null &&
-	    app.scene_pending == null && app.new_scene == null && !app.quitting) {
+	    app.scene_pending == null && app.name_dialog == null &&
+	    app.delete_scene == null && !app.quitting) {
 		if (app.tool == "select") {
 			# a grip of the current selection wins over picking something new,
 			# so a handle that overhangs another entity still works
@@ -429,8 +432,7 @@ fn shortcut(app, name, ctrl) {
 		if (name == "s") { doc_save(app, app.scene_path); return 0; }
 		if (name == "d") { doc_duplicate(app); return 0; }
 		if (name == "n") {
-			love_ui_clear_textbox(NEW_SCENE_BOX);
-			app.new_scene = scenes_suggest_name(app);
+			scenes_ask_name(app, "new", scenes_suggest_name(app));
 			return 0;
 		}
 		return 0;
@@ -476,8 +478,10 @@ fn love_update(dt, app) {
 		# Esc backs out of a dialog before it quits the editor
 		if (app.browser != null) {
 			browser_close(app);
-		} else if (app.new_scene != null) {
-			app.new_scene = null;
+		} else if (app.name_dialog != null) {
+			app.name_dialog = null;
+		} else if (app.delete_scene != null) {
+			app.delete_scene = null;
 		} else if (app.scene_pending != null) {
 			app.scene_pending = null;
 		} else if (app.confirm) {

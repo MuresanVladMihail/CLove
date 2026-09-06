@@ -229,10 +229,12 @@ fn panels_hierarchy(app) {
 			love_ui_text("Play builds a Box2D world; Stop throws it away and the " +
 				"document is exactly as you left it.");
 			love_ui_text("Levels: the button beside Play names the level you are " +
-				"editing; click it to switch, or to start a new one. Every " +
-				"*.json beside the game is a level, editor.json excepted.");
-			love_ui_text("Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save. Esc closes a " +
-				"dialog, or quits when none is open.");
+				"editing; click it to switch, or for New / Save as / Rename / " +
+				"Delete. Every *.json beside the game is a level, editor.json " +
+				"excepted. Switching remembers where you were looking.");
+			love_ui_text("Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save, Ctrl+D " +
+				"duplicate, Ctrl+N new level, Delete removes the selection. " +
+				"Esc closes a dialog, or asks before quitting.");
 			love_ui_end_popup();
 		}
 		if (love_ui_popup_open("Shortcuts")) { app.popup_open = true; }
