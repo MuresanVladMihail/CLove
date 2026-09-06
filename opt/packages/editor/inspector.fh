@@ -20,7 +20,7 @@
 
 fn panels_groups_to_text(app, e) {
 	let out = "";
-	for (let i = 0; i < len(e.groups); i = i + 1) {
+	for (let i = 0; i < len(e.groups); i++) {
 		if (i > 0) { out = out + ", "; }
 		out = out + e.groups[i];
 	}
@@ -30,7 +30,7 @@ fn panels_groups_to_text(app, e) {
 fn panels_text_to_groups(app, text) {
 	let out = [];
 	let parts = string_split(text, ",");
-	for (let i = 0; i < len(parts); i = i + 1) {
+	for (let i = 0; i < len(parts); i++) {
 		let g = string_trim(parts[i]);
 		if (len(g) > 0) { append(out, g); }
 	}
@@ -57,6 +57,73 @@ fn panels_body_type_button(app, e, label) {
 	return 0;
 }
 
+# The level itself: gravity and the metre. Both are document data -- they are
+# saved with the level and a game reads them through the scene package -- so
+# they are edited here rather than in the editor's own Settings.
+fn inspector_level(app, open_it) {
+	let opt = 0;
+	if (open_it) { opt = OPT_EXPANDED; }
+
+	love_ui_layout_row(1, [-1], 0);
+	if (!love_ui_header("Level", opt)) { return 0; }
+
+	let g = app.doc_data.gravity;
+
+	love_ui_layout_row(2, [86, -1], 0);
+	love_ui_label("gravity X:");
+	let gx = round_to(love_ui_number(g[0], 5, ID_NUM_GRAV_X, ALIGN_CENTER, 0), 2);
+	tip(app, "Sideways pull, in pixels per second squared. Wind, or a level " +
+		"that is on its side.");
+
+	love_ui_label("gravity Y:");
+	let gy = round_to(love_ui_number(g[1], 5, ID_NUM_GRAV_Y, ALIGN_CENTER, 0), 2);
+	tip(app, "Downward pull, in pixels per second squared. Positive is down, " +
+		"the way the screen is. 900 is roughly earth at 30 pixels a metre.");
+
+	if (gx != g[0] || gy != g[1]) {
+		doc_begin_edit(app);
+		app.doc_data.gravity[0] = gx;
+		app.doc_data.gravity[1] = gy;
+		# A world that is already running takes it now, so Play is where you
+		# find the right number rather than a thing you restart to try one.
+		if (app.mode == "play") { love_world_setGravity(app.world, gx, gy); }
+	}
+
+	love_ui_label("meter:");
+	let meter = love_ui_number(app.doc_data.meter, 1, ID_NUM_METER, ALIGN_CENTER, 0);
+	if (meter < 1) { meter = 1; }
+	tip(app, "Pixels per Box2D metre. Box2D is tuned for objects a metre or " +
+		"so across, so this is what keeps a 90-pixel crate from behaving like " +
+		"a 90-metre one. Changing it re-tunes the whole level's physics.");
+
+	if (meter != app.doc_data.meter) {
+		doc_begin_edit(app);
+		app.doc_data.meter = meter;
+	}
+
+	love_ui_layout_row(2, [-95, -1], 0);
+	love_ui_label(doc_count(app) + " entities");
+	if (love_ui_button("Reset", ALIGN_CENTER)) {
+		let same = app.doc_data.gravity[0] == LEVEL_GRAVITY[0] &&
+			app.doc_data.gravity[1] == LEVEL_GRAVITY[1] &&
+			app.doc_data.meter == LEVEL_METER;
+		if (!same) {
+			doc_begin_edit(app);
+			app.doc_data.gravity[0] = LEVEL_GRAVITY[0];
+			app.doc_data.gravity[1] = LEVEL_GRAVITY[1];
+			app.doc_data.meter = LEVEL_METER;
+			if (app.mode == "play") {
+				love_world_setGravity(app.world, LEVEL_GRAVITY[0], LEVEL_GRAVITY[1]);
+			}
+			log_line(app, "level settings back to the default");
+		}
+	}
+	tip(app, "Gravity and the metre back to what a new level starts with: " +
+		LEVEL_GRAVITY[0] + ", " + LEVEL_GRAVITY[1] + " and " + LEVEL_METER +
+		". Undoable, like any other edit.");
+	return 0;
+}
+
 # A hand-drawn collision mesh: how many points it has, whether Box2D will get
 # the shape as drawn, and a way to add one without aiming at an edge.
 #
@@ -71,16 +138,17 @@ fn inspector_polygon(app, e, f) {
 	}
 
 	let n = len(f.points) / 2;
-	let hulled = sim_hull(app, f.points);
-	let kept = 0;
-	if (hulled != null) { kept = len(hulled) / 2; }
+	let pieces = sim_pieces(app, e);
 
-	if (kept == n) {
-		love_ui_label(n + " points, convex");
+	if (len(pieces) == 0) {
+		love_ui_text(n + " points, but they do not make a simple outline -- " +
+			"an edge crossing another has no inside for Box2D to fill.");
+	} else if (len(pieces) == 1) {
+		love_ui_label(n + " points, one convex piece");
 	} else {
-		love_ui_text(n + " points, simulated as a hull of " + kept +
-			" -- Box2D takes convex shapes of at most " + MAX_HULL_POINTS +
-			" points, so the dents are filled in.");
+		love_ui_text(n + " points, cut into " + len(pieces) + " convex pieces " +
+			"-- Box2D only has convex shapes, so the outline becomes that " +
+			"many fixtures on the one body and collides exactly as drawn.");
 	}
 
 	love_ui_layout_row(2, [-95, -1], 0);
@@ -104,12 +172,12 @@ fn inspector_bit_row(app, label, value, id_base) {
 	love_ui_label(label);
 
 	let widths = [];
-	for (let i = 0; i < FILTER_BITS; i = i + 1) { append(widths, 22); }
+	for (let i = 0; i < FILTER_BITS; i++) { append(widths, 22); }
 	append(widths, -1);
 	love_ui_layout_row(FILTER_BITS + 1, widths, 0);
 
 	let out = value;
-	for (let i = 0; i < FILTER_BITS; i = i + 1) {
+	for (let i = 0; i < FILTER_BITS; i++) {
 		let mark = "" + (i + 1);
 		if (bit_has(value, i)) { mark = "[" + (i + 1) + "]"; }
 
@@ -175,7 +243,7 @@ fn inspector_joints(app, e) {
 		return 0;
 	}
 
-	for (let i = 0; i < len(mine); i = i + 1) {
+	for (let i = 0; i < len(mine); i++) {
 		let j = mine[i];
 		let other_id = j.b;
 		if (j.b == e.id) { other_id = j.a; }
@@ -196,14 +264,22 @@ fn inspector_joints(app, e) {
 }
 
 fn panels_inspector(app) {
-	if (love_ui_begin_window("Inspector", app.screen_w - PANEL_W, TOOLBAR_H,
-	                         PANEL_W, app.screen_h - TOOLBAR_H, panels_dock_opts(app))) {
+	if (panels_dock(app, "Inspector", app.screen_w - app.panel_r, TOOLBAR_H,
+	                app.panel_r, app.screen_h - TOOLBAR_H)) {
 		love_ui_layout_row(1, [-1], 0);
 		love_ui_label("INSPECTOR");
 
+		# The level's own settings sit above the entity's, always: hiding them
+		# behind "select nothing first" made them findable only by accident.
+		# The header starts closed so it costs one line when it is not wanted,
+		# and microui remembers it open once it has been opened.
 		let e = doc_selected(app);
+		inspector_level(app, e == null);
+
 		if (e == null) {
-			love_ui_text("Nothing selected. Pick an entity in the viewport or in the hierarchy.");
+			love_ui_layout_row(1, [-1], 0);
+			love_ui_text("Nothing selected. Pick an entity in the viewport or " +
+				"in the hierarchy.");
 			love_ui_end_window();
 			return 0;
 		}
@@ -248,7 +324,11 @@ fn panels_inspector(app) {
 		links_panel(app, e);
 
 		if (love_ui_header("Collision", OPT_EXPANDED)) {
-			love_ui_layout_row(4, [56, 62, 66, -1], 0);
+			# Two rows of two: four across the inspector's 250px left "polygon"
+			# reading as "olyg". A positive first width, because microui reads
+			# a negative one as "the container's width plus this" -- two of
+			# those fill the row each and give one button per line.
+			love_ui_layout_row(2, [112, -1], 0);
 			panels_shape_button(app, f, "rect");
 			panels_shape_button(app, f, "circle");
 			panels_shape_button(app, f, "traced");

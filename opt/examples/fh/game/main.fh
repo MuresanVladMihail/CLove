@@ -48,7 +48,7 @@ fn build_world(g) {
 	g.bodies = [];
 
 	let entities = scene.all();
-	for (let i = 0; i < len(entities); i = i + 1) {
+	for (let i = 0; i < len(entities); i++) {
 		let e = entities[i];
 		let f = scene.fixture(e);
 		let c = scene.center(e);
@@ -169,7 +169,7 @@ fn draw_entity(g, e, body) {
 }
 
 fn love_draw(g) {
-	for (let i = 0; i < len(g.bodies); i = i + 1) {
+	for (let i = 0; i < len(g.bodies); i++) {
 		let id = g.bodies[i][0];
 		let e = g.scene.get(id);
 		if (e != null && g.scene.is_visible(e)) { draw_entity(g, e, g.bodies[i][1]); }

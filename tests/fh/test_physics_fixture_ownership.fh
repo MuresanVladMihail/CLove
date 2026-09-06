@@ -22,7 +22,7 @@ fn makeBall(world, x) {
 
 fn churn() {
     # Real allocation pressure: gc() alone does not move a young object.
-    for (let i = 0; i < 3000; i = i + 1) { let junk = [i, "" + i, [i, i]]; }
+    for (let i = 0; i < 3000; i++) { let junk = [i, "" + i, [i, i]]; }
     gc();
 }
 

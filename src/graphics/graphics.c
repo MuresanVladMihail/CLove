@@ -472,16 +472,21 @@ image_ImageData *graphics_getIcon() {
     return moduleData.icon;
 }
 
-void graphics_setWindowSize(int width, int height) {
-    SDL_SetWindowSize(moduleData.window, width, height);
-
-    /* Resizing the window on its own leaves the 2D projection and the GL
-     * viewport on the size the context was created at, so everything keeps
-     * being drawn into the old rectangle in a corner of the bigger window.
-     * graphics_setMode() already does this; a plain resize has to as well -
-     * config.fh's window_width/window_height come through here. */
+/* Point the 2D projection and the GL viewport at a window of this size.
+ *
+ * Without it, everything keeps being drawn into the rectangle the context was
+ * created with - a corner of a window that has since grown. Two callers need
+ * it and neither may do the other's work: a script setting the size has to
+ * tell SDL, while the user dragging the window edge has already told it and must
+ * not be told again. */
+void graphics_updateViewport(int width, int height) {
     m4x4_newOrtho(&moduleData.projectionMatrix, 0, width, height, 0, 0.1f, 100.0f);
     glViewport(0, 0, width, height);
+}
+
+void graphics_setWindowSize(int width, int height) {
+    SDL_SetWindowSize(moduleData.window, width, height);
+    graphics_updateViewport(width, height);
 }
 
 int graphics_setMode(int width, int height,

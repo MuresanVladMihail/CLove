@@ -73,7 +73,7 @@ fn props_keys(app, e) {
 	let props = props_of(app, e);
 	let out = [];
 
-	for (let i = 0; i < len(app.prop_order); i = i + 1) {
+	for (let i = 0; i < len(app.prop_order); i++) {
 		let k = app.prop_order[i];
 		if (contains_key(props, k)) { append(out, k); }
 	}
@@ -81,7 +81,7 @@ fn props_keys(app, e) {
 	let k = next_key(props, null);
 	while (k != null) {
 		let seen = false;
-		for (let i = 0; i < len(out); i = i + 1) {
+		for (let i = 0; i < len(out); i++) {
 			if (out[i] == k) { seen = true; }
 		}
 		if (!seen) { append(out, k); }
@@ -135,7 +135,7 @@ fn props_panel(app, e) {
 	let props = props_of(app, e);
 
 	love_ui_layout_row(1, [-1], 0);
-	for (let i = 0; i < len(keys); i = i + 1) {
+	for (let i = 0; i < len(keys); i++) {
 		let k = keys[i];
 		let v = props[k];
 		let row = k + " = " + props_to_text(v) + "   (" + props_type_name(v) + ")";
@@ -224,7 +224,7 @@ fn links_panel(app, e) {
 	let links = doc_links(app, e);
 
 	love_ui_layout_row(1, [-1], 0);
-	for (let i = 0; i < len(keys); i = i + 1) {
+	for (let i = 0; i < len(keys); i++) {
 		let k = keys[i];
 		let to = doc_find(app, links[k]);
 		let name = "(gone)";
@@ -258,7 +258,7 @@ fn links_panel(app, e) {
 	if (love_ui_begin_popup("link_target")) {
 		love_ui_layout_row(1, [200], 0);
 		let entities = doc_entities(app);
-		for (let i = 0; i < len(entities); i = i + 1) {
+		for (let i = 0; i < len(entities); i++) {
 			if (entities[i].id == e.id) { continue; }
 			love_ui_pushId(entities[i].id);
 			if (love_ui_button(entities[i].name, ALIGN_LEFT)) {

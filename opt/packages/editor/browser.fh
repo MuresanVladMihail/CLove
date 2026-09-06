@@ -22,7 +22,7 @@ let BROWSER_W = 620;
 let BROWSER_H = 460;
 
 fn browser_is_image(name) {
-	for (let i = 0; i < len(IMAGE_EXTS); i = i + 1) {
+	for (let i = 0; i < len(IMAGE_EXTS); i++) {
 		if (path_has_suffix(name, IMAGE_EXTS[i])) { return true; }
 	}
 	return false;
@@ -42,7 +42,7 @@ fn browser_read_dir(app, dir) {
 	# the files this dialog can actually open. Hidden entries are skipped:
 	# a home directory is mostly dotfiles and none of them are artwork.
 	let out = [];
-	for (let i = 0; i < len(listed); i = i + 1) {
+	for (let i = 0; i < len(listed); i++) {
 		let entry = listed[i];
 		if (string_substr(entry.name, 0, 1) == ".") { continue; }
 		if (entry.dir || browser_is_image(entry.name)) { append(out, entry); }
@@ -136,7 +136,7 @@ fn browser_panel(app) {
 		love_ui_begin_panel(app.browser_panel, "browser_list", 0);
 		love_ui_layout_row(1, [-1], 0);
 
-		for (let i = 0; i < len(b.entries); i = i + 1) {
+		for (let i = 0; i < len(b.entries); i++) {
 			let entry = b.entries[i];
 			let label = entry.name;
 			if (entry.dir) { label = "[ " + entry.name + " ]"; }

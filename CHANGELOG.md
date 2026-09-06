@@ -50,6 +50,11 @@ version 0.8.0 not yet released
 	default) exactly as in LOVE. See SKILLS.md for the API and the handful of
 	places Box2D 3 forced a difference (no gear or pulley joints, callbacks are
 	function names, user data is a number or a string).
+* fixed: a window the user resizes now updates the 2D projection and the GL
+	viewport. Only a script-driven resize did, so dragging a resizable window's
+	edge left everything drawn into a corner of it at the old size.
+* added: the love_resize(w, h) callback (FH only), the way LOVE's love.resize
+	has it -- polling the window size cannot tell a program *that* it changed.
 * the editor gained hover tips on every control (with a Tips box to turn them
 	off, remembered in editor.json), hand-drawn collision meshes with draggable
 	vertices, and named links between entities -- read back with scene.link(e,

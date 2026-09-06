@@ -53,6 +53,7 @@
 #      properties.fh  free-form authored data on an entity
 #      camera.fh      pan, zoom, world <-> screen
 #      sprites.fh     the image cache
+#      poly.fh        cutting a drawn outline into convex pieces for Box2D
 #      trace.fh       collision traced from vector art
 #      world.fh       Edit and Play, the Box2D side
 #      gizmo.fh       the transform handles
@@ -70,6 +71,7 @@ include "doc.fh"
 include "properties.fh"
 include "camera.fh"
 include "sprites.fh"
+include "poly.fh"
 include "trace.fh"
 include "world.fh"
 include "gizmo.fh"
@@ -180,7 +182,7 @@ fn drag_begin(app, wx, wy) {
 	app.drag_start = [];
 
 	let sel = doc_selected_entities(app);
-	for (let i = 0; i < len(sel); i = i + 1) {
+	for (let i = 0; i < len(sel); i++) {
 		append(app.drag_start, [sel[i].id, sel[i].transform.x, sel[i].transform.y]);
 	}
 	return 0;
@@ -192,7 +194,7 @@ fn drag_apply(app) {
 	# The primary is what snaps; the rest keep their offset from it, so a row
 	# of crates dragged together stays a row.
 	let lead = app.drag_start[0];
-	for (let i = 0; i < len(app.drag_start); i = i + 1) {
+	for (let i = 0; i < len(app.drag_start); i++) {
 		if (app.drag_start[i][0] == app.selected_id) { lead = app.drag_start[i]; }
 	}
 	let nx = snap_value(app, lead[1] + app.wx - app.drag_from[0]);
@@ -200,7 +202,7 @@ fn drag_apply(app) {
 	let dx = nx - lead[1];
 	let dy = ny - lead[2];
 
-	for (let i = 0; i < len(app.drag_start); i = i + 1) {
+	for (let i = 0; i < len(app.drag_start); i++) {
 		let start = app.drag_start[i];
 		let e = doc_find(app, start[0]);
 		if (e != null) {
@@ -234,7 +236,7 @@ fn marquee_finish(app) {
 	if (!app.marquee_add) { doc_select_none(app); }
 
 	let entities = doc_entities(app);
-	for (let i = 0; i < len(entities); i = i + 1) {
+	for (let i = 0; i < len(entities); i++) {
 		let e = entities[i];
 		let b = doc_bounds(app, e);
 		let hits = e.visible &&
@@ -243,6 +245,39 @@ fn marquee_finish(app) {
 		if (hits && !doc_is_selected(app, e.id)) { doc_select_toggle(app, e.id); }
 	}
 	log_line(app, "selected " + len(app.selection));
+	return 0;
+}
+
+# --- dragging the docks -----------------------------------------------------
+#
+# The grooves between the panels are the handles. They are outside every
+# microui container -- the one strip of the window no dock claims -- so the
+# press reaches here rather than being swallowed by a panel.
+
+fn splitter_begin(app, s, px, py) {
+	app.splitter = s[5];
+	if (s[4] == "x") {
+		app.splitter_from = px;
+	} else {
+		app.splitter_from = py;
+	}
+	app.splitter_size = app.panel_l;
+	if (s[5] == "right") { app.splitter_size = app.panel_r; }
+	if (s[5] == "hier") { app.splitter_size = app.hier_h; }
+	return 0;
+}
+
+fn splitter_apply(app) {
+	if (app.splitter == "left") {
+		app.panel_l = app.splitter_size + app.mx - app.splitter_from;
+	} else if (app.splitter == "right") {
+		# the right column grows as the pointer moves left
+		app.panel_r = app.splitter_size - (app.mx - app.splitter_from);
+	} else {
+		app.hier_h = app.splitter_size + app.my - app.splitter_from;
+	}
+	# editor_layout() clamps, so a drag past the end simply stops
+	editor_layout(app);
 	return 0;
 }
 
@@ -451,6 +486,28 @@ fn viewport_input(app, dt) {
 	let press_inside = point_in(px, py, app.vp_x, app.vp_y, app.vp_w, app.vp_h) &&
 		!love_ui_mouse_over();
 	app.hover_viewport = inside;   # read by the F shortcut
+
+	# A groove being dragged owns the mouse until it is let go.
+	if (app.splitter != null) {
+		if (down) {
+			splitter_apply(app);
+		} else {
+			app.splitter = null;
+			prefs_touch(app);
+		}
+		cursor_update(app, false);
+		return 0;
+	}
+
+	if (pressed && !app.confirm && app.browser == null) {
+		let groove = editor_splitter_at(app, px, py);
+		if (groove != null) {
+			splitter_begin(app, groove, px, py);
+			cursor_update(app, false);
+			return 0;
+		}
+	}
+
 	let panning = cam_input(app, dt, inside);
 
 	# the simulation owns the scene while it runs; only the camera stays live
@@ -626,7 +683,7 @@ fn shortcuts(app) {
 	# naming an entity would fire every shortcut the name happens to contain.
 	if (love_ui_capturesKeyboard()) { return 0; }
 
-	for (let i = 0; i < len(keys); i = i + 1) {
+	for (let i = 0; i < len(keys); i++) {
 		shortcut(app, keys[i][0], keys[i][1]);
 	}
 	return 0;
@@ -651,11 +708,13 @@ fn editor_new(opts) {
 	app.revision = 0;
 	app.wheel = 0;
 
-	editor_layout(app);
-
+	# The layout is worked out from the dock sizes, which are preferences, so
+	# it cannot run before prefs_defaults() has put them there. It happens just
+	# below, once they exist.
 	app.log = [];
 	app.sprite_cache = {};
 	app.trace_cache = {};
+	app.piece_cache = {};     # a polygon's convex decomposition, see sim_pieces
 
 	app.selected_id = -1;
 	app.selection = [];
@@ -677,7 +736,8 @@ fn editor_new(opts) {
 	app.pan_y = 0;
 
 	app.tool      = "select";
-	prefs_defaults(app);      # grid, snap, show_grid, show_fixtures
+	prefs_defaults(app);      # grid, snap, what is drawn, and the dock sizes
+	editor_layout(app);
 	app.show_style = false;
 	app.confirm   = false;
 
@@ -690,6 +750,9 @@ fn editor_new(opts) {
 	app.marquee = null;       # [x, y] of a rubber band's first corner
 	app.marquee_add = false;  # was Shift held when it started
 	app.vertex = -1;          # index into a polygon's points, while dragging one
+	app.splitter = null;      # which groove is being dragged, if any
+	app.splitter_from = 0;    # where the pointer was when it started
+	app.splitter_size = 0;    # and how big the dock was then
 	app.draft = [];           # the polygon being drawn, in world units
 
 	app.mouse_down = false;

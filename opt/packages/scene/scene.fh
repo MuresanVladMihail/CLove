@@ -146,7 +146,7 @@ fn Scene(source) {
 
 	scene.has_group = fn(e, group) {
 		let gs = scene.groups(e);
-		for (let i = 0; i < len(gs); i = i + 1) {
+		for (let i = 0; i < len(gs); i++) {
 			if (gs[i] == group) { return true; }
 		}
 		return false;
@@ -201,7 +201,7 @@ fn Scene(source) {
 	scene.count = fn() { return len(doc.entities); };
 
 	scene.get = fn(id) {
-		for (let i = 0; i < len(doc.entities); i = i + 1) {
+		for (let i = 0; i < len(doc.entities); i++) {
 			if (doc.entities[i].id == id) { return doc.entities[i]; }
 		}
 		return null;
@@ -210,7 +210,7 @@ fn Scene(source) {
 	# First match, or null. Names are not unique -- use find_all() when that
 	# matters, or an id when you need to be certain.
 	scene.find = fn(name) {
-		for (let i = 0; i < len(doc.entities); i = i + 1) {
+		for (let i = 0; i < len(doc.entities); i++) {
 			if (doc.entities[i].name == name) { return doc.entities[i]; }
 		}
 		return null;
@@ -218,7 +218,7 @@ fn Scene(source) {
 
 	scene.find_all = fn(name) {
 		let out = [];
-		for (let i = 0; i < len(doc.entities); i = i + 1) {
+		for (let i = 0; i < len(doc.entities); i++) {
 			if (doc.entities[i].name == name) { append(out, doc.entities[i]); }
 		}
 		return out;
@@ -227,7 +227,7 @@ fn Scene(source) {
 	# Everything tagged with a group, in document order.
 	scene.in_group = fn(group) {
 		let out = [];
-		for (let i = 0; i < len(doc.entities); i = i + 1) {
+		for (let i = 0; i < len(doc.entities); i++) {
 			if (scene.has_group(doc.entities[i], group)) {
 				append(out, doc.entities[i]);
 			}
@@ -238,11 +238,11 @@ fn Scene(source) {
 	# Every group name used anywhere in the scene, without duplicates.
 	scene.group_names = fn() {
 		let out = [];
-		for (let i = 0; i < len(doc.entities); i = i + 1) {
+		for (let i = 0; i < len(doc.entities); i++) {
 			let gs = scene.groups(doc.entities[i]);
-			for (let g = 0; g < len(gs); g = g + 1) {
+			for (let g = 0; g < len(gs); g++) {
 				let seen = false;
-				for (let k = 0; k < len(out); k = k + 1) {
+				for (let k = 0; k < len(out); k++) {
 					if (out[k] == gs[g]) { seen = true; }
 				}
 				if (!seen) { append(out, gs[g]); }
@@ -253,7 +253,7 @@ fn Scene(source) {
 
 	scene.filter = fn(predicate) {
 		let out = [];
-		for (let i = 0; i < len(doc.entities); i = i + 1) {
+		for (let i = 0; i < len(doc.entities); i++) {
 			if (predicate(doc.entities[i])) { append(out, doc.entities[i]); }
 		}
 		return out;
@@ -273,7 +273,7 @@ fn Scene(source) {
 	scene.joints_of = fn(e) {
 		let out = [];
 		let all = scene.joints();
-		for (let i = 0; i < len(all); i = i + 1) {
+		for (let i = 0; i < len(all); i++) {
 			if (all[i].a == e.id || all[i].b == e.id) { append(out, all[i]); }
 		}
 		return out;
@@ -299,7 +299,7 @@ fn Scene(source) {
 
 	scene.in_rect = fn(x, y, w, h) {
 		let out = [];
-		for (let i = 0; i < len(doc.entities); i = i + 1) {
+		for (let i = 0; i < len(doc.entities); i++) {
 			let r = scene.rect(doc.entities[i]);
 			if (r[0] < x + w && r[2] > x && r[1] < y + h && r[3] > y) {
 				append(out, doc.entities[i]);
@@ -311,7 +311,7 @@ fn Scene(source) {
 	scene.nearest = fn(x, y) {
 		let best = null;
 		let best_d = -1.0;
-		for (let i = 0; i < len(doc.entities); i = i + 1) {
+		for (let i = 0; i < len(doc.entities); i++) {
 			let c = scene.center(doc.entities[i]);
 			let dx = c[0] - x;
 			let dy = c[1] - y;
@@ -332,7 +332,7 @@ fn Scene(source) {
 		let miny = r[1];
 		let maxx = r[2];
 		let maxy = r[3];
-		for (let i = 1; i < len(doc.entities); i = i + 1) {
+		for (let i = 1; i < len(doc.entities); i++) {
 			let b = scene.rect(doc.entities[i]);
 			if (b[0] < minx) { minx = b[0]; }
 			if (b[1] < miny) { miny = b[1]; }

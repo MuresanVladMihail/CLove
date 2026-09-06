@@ -6,11 +6,10 @@ fn love_config(c) {
 	c.window_y = -1;
 	c.window_vsync = true;
 
-	# The panels below are laid out as fixed "docks". microui only applies the
-	# rect you pass to love_ui_begin_window() the first time a window is seen
-	# (see mu_begin_window_ex: `if (cnt->rect.w == 0) cnt->rect = rect;`), and
-	# CLove does not expose ui_get_container()/mu_Container for a *live* window,
-	# so a panel cannot be repositioned afterwards from script. Keeping the
-	# window unresizable is what makes the fixed layout honest.
-	c.window_resizable = false;
+	# The panels are docks, laid out from the window size every frame and
+	# re-placed with love_ui_setWindowRect() -- microui applies the rect passed
+	# to love_ui_begin_window() only the first time it sees a window, which is
+	# what used to pin them to whatever size the editor started at. So the
+	# window can be resized now, and they follow it.
+	c.window_resizable = true;
 }

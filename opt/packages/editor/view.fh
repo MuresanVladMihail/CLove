@@ -33,26 +33,35 @@ fn view_draw_grid(app) {
 # Fills a polygon or traced shape, rotated into place. Answers false when the
 # entity has no polygon, so the caller falls back to its box.
 fn view_fill_polygon(app, e, cx, cy, angle) {
-	let poly = doc_polygon(app, e);
-	if (poly == null) { return false; }
+	# The convex pieces, not the outline: a filled polygon is drawn as a fan
+	# from its first vertex, which is only the right shape when it is convex.
+	# A concave outline came out as a star of overlapping triangles.
+	let pieces = sim_pieces(app, e);
+	if (len(pieces) == 0) { return false; }
 
 	let ca = math_cos(angle);
 	let sa = math_sin(angle);
-	let pts = [];
-	for (let i = 0; i + 1 < len(poly); i = i + 2) {
-		append(pts, cx + poly[i] * ca - poly[i + 1] * sa);
-		append(pts, cy + poly[i] * sa + poly[i + 1] * ca);
+	for (let p = 0; p < len(pieces); p++) {
+		let piece = pieces[p];
+		let pts = [];
+		for (let i = 0; i + 1 < len(piece); i = i + 2) {
+			append(pts, cx + piece[i] * ca - piece[i + 1] * sa);
+			append(pts, cy + piece[i] * sa + piece[i + 1] * ca);
+		}
+		love_geometry_polygon("fill", pts);
 	}
-	love_geometry_polygon("fill", pts);
 	return true;
 }
 
 # The traced hull, rotated into place. Falls back to the fixture box when
 # the entity has no vector art to trace.
+# The fixture overlay for an outline: every convex piece, because that is what
+# Box2D actually has. Seeing the seams is the point -- it is the difference
+# between "my notch does nothing" and "ah, that is where it cut it".
 fn view_draw_traced_outline(app, e, cx, cy, angle) {
-	let poly = doc_polygon(app, e);
+	let pieces = sim_pieces(app, e);
 	let f = doc_shape(app, e);
-	if (poly == null) {
+	if (len(pieces) == 0) {
 		love_geometry_rectangle("line", cx, cy, f.w, f.h,
 			angle, 1, 1, f.w * 0.5, f.h * 0.5);
 		return 0;
@@ -60,16 +69,17 @@ fn view_draw_traced_outline(app, e, cx, cy, angle) {
 
 	let ca = math_cos(angle);
 	let sa = math_sin(angle);
-	let line = [];
-	for (let i = 0; i + 1 < len(poly); i = i + 2) {
-		append(line, cx + poly[i] * ca - poly[i + 1] * sa);
-		append(line, cy + poly[i] * sa + poly[i + 1] * ca);
+	for (let p = 0; p < len(pieces); p++) {
+		let piece = pieces[p];
+		let line = [];
+		for (let i = 0; i + 1 < len(piece); i = i + 2) {
+			append(line, cx + piece[i] * ca - piece[i + 1] * sa);
+			append(line, cy + piece[i] * sa + piece[i + 1] * ca);
+		}
+		append(line, cx + piece[0] * ca - piece[1] * sa);
+		append(line, cy + piece[0] * sa + piece[1] * ca);
+		love_geometry_line(line);
 	}
-	# close the loop
-	append(line, cx + poly[0] * ca - poly[1] * sa);
-	append(line, cy + poly[0] * sa + poly[1] * ca);
-
-	love_geometry_line(line);
 	return 0;
 }
 
@@ -141,7 +151,7 @@ fn view_draw_entity(app, e) {
 # the camera transform: the points are world coordinates. What the fixture
 # overlay says about the shapes, this says about what they did.
 fn view_draw_contacts(app) {
-	for (let i = 0; i < len(app.contacts); i = i + 1) {
+	for (let i = 0; i < len(app.contacts); i++) {
 		let c = app.contacts[i];
 		let fade = c.life / CONTACT_LIFE;
 
@@ -219,7 +229,7 @@ fn view_draw_vertices(app, e) {
 # lives -- unlike the gizmo, which is screen space.
 fn view_draw_joints(app) {
 	let joints = doc_joints(app);
-	for (let i = 0; i < len(joints); i = i + 1) {
+	for (let i = 0; i < len(joints); i++) {
 		let j = joints[i];
 		let ea = doc_find(app, j.a);
 		let eb = doc_find(app, j.b);
@@ -258,7 +268,7 @@ fn view_draw_selection(app) {
 	if (len(sel) < 2) { return 0; }
 
 	cam_push(app);
-	for (let i = 0; i < len(sel); i = i + 1) {
+	for (let i = 0; i < len(sel); i++) {
 		let e = sel[i];
 		let b = doc_bounds(app, e);
 		if (e.id == app.selected_id) {
@@ -298,7 +308,7 @@ fn view_draw(app) {
 	if (app.show_grid) { view_draw_grid(app); }
 
 	let entities = doc_entities(app);
-	for (let i = 0; i < len(entities); i = i + 1) { view_draw_entity(app, entities[i]); }
+	for (let i = 0; i < len(entities); i++) { view_draw_entity(app, entities[i]); }
 
 	view_draw_joints(app);
 	if (len(app.draft) > 0) { view_draw_draft(app); }
@@ -336,6 +346,42 @@ fn view_draw(app) {
 
 	love_graphics_setColor(70, 76, 90, 255);
 	love_geometry_rectangle("line", app.vp_x, app.vp_y, app.vp_w, app.vp_h);
+	love_graphics_setColor(255, 255, 255, 255);
+
+	view_draw_splitters(app);
+	return 0;
+}
+
+# The grooves between the docks, drawn here because love_draw() runs before the
+# UI: anything drawn under a panel is covered by it, and the gap is the one
+# strip no panel claims. Lit when the pointer is on one, so it is findable
+# without a tooltip.
+fn view_draw_splitters(app) {
+	let hot = editor_splitter_at(app, app.mx, app.my);
+	let all = editor_splitters(app);
+
+	for (let i = 0; i < len(all); i++) {
+		let s = all[i];
+		let live = app.splitter == s[5];
+		let warm = hot != null && hot[5] == s[5];
+
+		if (live) {
+			love_graphics_setColor(120, 170, 255, 255);
+		} else if (warm) {
+			love_graphics_setColor(90, 120, 170, 255);
+		} else {
+			love_graphics_setColor(48, 52, 62, 255);
+		}
+		love_geometry_rectangle("fill", s[0], s[1], s[2], s[3]);
+
+		# a grip mark in the middle, so an untouched groove still reads as one
+		love_graphics_setColor(110, 118, 135, 255);
+		if (s[4] == "x") {
+			love_geometry_rectangle("fill", s[0] + 2, s[1] + s[3] * 0.5 - 12, 2, 24);
+		} else {
+			love_geometry_rectangle("fill", s[0] + s[2] * 0.5 - 12, s[1] + 2, 24, 2);
+		}
+	}
 	love_graphics_setColor(255, 255, 255, 255);
 	return 0;
 }
