@@ -620,7 +620,9 @@ fn panels_confirm(app) {
 	if (!app.confirm) { return 0; }
 	# A self-managed modal rather than a microui popup, because a popup can
 	# only be closed by clicking outside it.
-	if (love_ui_begin_window("Confirm", 470, 320, 340, 120,
+	let h = dialog_height(2);   # the question, then the buttons
+	if (love_ui_begin_window("Confirm", dialog_x(DIALOG_W), dialog_y(h),
+	                         DIALOG_W, h,
 	                         love_ui_opt("noresize") + love_ui_opt("noclose"))) {
 		love_ui_layout_row(1, [-1], 0);
 		let e = doc_selected(app);
