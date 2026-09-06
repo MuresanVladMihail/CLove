@@ -169,6 +169,59 @@ fn next_colour(app) {
 }
 
 
+# --- tooltips ---------------------------------------------------------------
+#
+# Called straight after a widget: love_ui_hovered() answers for the one just
+# built, so a tip is one line under whatever it explains rather than a table of
+# rectangles kept in step by hand.
+#
+#     if (love_ui_button("Play", ALIGN_CENTER)) { sim_play(app); }
+#     tip(app, "Build a Box2D world from the level and run it.");
+#
+# The text is parked on the app and drawn once at the end of the frame, in a
+# window of its own so it lands over the panels rather than under them.
+
+let TIP_W       = 300;
+let TIP_PAD     = 16;
+let TIP_LINE    = 18;
+let TIP_OFFSET  = 18;   # from the cursor, so the pointer does not cover it
+
+fn tip(app, text) {
+	if (!app.tips) { return 0; }
+	if (love_ui_hovered()) { app.tip = text; }
+	return 0;
+}
+
+# One window, moved to the cursor each frame and raised above everything --
+# microui applies a window's rect only the first time it sees it, and only
+# raises one when it is clicked, so both have to be said every frame.
+fn tip_draw(app) {
+	if (app.tip == null) { return 0; }
+
+	let lines = 1 + math_floor(len(app.tip) / 42);
+	let h = TIP_PAD + lines * TIP_LINE;
+	let x = app.mx + TIP_OFFSET;
+	let y = app.my + TIP_OFFSET;
+
+	# keep it on screen: flip to the other side of the cursor at the edges
+	if (x + TIP_W > app.screen_w) { x = app.mx - TIP_W - TIP_OFFSET; }
+	if (y + h > app.screen_h) { y = app.my - h - TIP_OFFSET; }
+
+	love_ui_setWindowRect("tip", x, y, TIP_W, h);
+	love_ui_bringToFront("tip");
+
+	let opts = love_ui_opt("notitle") + love_ui_opt("noresize") +
+		love_ui_opt("noclose") + love_ui_opt("noscroll");
+	if (love_ui_begin_window("tip", x, y, TIP_W, h, opts)) {
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_text(app.tip);
+		love_ui_end_window();
+	}
+	app.tip = null;
+	return 0;
+}
+
+
 # A button that is drawn but does nothing when there is nothing for it to do.
 # Greying out beats a button that looks live and silently ignores the click.
 fn ui_button_enabled(label, enabled, align) {

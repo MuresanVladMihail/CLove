@@ -701,6 +701,7 @@ fn editor_new(opts) {
 	app.cursor_kind = "arrow";
 	app.cursor_label = "";
 	app.popup_open = false;   # set while a microui popup is on screen
+	app.tip = null;           # the hover help to show this frame, if any
 
 	# where relative sprite paths resolve, and where the file picker starts.
 	# love_filesystem_getCurrentDirectory() is a different thing despite the
@@ -809,6 +810,9 @@ fn editor_update(app, dt) {
 	browser_panel(app);
 	scenes_dialogs(app);
 	scenes_quit_dialog(app);
+
+	# last, so it is built after everything that might have set it
+	tip_draw(app);
 	love_ui_end();
 }
 

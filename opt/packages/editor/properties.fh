@@ -162,9 +162,13 @@ fn props_panel(app, e) {
 	if (love_ui_button("Set", ALIGN_CENTER)) {
 		props_set(app, e, app.prop_key, app.prop_value);
 	}
+	tip(app, "Add the key, or overwrite it. true/false becomes a bool, " +
+		"anything numeric a number, the rest text -- so a game can use the " +
+		"value without converting it.");
 	if (love_ui_button("Remove", ALIGN_CENTER)) {
 		props_remove(app, e, app.prop_key);
 	}
+	tip(app, "Delete the property named in the key box.");
 
 	love_ui_layout_row(1, [-1], 0);
 	love_ui_label("true/false and numbers are typed, the rest is text");

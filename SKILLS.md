@@ -399,6 +399,9 @@ Three more calls exist for the awkward corners of microui's state:
 | --- | --- |
 | `love_ui_mouse_over()` | Whether the pointer is over any window, panel or popup. A game drawing its own viewport underneath floating UI asks this before acting on a click, so a press meant for a window does not also land in the scene. |
 | `love_ui_capturesKeyboard()` | Whether microui is taking keystrokes — a text box being typed into, or any control being dragged. Ask this before acting on a bare-key shortcut, or typing a name fires every shortcut the name happens to contain. |
+| `love_ui_hovered()` | Whether the pointer is over the widget just built — ask straight after one and it answers for that one. microui keeps the hovered id and the last-built id, so this is all a tooltip needs; the alternative is keeping a table of rectangles in step by hand. |
+| `love_ui_setWindowRect(name, x, y, w, h)` | Moves or resizes a window microui has already seen. `love_ui_begin_window`'s rect applies only the first time — which is what makes a window stay where it was dragged, and what otherwise stops a script moving one. |
+| `love_ui_bringToFront(name)` | Raises a window above the others. Root containers draw in zindex order and microui only raises one when it is clicked, so anything that must stay on top says so every frame. |
 | `love_ui_popup_open(name)` | Whether that popup is on screen. `love_ui_begin_popup` still answers true on the frame the popup is being dismissed, so it cannot tell you this by itself. Call it from the window that opened the popup — the name is hashed against the id stack. |
 | `love_ui_setWindowOpen(name, open)` | Re-opens a window microui's own close button has latched shut. Once that button is pressed the container's open flag is 0 and `love_ui_begin_window` answers false for good. |
 

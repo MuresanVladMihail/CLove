@@ -180,6 +180,43 @@ void ui_set_window_open(const char *name, int open) {
  * shortcuts asks this first, so that typing an entity's name does not also
  * trigger whatever Delete or D is bound to. A slider being dragged answers yes
  * too, which is the wanted answer for the same reason. */
+/* Is the mouse over the widget that was just built?
+ *
+ * microui keeps the id of the widget under the pointer in ctx->hover and the
+ * id of the last one built in ctx->last_id, so asking straight after a widget
+ * answers for that widget. That is the whole mechanism a tooltip needs, and it
+ * costs nothing: the alternative is remembering rectangles.
+ *
+ * hover is only set while the button is up, so a tooltip does not follow a
+ * drag -- which is the wanted behaviour anyway. */
+int ui_hovered(void) {
+    if (moduleData.ctx == NULL) { return 0; }
+    return moduleData.ctx->hover != 0 && moduleData.ctx->hover == moduleData.ctx->last_id;
+}
+
+/* Move or resize a window after microui has already seen it once.
+ *
+ * mu_begin_window_ex() applies the rect it is passed only the first time,
+ * which is what makes a window stay where the user dragged it -- and what
+ * stops a script from ever moving one. A tooltip has to move every frame, and
+ * a docked panel wants to follow a resized window. */
+void ui_set_window_rect(const char *name, int x, int y, int w, int h) {
+    if (moduleData.ctx == NULL) { return; }
+    mu_Container *cnt = mu_get_container(moduleData.ctx, name);
+    if (cnt == NULL) { return; }
+    cnt->rect = mu_rect(x, y, w, h);
+}
+
+/* Puts a window above the others. Root containers are drawn in zindex order,
+ * and microui only raises one when it is clicked -- so something that must
+ * always be on top, like a tooltip, has to say so every frame. */
+void ui_bring_to_front(const char *name) {
+    if (moduleData.ctx == NULL) { return; }
+    mu_Container *cnt = mu_get_container(moduleData.ctx, name);
+    if (cnt == NULL) { return; }
+    mu_bring_to_front(moduleData.ctx, cnt);
+}
+
 int ui_captures_keyboard(void) {
     return moduleData.ctx != NULL && moduleData.ctx->focus != 0;
 }

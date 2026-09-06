@@ -325,6 +325,60 @@ static int fn_love_ui_setWindowOpen(struct fh_program *prog,
     return 0;
 }
 
+/* love_ui_hovered() -> bool
+ *
+ * Whether the pointer is over the widget just built. Ask it straight after one
+ * and it answers for that one, which is all a tooltip needs. */
+static int fn_love_ui_hovered(struct fh_program *prog,
+                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    (void) args;
+    if (n_args != 0)
+        return fh_set_error(prog, "love_ui_hovered(): expected no arguments, got %d", n_args);
+
+    *ret = fh_new_bool(ui_hovered() != 0);
+    return 0;
+}
+
+/* love_ui_setWindowRect(name, x, y, w, h)
+ *
+ * microui applies the rect passed to love_ui_begin_window() only the first
+ * time it sees that window, which is what makes one stay where it was dragged.
+ * This moves or resizes it afterwards -- for a tooltip that follows the cursor,
+ * or a docked panel that has to follow a resized window. */
+static int fn_love_ui_setWindowRect(struct fh_program *prog,
+                                    struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 5)
+        return fh_set_error(prog, "love_ui_setWindowRect(): expected 5 arguments, got %d", n_args);
+    if (!fh_is_string(&args[0]))
+        return fh_set_error(prog, "love_ui_setWindowRect(): expected the window name as a string");
+    for (int i = 1; i < 5; i++) {
+        if (!fh_is_number(&args[i]))
+            return fh_set_error(prog, "love_ui_setWindowRect(): expected a number at argument %d", i);
+    }
+
+    ui_set_window_rect(fh_get_string(&args[0]),
+                       (int) fh_get_number(&args[1]), (int) fh_get_number(&args[2]),
+                       (int) fh_get_number(&args[3]), (int) fh_get_number(&args[4]));
+    *ret = fh_new_null();
+    return 0;
+}
+
+/* love_ui_bringToFront(name)
+ *
+ * Root containers are drawn in zindex order and microui only raises one when
+ * it is clicked, so anything that must stay on top has to say so every frame. */
+static int fn_love_ui_bringToFront(struct fh_program *prog,
+                                   struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 1)
+        return fh_set_error(prog, "love_ui_bringToFront(): expected 1 argument, got %d", n_args);
+    if (!fh_is_string(&args[0]))
+        return fh_set_error(prog, "love_ui_bringToFront(): expected the window name as a string");
+
+    ui_bring_to_front(fh_get_string(&args[0]));
+    *ret = fh_new_null();
+    return 0;
+}
+
 /* love_ui_capturesKeyboard() -> bool
  *
  * Whether microui is taking keystrokes -- a text box being typed into, or any
@@ -1117,6 +1171,9 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_ui_popup_open),
     DEF_FN(love_ui_mouse_over),
     DEF_FN(love_ui_capturesKeyboard),
+    DEF_FN(love_ui_hovered),
+    DEF_FN(love_ui_setWindowRect),
+    DEF_FN(love_ui_bringToFront),
     DEF_FN(love_ui_setWindowOpen),
     DEF_FN(love_ui_open_popup),
     DEF_FN(love_ui_res_state)

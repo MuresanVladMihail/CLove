@@ -29,6 +29,12 @@ version 0.8.0 not yet released
 	default) exactly as in LOVE. See SKILLS.md for the API and the handful of
 	places Box2D 3 forced a difference (no gear or pulley joints, callbacks are
 	function names, user data is a number or a string).
+* added: love_ui_hovered(), love_ui_setWindowRect(name, x, y, w, h) and
+	love_ui_bringToFront(name) (FH only). Between them a script can build a
+	tooltip: ask whether the pointer is over the widget just built, then put a
+	window at the cursor and keep it on top. The rect call also lifts the
+	long-standing limit that a window could never be moved after microui first
+	saw it.
 * the editor gained multi-select (shift-click, a rubber band, and moving a
 	group as one), z-order (Back / Down / Up / Front over the draw order, which
 	is what the entity list already was), Box2D's collision filter as two rows

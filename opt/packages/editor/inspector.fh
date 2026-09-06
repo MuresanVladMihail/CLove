@@ -236,6 +236,9 @@ fn panels_inspector(app) {
 				doc_begin_edit(app);
 				e.groups = panels_text_to_groups(app, box[1]);
 			}
+			tip(app, "Tags a game queries on: scene.in_group(\"pickups\"). " +
+				"Groups say what a thing is; properties say with what " +
+				"parameters.");
 			love_ui_label("comma separated, queried by the scene package");
 		}
 
@@ -249,6 +252,9 @@ fn panels_inspector(app) {
 			panels_shape_button(app, f, "circle");
 			panels_shape_button(app, f, "traced");
 			panels_shape_button(app, f, "polygon");
+			tip(app, "What Box2D actually collides with. rect and circle are " +
+				"the fixture box; traced follows vector artwork; polygon is a " +
+				"mesh you draw yourself.");
 
 			love_ui_layout_row(1, [-1], 0);
 			if (f.shape == "polygon") {
@@ -283,6 +289,9 @@ fn panels_inspector(app) {
 			# typing a path works, but browsing for one is the usual way in
 			love_ui_layout_row(2, [-90, -1], 0);
 			if (love_ui_button("Browse...", ALIGN_CENTER)) { browser_open(app, e); }
+			tip(app, "Pick an image from anywhere on the machine. Only the " +
+				"path is stored -- relative when it is inside the game " +
+				"folder, absolute otherwise.");
 			if (love_ui_button("Clear", ALIGN_CENTER)) {
 				if (e.sprite != null) {
 					doc_begin_edit(app);

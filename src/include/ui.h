@@ -17,6 +17,9 @@ int ui_in_container(void);
 int ui_popup_open(const char *name);
 int ui_mouse_over(void);
 int ui_captures_keyboard(void);
+int ui_hovered(void);
+void ui_set_window_rect(const char *name, int x, int y, int w, int h);
+void ui_bring_to_front(const char *name);
 void ui_set_window_open(const char *name, int open);
 
 void ui_layout_row(int no_items, int widths[], int height);

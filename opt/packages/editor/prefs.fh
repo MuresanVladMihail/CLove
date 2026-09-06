@@ -20,6 +20,7 @@ fn prefs_defaults(app) {
 	app.snap           = true;
 	app.show_grid      = true;
 	app.show_fixtures  = true;
+	app.tips           = true;    # hover help; off for anyone who knows the tool
 	app.scene_path     = SCENE_PATH;   # which level is open; see scenes.fh
 	app.prefs_dirty    = false;
 	return 0;
@@ -60,6 +61,7 @@ fn prefs_load(app) {
 	if (contains_key(parsed, "snap")) { app.snap = parsed.snap; }
 	if (contains_key(parsed, "show_grid")) { app.show_grid = parsed.show_grid; }
 	if (contains_key(parsed, "show_fixtures")) { app.show_fixtures = parsed.show_fixtures; }
+	if (contains_key(parsed, "tips")) { app.tips = parsed.tips; }
 	# the level to reopen. A name only, no directory: levels live next to the
 	# game, and a path out of it would make editor.json machine-specific.
 	if (contains_key(parsed, "scene") && type(parsed.scene) == "string" &&
@@ -78,6 +80,7 @@ fn prefs_save(app) {
 		"snap": app.snap,
 		"show_grid": app.show_grid,
 		"show_fixtures": app.show_fixtures,
+		"tips": app.tips,
 		"scene": app.scene_path
 	}, true));
 	io_close(file);

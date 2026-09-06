@@ -86,26 +86,38 @@ fn panels_toolbar(app) {
 
 		if (app.mode == "edit") {
 			if (love_ui_button("Play", ALIGN_CENTER)) { sim_play(app); }
+			tip(app, "Build a Box2D world from this level and run it. The " +
+				"document is never written to, so Stop puts everything back.");
 		} else {
 			if (love_ui_button("Stop", ALIGN_CENTER)) { sim_stop(app); }
+			tip(app, "Throw the simulation away and go back to the level as " +
+				"you left it.");
 		}
 		love_ui_label("");
 
 		scenes_menu(app);
+		tip(app, "The level you are editing. Click to switch to another, or " +
+			"for New, Save as, Rename and Delete. Every *.json beside the " +
+			"game is a level.");
 		love_ui_label("");
 
 		if (ui_button_enabled("Save", app.dirty, ALIGN_CENTER)) {
 			doc_save(app, app.scene_path);
 		}
+		tip(app, "Write the level to " + app.scene_path + ". Ctrl+S.");
 		if (ui_button_enabled("Load", io_filetype(app.scene_path) == "file",
 		                      ALIGN_CENTER)) {
 			doc_load(app, app.scene_path);
 		}
+		tip(app, "Read the level back from disk, throwing away anything " +
+			"unsaved.");
 		love_ui_label("");
 
 		# greyed out when there is nothing behind them; see ui_button_enabled
 		if (ui_button_enabled("Undo", len(app.undo) > 0, ALIGN_CENTER)) { doc_undo(app); }
+		tip(app, "Ctrl+Z. One step per gesture, up to " + UNDO_LIMIT + ".");
 		if (ui_button_enabled("Redo", len(app.redo) > 0, ALIGN_CENTER)) { doc_redo(app); }
+		tip(app, "Ctrl+Y. Cleared as soon as you change something else.");
 		love_ui_label("");
 
 		# the scene name and its unsaved mark live on the menu button, so this
@@ -115,9 +127,9 @@ fn panels_toolbar(app) {
 		love_ui_label(state + len(app.undo) + " undo");
 
 		# --- row 2: tools, editing, view, toggles ---
-		love_ui_layout_row(15,
+		love_ui_layout_row(16,
 			[TB_BTN, TB_GAP, TB_MENU, TB_GAP, TB_BTN, TB_BTN, TB_GAP,
-			 TB_BTN, TB_BTN, TB_GAP, 76, 70, 56, 92, -1], 0);
+			 TB_BTN, TB_BTN, TB_GAP, 76, 70, 56, 92, 68, -1], 0);
 
 		let select_label = "  Select";
 		if (app.tool == "select") { select_label = "> Select"; }
@@ -125,40 +137,64 @@ fn panels_toolbar(app) {
 			app.tool = "select";
 			log_line(app, "tool: select");
 		}
+		tip(app, "Pick and move things. Shift+click adds to the selection, " +
+			"dragging from empty space rubber bands over one.");
 		love_ui_label("");
 
 		panels_primitives_menu(app);
+		tip(app, "Rect and Circle drop a shape where you click. Polygon lays " +
+			"a collision mesh out point by point.");
 		love_ui_label("");
 
 		let has_selection = doc_selected(app) != null;
 		if (ui_button_enabled("Duplicate", has_selection, ALIGN_CENTER)) {
 			doc_duplicate(app);
 		}
+		tip(app, "Copy everything selected, one grid step across. Ctrl+D.");
 		if (ui_button_enabled("Delete", has_selection, ALIGN_CENTER)) {
 			app.confirm = true;
 		}
+		tip(app, "Remove everything selected, after asking. Delete or " +
+			"Backspace does the same.");
 		love_ui_label("");
 
 		if (love_ui_button("Frame all", ALIGN_CENTER)) { cam_frame_all(app); }
+		tip(app, "Fit the whole level in the viewport. F does it too, while " +
+			"the pointer is over the scene.");
 		if (love_ui_button("Reset view", ALIGN_CENTER)) { cam_reset(app); }
+		tip(app, "Back to the origin at 1x.");
 		love_ui_label("");
 
 		if (love_ui_checkbox("Snap", app.snap, 1)) {
 			app.snap = !app.snap;
 			prefs_touch(app);
 		}
+		tip(app, "Round positions and sizes to the grid step while dragging.");
 		if (love_ui_checkbox("Grid", app.show_grid, 2)) {
 			app.show_grid = !app.show_grid;
 			prefs_touch(app);
 		}
+		tip(app, "Draw the grid. Whether it is drawn and whether Snap uses " +
+			"it are separate.");
 
 		# The grid step, in world units: what the viewport rules and what Snap
 		# rounds to. Drag it or click to type; prefs.fh clamps and persists it.
 		prefs_set_grid(app,
 			love_ui_number(app.grid, 1, ID_NUM_GRID, ALIGN_CENTER, 0));
+		tip(app, "The grid step in world units, " + GRID_MIN + " to " +
+			GRID_MAX + ". Drag it or click to type. Remembered in " +
+			PREFS_PATH + ".");
 
 		if (love_ui_checkbox("Fixtures", app.show_fixtures, 3)) {
 			app.show_fixtures = !app.show_fixtures;
+			prefs_touch(app);
+		}
+		tip(app, "Outline every collision shape over the artwork, colour " +
+			"coded by body type. The overlay a physics editor lives on.");
+
+		if (love_ui_checkbox("Tips", app.tips, 8)) {
+			app.tips = !app.tips;
+			app.tip = null;
 			prefs_touch(app);
 		}
 		love_ui_label("");
@@ -223,6 +259,8 @@ fn panels_hierarchy(app) {
 		if (ui_button_enabled("Back", has && idx > 0, ALIGN_CENTER)) {
 			doc_to_back(app, sel.id);
 		}
+		tip(app, "Send the selection all the way behind. This list is the " +
+			"draw order, front last.");
 		if (ui_button_enabled("Down", has && idx > 0, ALIGN_CENTER)) {
 			doc_lower(app, sel.id);
 		}
@@ -288,6 +326,9 @@ fn panels_hierarchy(app) {
 				"scene.filter_data().");
 			love_ui_text("Z-order: the hierarchy list is the draw order, front " +
 				"last. Back / Down / Up / Front move the selection through it.");
+			love_ui_text("Tips: hover any control for a line about what it " +
+				"does. The Tips box in the toolbar turns them off, and the " +
+				"setting is remembered in " + PREFS_PATH + ".");
 			love_ui_text("Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save, Ctrl+D " +
 				"duplicate, Ctrl+N new level, Delete removes the selection. " +
 				"Esc closes a dialog, or asks before quitting.");
