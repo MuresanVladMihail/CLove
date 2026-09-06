@@ -81,8 +81,14 @@ include "inspector.fh"
 include "panels.fh"
 
 
+# The modifier is read here, not when the press is handled a frame later, for
+# the same reason the keyboard's is: by then Shift may already have been let
+# go, and a shift-click would arrive as a plain one. m is [x, y, button].
 fn editor_mousepressed(m) {
-	EDITOR_INPUT.press = m;
+	EDITOR_INPUT.press = {
+		"x": m[0], "y": m[1], "button": m[2],
+		"shift": love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift")
+	};
 	return 0;
 }
 
@@ -166,8 +172,83 @@ fn spawn_at(app, wx, wy) {
 		snap_value(app, wx - w * 0.5), snap_value(app, wy - h * 0.5),
 		w, h, c[0], c[1], c[2]);
 
-	app.selected_id = e.id;
+	doc_select_only(app, e.id);
 	log_line(app, "added " + name);
+	return 0;
+}
+
+# Dragging moves everything selected, not just the one under the cursor, so
+# each entity remembers where it was when the drag started. Recomputing from a
+# delta each frame would let rounding walk them apart.
+fn drag_begin(app, wx, wy) {
+	app.dragging = true;
+	app.drag_from = [wx, wy];
+	app.drag_start = [];
+
+	let sel = doc_selected_entities(app);
+	for (let i = 0; i < len(sel); i = i + 1) {
+		append(app.drag_start, [sel[i].id, sel[i].transform.x, sel[i].transform.y]);
+	}
+	return 0;
+}
+
+fn drag_apply(app) {
+	if (len(app.drag_start) == 0) { return 0; }
+
+	# The primary is what snaps; the rest keep their offset from it, so a row
+	# of crates dragged together stays a row.
+	let lead = app.drag_start[0];
+	for (let i = 0; i < len(app.drag_start); i = i + 1) {
+		if (app.drag_start[i][0] == app.selected_id) { lead = app.drag_start[i]; }
+	}
+	let nx = snap_value(app, lead[1] + app.wx - app.drag_from[0]);
+	let ny = snap_value(app, lead[2] + app.wy - app.drag_from[1]);
+	let dx = nx - lead[1];
+	let dy = ny - lead[2];
+
+	for (let i = 0; i < len(app.drag_start); i = i + 1) {
+		let start = app.drag_start[i];
+		let e = doc_find(app, start[0]);
+		if (e != null) {
+			if (e.transform.x != start[1] + dx || e.transform.y != start[2] + dy) {
+				doc_begin_edit(app);
+				e.transform.x = start[1] + dx;
+				e.transform.y = start[2] + dy;
+			}
+		}
+	}
+	return 0;
+}
+
+# A press on empty space starts a rubber band; releasing takes everything it
+# touches. Shift adds to the selection instead of replacing it.
+fn marquee_rect(app) {
+	let a = app.marquee;
+	let x = math_min(a[0], app.wx);
+	let y = math_min(a[1], app.wy);
+	return [x, y, math_abs(app.wx - a[0]), math_abs(app.wy - a[1])];
+}
+
+fn marquee_finish(app) {
+	let r = marquee_rect(app);
+	app.marquee = null;
+
+	# a band a few pixels across is a click that wobbled, not a selection
+	if (r[2] < 4 && r[3] < 4) { return 0; }
+
+	# the Shift that was held when the band started, not whatever is held now
+	if (!app.marquee_add) { doc_select_none(app); }
+
+	let entities = doc_entities(app);
+	for (let i = 0; i < len(entities); i = i + 1) {
+		let e = entities[i];
+		let b = doc_bounds(app, e);
+		let hits = e.visible &&
+			b[0] < r[0] + r[2] && b[0] + b[2] > r[0] &&
+			b[1] < r[1] + r[3] && b[1] + b[3] > r[1];
+		if (hits && !doc_is_selected(app, e.id)) { doc_select_toggle(app, e.id); }
+	}
+	log_line(app, "selected " + len(app.selection));
 	return 0;
 }
 
@@ -190,12 +271,14 @@ fn viewport_input(app, dt) {
 	EDITOR_INPUT.released = false;
 
 	let pressed = false;
+	let add = false;
 	let px = app.mx;
 	let py = app.my;
-	if (press != null && press[2] == "l") {
+	if (press != null && press.button == "l") {
 		pressed = true;
-		px = press[0];
-		py = press[1];
+		px = press.x;
+		py = press.y;
+		add = press.shift;
 	}
 
 	# where the button went down, in world units
@@ -205,7 +288,7 @@ fn viewport_input(app, dt) {
 
 	# a snapshot is taken once per gesture, so releasing the button opens the
 	# next undo step
-	if (!down && !pressed) { app.edit_pushed = false; }
+	if (!down && !pressed) { doc_end_edit(app); }
 
 	# The docked panels sit outside the viewport rect, but the Theme editor and
 	# the delete confirmation float over it -- ask microui whether the pointer
@@ -239,22 +322,36 @@ fn viewport_input(app, dt) {
 	    app.delete_scene == null && !app.quitting) {
 		if (app.tool == "select") {
 			# a grip of the current selection wins over picking something new,
-			# so a handle that overhangs another entity still works
+			# so a handle that overhangs another entity still works. The grips
+			# only appear for one entity, so this cannot fire on a multi
+			# selection.
 			let sel = doc_selected(app);
 			let handle = null;
-			if (sel != null) { handle = gizmo_hit(app, sel, px, py); }
+			if (sel != null && len(app.selection) == 1) {
+				handle = gizmo_hit(app, sel, px, py);
+			}
 
 			if (handle != null) {
 				gizmo_begin(app, sel, handle, pwx, pwy);
 			} else {
-				app.selected_id = hit_test(app, pwx, pwy);
-				let e = doc_selected(app);
-				if (e != null) {
-					app.dragging = true;
-					app.drag_dx = pwx - e.transform.x;
-					app.drag_dy = pwy - e.transform.y;
-					log_line(app, "selected " + e.name);
+				let hit = hit_test(app, pwx, pwy);
+
+				if (hit < 0) {
+					# empty space: shift keeps what is selected, a plain press
+					# starts a marquee from here
+					if (!add) { doc_select_none(app); }
+					app.marquee = [pwx, pwy];
+					app.marquee_add = add;
+				} else if (add) {
+					doc_select_toggle(app, hit);
+				} else if (!doc_is_selected(app, hit)) {
+					doc_select_only(app, hit);
+				} else {
+					# already in the selection: keep the rest, drag them all
+					app.selected_id = hit;
 				}
+
+				if (hit >= 0) { drag_begin(app, pwx, pwy); }
 			}
 		} else {
 			spawn_at(app, pwx, pwy);
@@ -265,19 +362,11 @@ fn viewport_input(app, dt) {
 		let e = doc_selected(app);
 		if (e != null) { gizmo_apply(app, e); }
 	} else if (app.dragging && down) {
-		let e = doc_selected(app);
-		if (e != null) {
-			let nx = snap_value(app, app.wx - app.drag_dx);
-			let ny = snap_value(app, app.wy - app.drag_dy);
-			if (nx != e.transform.x || ny != e.transform.y) {
-				doc_begin_edit(app);
-				e.transform.x = nx;
-				e.transform.y = ny;
-			}
-		}
+		drag_apply(app);
 	}
 
 	if (released) {
+		if (app.marquee != null) { marquee_finish(app); }
 		app.dragging = false;
 		app.gizmo = null;
 	}
@@ -376,6 +465,7 @@ fn editor_new(opts) {
 	app.trace_cache = {};
 
 	app.selected_id = -1;
+	app.selection = [];
 	app.last_selected = -2;
 	app.dirty = false;
 
@@ -398,11 +488,14 @@ fn editor_new(opts) {
 	app.show_style = false;
 	app.confirm   = false;
 
+	app.selection = [];       # every selected id; app.selected_id is the primary
 	app.dragging = false;
 	app.gizmo = null;
 	app.grab = null;
-	app.drag_dx = 0;
-	app.drag_dy = 0;
+	app.drag_from = [0, 0];   # where a move started, in world units
+	app.drag_start = [];      # [id, x, y] per selected entity when it started
+	app.marquee = null;       # [x, y] of a rubber band's first corner
+	app.marquee_add = false;  # was Shift held when it started
 
 	app.mouse_down = false;
 	app.mx = 0;

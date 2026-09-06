@@ -133,6 +133,40 @@ fn view_draw_contacts(app) {
 	return 0;
 }
 
+# An outline around everything selected. The primary is brighter, since it is
+# the one the inspector is showing.
+fn view_draw_selection(app) {
+	let sel = doc_selected_entities(app);
+	if (len(sel) < 2) { return 0; }
+
+	cam_push(app);
+	for (let i = 0; i < len(sel); i = i + 1) {
+		let e = sel[i];
+		let b = doc_bounds(app, e);
+		if (e.id == app.selected_id) {
+			love_graphics_setColor(255, 220, 120, 255);
+		} else {
+			love_graphics_setColor(190, 200, 220, 190);
+		}
+		love_geometry_rectangle("line", b[0] - 2, b[1] - 2, b[2] + 4, b[3] + 4);
+	}
+	cam_pop(app);
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+fn view_draw_marquee(app) {
+	let r = marquee_rect(app);
+	cam_push(app);
+	love_graphics_setColor(120, 170, 255, 40);
+	love_geometry_rectangle("fill", r[0], r[1], r[2], r[3]);
+	love_graphics_setColor(150, 190, 255, 220);
+	love_geometry_rectangle("line", r[0], r[1], r[2], r[3]);
+	cam_pop(app);
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
 fn view_draw(app) {
 	love_graphics_setColor(20, 22, 28, 255);
 	love_geometry_rectangle("fill", app.vp_x, app.vp_y, app.vp_w, app.vp_h);
@@ -154,8 +188,15 @@ fn view_draw(app) {
 	# fixture overlay says what the shapes are, this says what they did.
 	if (app.mode == "play") { view_draw_contacts(app); }
 
+	# Everything selected gets an outline; the gizmo is only for one, because
+	# rotating and resizing a group is a different feature with its own rules.
+	if (app.mode == "edit") {
+		view_draw_selection(app);
+		if (app.marquee != null) { view_draw_marquee(app); }
+	}
+
 	# the gizmo is screen space, but still clipped to the viewport
-	if (app.mode == "edit" && app.tool == "select") {
+	if (app.mode == "edit" && app.tool == "select" && len(app.selection) == 1) {
 		let sel = doc_selected(app);
 		if (sel != null) { gizmo_draw(app, sel); }
 	}

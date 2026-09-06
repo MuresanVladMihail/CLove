@@ -128,6 +128,84 @@ fn doc_center(app, e) {
 	return [e.transform.x + f.w * 0.5, e.transform.y + f.h * 0.5];
 }
 
+# --- selection -----------------------------------------------------
+#
+# app.selection is the whole selection, by id; app.selected_id is the primary,
+# the one the inspector edits. Keeping both means everything that only makes
+# sense for one entity -- the name, the sprite, a property -- carries on
+# working unchanged, while moving, deleting and duplicating take the lot.
+
+fn doc_is_selected(app, id) {
+	for (let i = 0; i < len(app.selection); i = i + 1) {
+		if (app.selection[i] == id) { return true; }
+	}
+	return false;
+}
+
+fn doc_select_none(app) {
+	app.selection = [];
+	app.selected_id = -1;
+	return 0;
+}
+
+fn doc_select_only(app, id) {
+	if (id < 0) { return doc_select_none(app); }
+	app.selection = [id];
+	app.selected_id = id;
+	return 0;
+}
+
+# Shift-click: add if it is not in, drop it if it is. The primary follows what
+# was just added, and falls back to whatever is left when one is dropped.
+fn doc_select_toggle(app, id) {
+	if (id < 0) { return 0; }
+
+	if (!doc_is_selected(app, id)) {
+		append(app.selection, id);
+		app.selected_id = id;
+		return 0;
+	}
+
+	let kept = [];
+	for (let i = 0; i < len(app.selection); i = i + 1) {
+		if (app.selection[i] != id) { append(kept, app.selection[i]); }
+	}
+	app.selection = kept;
+	if (len(kept) > 0) {
+		app.selected_id = kept[len(kept) - 1];
+	} else {
+		app.selected_id = -1;
+	}
+	return 0;
+}
+
+fn doc_selected_entities(app) {
+	let out = [];
+	for (let i = 0; i < len(app.selection); i = i + 1) {
+		let e = doc_find(app, app.selection[i]);
+		if (e != null) { append(out, e); }
+	}
+	return out;
+}
+
+# Drops from the selection anything the document no longer holds -- after an
+# undo, or a delete.
+fn doc_prune_selection(app) {
+	let kept = [];
+	for (let i = 0; i < len(app.selection); i = i + 1) {
+		if (doc_find(app, app.selection[i]) != null) { append(kept, app.selection[i]); }
+	}
+	app.selection = kept;
+	if (!doc_is_selected(app, app.selected_id)) {
+		if (len(kept) > 0) {
+			app.selected_id = kept[len(kept) - 1];
+		} else {
+			app.selected_id = -1;
+		}
+	}
+	return 0;
+}
+
 fn doc_selected(app) {
 	if (app.selected_id < 0) { return null; }
 	return doc_find(app, app.selected_id);
@@ -158,13 +236,21 @@ fn doc_begin_edit(app) {
 	return 0;
 }
 
+# Ends the gesture, so the next change starts a new undo step. The viewport
+# calls it when the button comes up; anything driving the document directly --
+# a test, a script -- has to say when one edit ends and the next begins, or
+# they all collapse into one undo.
+fn doc_end_edit(app) {
+	app.edit_pushed = false;
+	return 0;
+}
+
 # Undo used to clear the selection outright, which made a run of undos mean
 # reselecting between every step. The document is replaced wholesale, so the
 # entity object is gone either way -- but the id is stable, so the selection can
 # survive whenever the step did not remove the thing that was selected.
 fn doc_keep_selection(app) {
-	if (app.selected_id < 0) { return 0; }
-	if (doc_find(app, app.selected_id) == null) { app.selected_id = -1; }
+	doc_prune_selection(app);
 	return 0;
 }
 
@@ -208,20 +294,28 @@ fn doc_clone_entity(app, e) {
 }
 
 fn doc_duplicate(app) {
-	let e = doc_selected(app);
-	if (e == null) { return 0; }
+	let originals = doc_selected_entities(app);
+	if (len(originals) == 0) { return 0; }
 	doc_begin_edit(app);
 
-	let copy = doc_clone_entity(app, e);
-	copy.id = app.doc_data.next_id;
-	app.doc_data.next_id = copy.id + 1;
-	copy.name = e.name + " copy";
-	copy.transform.x = e.transform.x + app.grid;
-	copy.transform.y = e.transform.y + app.grid;
+	let made = [];
+	for (let i = 0; i < len(originals); i = i + 1) {
+		let e = originals[i];
+		let copy = doc_clone_entity(app, e);
+		copy.id = app.doc_data.next_id;
+		app.doc_data.next_id = copy.id + 1;
+		copy.name = e.name + " copy";
+		copy.transform.x = e.transform.x + app.grid;
+		copy.transform.y = e.transform.y + app.grid;
 
-	append(app.doc_data.entities, copy);
-	app.selected_id = copy.id;
-	log_line(app, "duplicated " + e.name);
+		append(app.doc_data.entities, copy);
+		append(made, copy.id);
+	}
+
+	# the copies become the selection, so dragging straight away moves them
+	app.selection = made;
+	app.selected_id = made[len(made) - 1];
+	log_line(app, "duplicated " + len(made));
 	return 0;
 }
 
@@ -275,16 +369,22 @@ fn doc_to_back(app, id)  { return doc_move_to(app, id, 0); }
 
 
 fn doc_delete_selected(app) {
-	let e = doc_selected(app);
-	if (e == null) { return 0; }
+	let gone = doc_selected_entities(app);
+	if (len(gone) == 0) { return 0; }
 	doc_begin_edit(app);
+
 	let kept = [];
 	for (let i = 0; i < len(app.doc_data.entities); i = i + 1) {
-		if (app.doc_data.entities[i].id != e.id) { append(kept, app.doc_data.entities[i]); }
+		if (!doc_is_selected(app, app.doc_data.entities[i].id)) {
+			append(kept, app.doc_data.entities[i]);
+		}
 	}
 	app.doc_data.entities = kept;
-	app.selected_id = -1;
-	log_line(app, "deleted " + e.name);
+
+	let what = gone[0].name;
+	if (len(gone) > 1) { what = len(gone) + " entities"; }
+	doc_select_none(app);
+	log_line(app, "deleted " + what);
 	return 0;
 }
 
@@ -353,7 +453,7 @@ fn doc_load(app, path) {
 	if (parsed == null) { return false; }
 
 	app.doc_data = parsed;
-	app.selected_id = -1;
+	doc_select_none(app);
 	app.undo = [];
 	app.redo = [];
 	app.dirty = false;

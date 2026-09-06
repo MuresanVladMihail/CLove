@@ -98,7 +98,7 @@ fn scenes_open(app, path) {
 	} else {
 		# a level that has not been written yet: start it empty
 		app.doc_data = doc_empty(app);
-		app.selected_id = -1;
+		doc_select_none(app);
 		app.undo = [];
 		app.redo = [];
 		app.dirty = true;

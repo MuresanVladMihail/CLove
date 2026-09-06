@@ -34,21 +34,59 @@ fn run() {
     let r0 = editor_revision(ed);
 
     ed.cam.x = 500;
-    ed.selected_id = 1;
     check(editor_revision(ed) == r0, "a camera move is not a document change");
 
-    doc_add(ed, "Ground", "rect", 0, 400, 600, 40, 90, 120, 80);
+    let ground = doc_add(ed, "Ground", "rect", 0, 400, 600, 40, 90, 120, 80);
     check(editor_revision(ed) > r0, "adding an entity moves the revision");
 
+    # --- selection ---
+    doc_select_only(ed, ground.id);
+    check(doc_is_selected(ed, ground.id), "select_only selects it");
+    check(len(ed.selection) == 1, "and nothing else");
+    check(editor_revision(ed) == editor_revision(ed),
+          "selecting is not a document change");
+
     let r1 = editor_revision(ed);
+    doc_end_edit(ed);          # a gesture ends where the mouse would come up
     doc_duplicate(ed);
     check(editor_revision(ed) > r1, "duplicating moves it");
     check(doc_count(ed) == 2, "and there are two entities now");
 
+    # the copies become the selection, so a drag straight after moves them
+    check(len(ed.selection) == 1, "the copy is what is selected now");
+    check(!doc_is_selected(ed, ground.id), "and the original is not");
+
+    # shift-click semantics: toggling adds, toggling again drops
+    doc_select_toggle(ed, ground.id);
+    check(len(ed.selection) == 2, "toggling adds to the selection");
+    check(ed.selected_id == ground.id, "and the primary follows what was added");
+    doc_select_toggle(ed, ground.id);
+    check(len(ed.selection) == 1, "toggling again drops it");
+    check(ed.selected_id != ground.id, "and the primary falls back");
+
+    doc_select_none(ed);
+    check(len(ed.selection) == 0, "select_none clears it");
+    check(ed.selected_id == -1, "primary included");
+
+    doc_select_only(ed, ground.id);
+
     let r2 = editor_revision(ed);
+    doc_end_edit(ed);
     doc_undo(ed);
     check(editor_revision(ed) > r2, "undo moves it too -- the level did change");
     check(doc_count(ed) == 1, "back to one entity");
+
+    # an undo that removes what was selected has to drop it from the selection
+    doc_end_edit(ed);
+    doc_select_only(ed, ground.id);
+    doc_delete_selected(ed);
+    check(doc_count(ed) == 0, "delete takes the selection");
+    check(len(ed.selection) == 0, "and leaves nothing selected");
+    doc_end_edit(ed);
+    doc_undo(ed);
+    check(doc_count(ed) == 1, "undo brings it back");
+    check(len(ed.selection) == 0,
+          "without reselecting it -- the selection only survives, never revives");
 
     # --- what a host reads ---
     let doc = editor_document(ed);

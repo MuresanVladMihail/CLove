@@ -183,13 +183,20 @@ fn panels_hierarchy(app) {
 				# Mixing the entity id into the id stack keeps them apart.
 				love_ui_pushId(e.id);
 
+				# ">" is the primary, the one the inspector edits; "*" is in
+				# the selection but not it
 				let mark = "   ";
+				if (doc_is_selected(app, e.id)) { mark = "*  "; }
 				if (e.id == app.selected_id) { mark = ">  "; }
 				let suffix = "";
 				if (!e.visible) { suffix = "   (hidden)"; }
 				if (love_ui_button(mark + e.name + suffix, ALIGN_LEFT)) {
-					app.selected_id = e.id;
-					log_line(app, "selected " + e.name);
+					if (love_keyboard_isDown("lshift") ||
+					    love_keyboard_isDown("rshift")) {
+						doc_select_toggle(app, e.id);
+					} else {
+						doc_select_only(app, e.id);
+					}
 				}
 
 				love_ui_popId();
@@ -221,7 +228,11 @@ fn panels_hierarchy(app) {
 		}
 
 		love_ui_layout_row(2, [-80, -1], 0);
-		love_ui_label(doc_count(app) + " entities");
+		let counted = doc_count(app) + " entities";
+		if (len(app.selection) > 1) {
+			counted = len(app.selection) + " of " + doc_count(app) + " selected";
+		}
+		love_ui_label(counted);
 		if (love_ui_button("Help", ALIGN_CENTER)) {
 			love_ui_open_popup("Shortcuts");
 		}
@@ -229,8 +240,10 @@ fn panels_hierarchy(app) {
 		# begun in the same window that opened it
 		if (love_ui_begin_popup("Shortcuts")) {
 			love_ui_layout_row(1, [330], 0);
-			love_ui_text("Select tool: click to pick, drag to move. The gizmo " +
-				"gives you X and Y arrows, a rotate knob and eight resize grips.");
+			love_ui_text("Select tool: click to pick, drag to move. Shift+click " +
+				"adds to the selection, and dragging from empty space rubber " +
+				"bands over one. Moving, Duplicate and Delete take the whole " +
+				"selection; the gizmo and the inspector work on one entity.");
 			love_ui_text("Primitives: pick Rect or Circle, then click in the viewport.");
 			love_ui_text("Pan: drag with the right or middle button, space + left, " +
 				"or the arrow keys while the cursor is over the viewport.");
