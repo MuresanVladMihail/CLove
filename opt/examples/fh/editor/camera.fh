@@ -74,20 +74,18 @@ fn cam_input(app, dt, inside) {
 
 	# Keyboard panning, so the view is reachable without a three-button
 	# mouse. Speed is in screen pixels, so it feels the same at any zoom.
-	# Only while the cursor is over the viewport: the panels have text
-	# boxes, and a letter key must go to what is being typed.
-	if (inside) {
+	# Only while the cursor is over the viewport and microui is not taking
+	# keystrokes -- a letter key must go to whatever is being typed, and the
+	# pointer can easily be over the viewport while a text box has focus.
+	# Polled, not event-driven, because holding an arrow key should keep
+	# panning -- unlike the one-shot shortcuts in main.fh, which come from
+	# love_keypressed().
+	if (inside && !love_ui_capturesKeyboard()) {
 		let speed = 600 * dt / app.cam.zoom;
 		if (love_keyboard_isDown("left"))  { app.cam.x = app.cam.x - speed; }
 		if (love_keyboard_isDown("right")) { app.cam.x = app.cam.x + speed; }
 		if (love_keyboard_isDown("up"))    { app.cam.y = app.cam.y - speed; }
 		if (love_keyboard_isDown("down"))  { app.cam.y = app.cam.y + speed; }
-
-		let f_now = love_keyboard_isDown("f");
-		if (f_now && !app.key_f) { cam_frame_all(app); }
-		app.key_f = f_now;
-	} else {
-		app.key_f = false;
 	}
 
 	# Drag to pan: right button, middle button, or space with the left

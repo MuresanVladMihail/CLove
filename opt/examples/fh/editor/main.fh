@@ -80,7 +80,7 @@ include "panels.fh"
 # plain globals because a global `let` in FH is a constant binding: the name
 # cannot be reassigned, though the map it points at is free to change. `app` is
 # here for the same reason: love_quit() is handed nothing either.
-let INPUT = { "press": null, "released": false, "app": null };
+let INPUT = { "press": null, "released": false, "app": null, "keys": [] };
 
 fn love_mousepressed(m) {
 	INPUT.press = m;
@@ -89,6 +89,27 @@ fn love_mousepressed(m) {
 
 fn love_mousereleased(m) {
 	INPUT.released = true;
+	return 0;
+}
+
+# Shortcuts come from the event too, for the same reason the mouse does:
+# love_keyboard_isDown() only reports the state at the moment love_update()
+# runs, so a key tapped between two frames is never seen at all.
+#
+# The modifier is read *here* rather than when the shortcut is handled, because
+# it has the same problem one level up: by the next love_update() the Ctrl may
+# already have been released, and Ctrl+S would arrive as a bare S. This runs
+# inside the event pump, right after the key went down, so the modifier still
+# reads as held.
+#
+# k is [name, keycode, isrepeat]; a repeat is dropped, since one press of
+# Ctrl+Z means one undo however long it is held.
+fn love_keypressed(k) {
+	if (k[2]) { return 0; }
+
+	let ctrl = love_keyboard_isDown("lctrl") || love_keyboard_isDown("rctrl") ||
+		love_keyboard_isDown("lgui") || love_keyboard_isDown("rgui");
+	append(INPUT.keys, [k[0], ctrl]);
 	return 0;
 }
 
@@ -142,7 +163,6 @@ fn love_load() {
 
 	app.cam = { "x": 0, "y": 0, "zoom": 1 };
 	app.panning = false;
-	app.key_f = false;
 	app.pan_x = 0;
 	app.pan_y = 0;
 
@@ -189,9 +209,7 @@ fn love_load() {
 	app.style_open = false;   # the Theme editor's microui container is open
 
 	app.pal_i = 0;
-	app.key_z = false;
-	app.key_y = false;
-	app.key_s = false;
+	app.hover_viewport = false;   # is the pointer over the scene, not a panel
 
 	app.browser_panel   = love_ui_newContainer();
 	app.console_panel   = love_ui_newContainer();
@@ -333,6 +351,7 @@ fn viewport_input(app, dt) {
 		!love_ui_mouse_over();
 	let press_inside = point_in(px, py, VP_X, VP_Y, VP_W, VP_H) &&
 		!love_ui_mouse_over();
+	app.hover_viewport = inside;   # read by the F shortcut
 	let panning = cam_input(app, dt, inside);
 
 	# the simulation owns the scene while it runs; only the camera stays live
@@ -403,22 +422,47 @@ fn viewport_input(app, dt) {
 	return 0;
 }
 
+fn shortcut(app, name, ctrl) {
+	if (ctrl) {
+		if (name == "z") { doc_undo(app); return 0; }
+		if (name == "y") { doc_redo(app); return 0; }
+		if (name == "s") { doc_save(app, app.scene_path); return 0; }
+		if (name == "d") { doc_duplicate(app); return 0; }
+		if (name == "n") {
+			love_ui_clear_textbox(NEW_SCENE_BOX);
+			app.new_scene = scenes_suggest_name(app);
+			return 0;
+		}
+		return 0;
+	}
+
+	# Delete goes through the same confirmation the button does -- a level is
+	# not somewhere a keystroke should remove something without asking.
+	# Backspace counts too: on a Mac keyboard the key labelled "delete" is
+	# backspace, and forward delete needs Fn.
+	if (name == "delete" || name == "backspace") {
+		if (doc_selected(app) != null) { app.confirm = true; }
+		return 0;
+	}
+
+	# Framing is a viewport command, so it only answers while the pointer is
+	# over the viewport -- the panels are full of text boxes.
+	if (name == "f" && app.hover_viewport) { cam_frame_all(app); }
+	return 0;
+}
+
 fn shortcuts(app) {
-	let ctrl = love_keyboard_isDown("lctrl") || love_keyboard_isDown("rctrl") ||
-		love_keyboard_isDown("lgui") || love_keyboard_isDown("rgui");
+	let keys = INPUT.keys;
+	INPUT.keys = [];
 
-	let z = ctrl && love_keyboard_isDown("z");
-	let y = ctrl && love_keyboard_isDown("y");
-	let s = ctrl && love_keyboard_isDown("s");
+	# A text box being typed into takes the keyboard, and so does a slider
+	# being dragged. Those keystrokes belong to the widget: drop them, or
+	# naming an entity would fire every shortcut the name happens to contain.
+	if (love_ui_capturesKeyboard()) { return 0; }
 
-	# edge-triggered: hold-to-repeat would undo the whole history in a frame
-	if (z && !app.key_z) { doc_undo(app); }
-	if (y && !app.key_y) { doc_redo(app); }
-	if (s && !app.key_s) { doc_save(app, app.scene_path); }
-
-	app.key_z = z;
-	app.key_y = y;
-	app.key_s = s;
+	for (let i = 0; i < len(keys); i = i + 1) {
+		shortcut(app, keys[i][0], keys[i][1]);
+	}
 	return 0;
 }
 

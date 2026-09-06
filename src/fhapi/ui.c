@@ -325,6 +325,21 @@ static int fn_love_ui_setWindowOpen(struct fh_program *prog,
     return 0;
 }
 
+/* love_ui_capturesKeyboard() -> bool
+ *
+ * Whether microui is taking keystrokes -- a text box being typed into, or any
+ * control being dragged. A program with bare-key shortcuts asks this before
+ * acting on one, so that typing a name does not also fire Delete. */
+static int fn_love_ui_capturesKeyboard(struct fh_program *prog,
+                                       struct fh_value *ret, struct fh_value *args, int n_args) {
+    (void) args;
+    if (n_args != 0)
+        return fh_set_error(prog, "love_ui_capturesKeyboard(): expected no arguments, got %d", n_args);
+
+    *ret = fh_new_bool(ui_captures_keyboard() != 0);
+    return 0;
+}
+
 /* love_ui_mouse_over() -> bool
  *
  * Whether the pointer is over any microui window, panel or popup. A game that
@@ -1101,6 +1116,7 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_ui_end_popup),
     DEF_FN(love_ui_popup_open),
     DEF_FN(love_ui_mouse_over),
+    DEF_FN(love_ui_capturesKeyboard),
     DEF_FN(love_ui_setWindowOpen),
     DEF_FN(love_ui_open_popup),
     DEF_FN(love_ui_res_state)
