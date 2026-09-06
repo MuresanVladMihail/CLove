@@ -58,48 +58,75 @@ static void main_load(lua_State *lua, char *argv[], love_Config *config) {
 
     // in case no *.clove.tar
     if (argv[1] == NULL) {
-        int err = luaL_dofile(lua, "main.lua");
-
-        if (err == 1) {
-            l_no_game(lua, config);
+        // luaL_dofile() both loads and runs the chunk, and returns a Lua
+        // status code -- LUA_ERRSYNTAX, LUA_ERRFILE and so on, never 1. The
+        // old test compared it against 1 and, when the file had loaded
+        // cleanly, ran the whole thing a *second* time.
+        if (luaL_dofile(lua, "main.lua") != 0)   /* 0 is success; this Lua predates LUA_OK */ {
             printf("%s \n", lua_tostring(lua, -1));
-        } else if (err == 0)
-            luaL_dofile(lua, "main.lua");
+            l_no_game(lua, config);
+        }
     } // *.clove.tar is required
     else {
         mtar_t tar;
         mtar_header_t header;
 
-        mtar_open(&tar, argv[1], "r");
+        if (mtar_open(&tar, argv[1], "r") != MTAR_ESUCCESS) {
+            clove_error("Error: could not open archive %s\n", argv[1]);
+            return;
+        }
 
         while ((mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD) {
-            //printf("%s \n", header.name);
             mtar_next(&tar);
         }
 
-/* Used to control love.filesystem.require.
- * See examples folder -> run package */
+        /* Used to control love.filesystem.require.
+         * See examples folder -> run package */
 #ifndef CLOVE_TAR
 #define CLOVE_TAR 1
 #endif
 
-char *buffer;
-int numberOfScripts = atoi(argv[2]);
-        for (int i = 0; i<numberOfScripts; i++) {
-            mtar_find(&tar, argv[i + 3], &header);
+        // argv[2] is the script count and argv[3..] are their names. Reading
+        // argv[2] without checking it is there meant atoi(NULL) for anyone
+        // who passed just the archive.
+        int numberOfScripts = argv[2] ? atoi(argv[2]) : 0;
 
-            buffer = calloc(1, header.size+1);
+        for (int i = 0; i < numberOfScripts; i++) {
+            if (argv[i + 3] == NULL) {
+                clove_error("Error: %s says it holds %d scripts but only %d were named\n",
+                            argv[1], numberOfScripts, i);
+                break;
+            }
+
+            if (mtar_find(&tar, argv[i + 3], &header) != MTAR_ESUCCESS) {
+                clove_error("Error: %s is not in %s\n", argv[i + 3], argv[1]);
+                continue;
+            }
+
+            // One buffer per script, freed at the end of the iteration. The
+            // old code declared it outside the loop, leaked every one but the
+            // last, and then freed that last one through a pointer that was
+            // never assigned at all when the count was zero.
+            char *buffer = calloc(1, header.size + 1);
+            if (!buffer) {
+                clove_error("Error: out of memory reading %s\n", argv[i + 3]);
+                break;
+            }
+
             mtar_read_data(&tar, buffer, header.size);
-            //printf("%s \n", buffer);
 
-            luaL_dostring(lua, buffer );
-            lua_pcall(lua, 0, 0, 0);
+            if (luaL_dostring(lua, buffer) != 0)   /* 0 is success; this Lua predates LUA_OK */ {
+                printf("%s \n", lua_tostring(lua, -1));
+            }
+
+            CLOVE_SAFE_FREE(buffer);
         }
 
-luaL_dofile(lua, "main.lua");
+        mtar_close(&tar);
 
-SAFE_FREE(buffer);
-
+        if (luaL_dofile(lua, "main.lua") != 0)   /* 0 is success; this Lua predates LUA_OK */ {
+            printf("%s \n", lua_tostring(lua, -1));
+        }
     }
 }
 

@@ -15,6 +15,7 @@
 #include "../include/shader.h"
 #include "../include/batch.h"
 #include "../include/utf8.h"
+#include "../include/textwrap.h"
 
 /* TODO: A better implementation would be by using hashmaps instead of arrays. */
 
@@ -92,30 +93,13 @@ int graphics_BitmapFont_getWidth(graphics_BitmapFont *font, char const *line) {
     return width;
 }
 
-int graphics_BitmapFont_getWrap(graphics_BitmapFont *font, char const *line, int wraplimit, char **wrappedtext) {
-    int width = 0, wrappedlines = 1;
-    uint32_t uni = 0;
-    size_t i = 0;
-    size_t len = strlen(line);
-    char *c = NULL;
-    while ((uni = utf8_scan(&line))) {
-        c = *wrappedtext;
-        width += font->glyph_width;
-        if (i + 1 >= len) {
-            len <<= 2 + 1;
-            *wrappedtext = realloc(*wrappedtext, len);
-            c = *wrappedtext;
-        }
-        if (width >= wraplimit && (uni != '\n' && uni != ' ')) {
-            wrappedlines++;
-            c[i++] = '\n';
-            width = 0;
-        }
-        c[i++] = (char) uni;
-    }
-    c[i] = '\0';
+static int bitmap_advance(void *ctx, uint32_t codepoint) {
+    (void) codepoint;   // every cell in a bitmap font is the same width
+    return ((graphics_BitmapFont *) ctx)->glyph_width;
+}
 
-    return wrappedlines;
+int graphics_BitmapFont_getWrap(graphics_BitmapFont *font, char const *line, int wraplimit, char **wrappedtext) {
+    return graphics_wrapText(line, wraplimit, bitmap_advance, font, wrappedtext);
 }
 
 static glyph_t *find_glyph(graphics_BitmapFont *font, uint32_t what) {
