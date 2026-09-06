@@ -38,6 +38,16 @@ version 0.8.0 not yet released
 * added: love_shader_send(shader, name, value), which dispatches on the value
 	the way LOVE's Shader:send does. SKILLS.md had documented it for a while;
 	it did not exist.
+* fixed: love_graphics_setCanvas() with no arguments -- LOVE's way of going
+	back to drawing on the screen -- was rejected by the arity check, even
+	though the body already treated a non-canvas argument as "unset".
+* fixed: love_mouse_isDown(), setVisible(), setX() and setY() read args[0]
+	without checking n_args. love_mouse_isDown() also returned a permanent
+	`false` for an unknown button name rather than an error (the engine used 0
+	for both "not pressed" and "no such button"), and it now accepts LOVE's
+	numbers 1..5 as well as CLove's "l"/"r"/"m"/"x1"/"x2".
+* fixed: love_geometry_points() reinterpreted whatever it was handed as an
+	array without checking that it was one.
 * fixed: the particle system leaked and could corrupt the heap.
 	love_particleSystem_setBufferSize() malloc'd a new particle buffer without
 	freeing the old one (200 systems resized twice leaked ~4.9 MB) and left the

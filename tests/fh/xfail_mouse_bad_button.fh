@@ -1,0 +1,9 @@
+# An unknown button name used to come back as a permanent `false`: the engine
+# returned 0 both for "not pressed" and for "no such button", so a script that
+# guessed LOVE's "left" instead of CLove's "l" was wrong forever, in silence.
+fn love_load() {
+    love_mouse_isDown("left");
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

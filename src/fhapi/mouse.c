@@ -74,17 +74,40 @@ void fh_mouse_wheelmoved(int y) {
 
 
 static int fn_love_mouse_isDown(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
-    UNUSED(n_args);
-    if (!fh_is_string(&args[0])) {
-        return fh_set_error(prog, "Expected string type for arg 1, got %s\n", fh_type_to_str(prog, args[0].type));
+    if (n_args != 1)
+        return fh_set_error(prog, "love_mouse_isDown(): expected 1 argument, got %d", n_args);
+
+    // LOVE numbers the buttons; CLove has always named them. Accept both, so
+    // love_mouse_isDown(1) does what a reader of LOVE's docs expects instead
+    // of failing a type check.
+    const char *name;
+    if (fh_is_number(&args[0])) {
+        switch ((int)fh_get_number(&args[0])) {
+        case 1:  name = "l";  break;
+        case 2:  name = "r";  break;
+        case 3:  name = "m";  break;
+        case 4:  name = "x1"; break;
+        case 5:  name = "x2"; break;
+        default:
+            return fh_set_error(prog, "love_mouse_isDown(): button %d is not one of 1..5",
+                                (int)fh_get_number(&args[0]));
+        }
+    } else if (fh_is_string(&args[0])) {
+        name = fh_get_string(&args[0]);
+    } else {
+        return fh_set_error(prog, "Expected a button name or number, got %s",
+                            fh_type_to_str(prog, args[0].type));
     }
 
-    const char *name = fh_get_string(&args[0]);
-    int res = mouse_isDown(name);
-    if(res < 0) {
-        return fh_set_error(prog, "bad button name '%s'", name);
+    // An unknown name used to come back as a permanent `false` -- the error
+    // below could never fire, because mouse_isDown() returned 0 both for
+    // "not pressed" and for "no such button".
+    if (!mouse_isButtonName(name)) {
+        return fh_set_error(prog, "love_mouse_isDown(): '%s' is not a button "
+                                  "(use \"l\", \"r\", \"m\", \"x1\", \"x2\" or 1..5)", name);
     }
-    *ret = fh_new_bool(res);
+
+    *ret = fh_new_bool(mouse_isDown(name) != 0);
     return 0;
 }
 
@@ -147,12 +170,15 @@ static int fn_love_mouse_isVisible(struct fh_program *prog, struct fh_value *ret
     UNUSED(args);
     UNUSED(n_args);
     *ret = fh_new_bool(mouse_isVisible());
-    return 1;
+    // A binding returns 0 for success; this one said 1.
+    return 0;
 }
 
 static int fn_love_mouse_setVisible(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args)  {
     UNUSED(ret);
-    UNUSED(n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_mouse_setVisible(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_bool(&args[0])) {
         return fh_set_error(prog, "Expected type boolean, got %s\n", fh_type_to_str(prog, args[0].type));
     }
@@ -163,7 +189,9 @@ static int fn_love_mouse_setVisible(struct fh_program *prog, struct fh_value *re
 
 static int fn_love_mouse_setX(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args)  {
     UNUSED(ret);
-    UNUSED(n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_mouse_setX(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_number(&args[0])) {
         return fh_set_error(prog, "Expected type number, got %s\n", fh_type_to_str(prog, args[0].type));
     }
@@ -173,7 +201,9 @@ static int fn_love_mouse_setX(struct fh_program *prog, struct fh_value *ret, str
 
 static int fn_love_mouse_setY(struct fh_program *prog, struct fh_value *ret, struct fh_value *args, int n_args) {
     UNUSED(ret);
-    UNUSED(n_args);
+    if (n_args != 1)
+        return fh_set_error(prog, "love_mouse_setY(): expected 1 argument, got %d", n_args);
+
     if (!fh_is_number(&args[0])) {
         return fh_set_error(prog, "Expected type number, got %s\n", fh_type_to_str(prog, args[0].type));
     }
