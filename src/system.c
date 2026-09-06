@@ -7,7 +7,9 @@
 #   under the terms of the MIT license. See LICENSE.md for details.
 */
 
-#ifdef USE_LUA
+/* This was wrapped in #ifdef USE_LUA, which is why love.system existed on the
+ * Lua side and not on the FH one -- the module was simply not compiled. There
+ * is nothing Lua-specific in it. */
 
 #include "include/system.h"
 
@@ -79,5 +81,3 @@ system_PowerState system_getPowerInfo() {
   };
   return powerState;
 }
-
-#endif

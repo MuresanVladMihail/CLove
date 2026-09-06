@@ -116,10 +116,13 @@ panning a camera.
   `love_font_getHeight()` measure with the default font, and
   `love_graphics_print` loads it on demand. Pass a font first
   (`love_font_getWidth(font, text)`) to measure with that one instead.
+- **Saving an image**: `love_image_save(imageData, "out.png")` writes a PNG.
+  `love_graphics_captureScreenshot(path)` writes the framebuffer instead.
 - **Sprite batches** (`graphics_batch.c`): `newSpriteBatch` + `batch_add` /
   `batch_set` / `batch_bind` / `batch_unbind` / `batch_flush` / `batch_clear`.
 - **Canvas / render-to-texture** (`graphics_canvas.c`): `love_graphics_newCanvas`,
-  `love_graphics_setCanvas`.
+  `love_graphics_setCanvas` (with no argument to go back to the screen), and
+  `love_canvas_getWidth` / `getHeight` / `getDimensions`.
 - **Shaders** (`graphics_shader.c`): `love_graphics_newShader(vertexSrc,
   fragmentSrc)` — either argument may be GLSL source or a path to a file
   holding it, and a fragment shader may be passed on its own. Uniforms are
@@ -616,6 +619,16 @@ from the module's own scale/rotation state rather than composing into it (see
 `translate(); scale();` therefore loses the translation: scale first, then
 translate by the offset divided by the scale. `opt/examples/fh/editor` builds
 its camera that way.
+
+## System — `src/fhapi/system.c`
+
+`love_system_getOS()`, `love_system_getProcessorCount()`,
+`love_system_getClipboardText()` / `setClipboardText(text)`, and
+`love_system_getPowerInfo()` → `[state, seconds, percent]` (SDL's words;
+`seconds` and `percent` are `-1` when the platform will not say).
+
+`src/system.c` was compiled behind `#ifdef USE_LUA`, so this module existed
+on the Lua side and simply was not built for FH.
 
 ## System / misc — `src/fhapi/love.c`
 

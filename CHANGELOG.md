@@ -44,6 +44,15 @@ version 0.8.0 not yet released
 	BYTE_OFFSET, which the vendored mojoAL left as FIXME in all four of its
 	get/set paths -- see CLAUDE.md, the patch has to be re-applied if mojoAL
 	is re-synced.
+* added: love.system for FH -- getOS, getProcessorCount, getClipboardText,
+	setClipboardText, getPowerInfo. src/system.c was compiled behind
+	`#ifdef USE_LUA`, so the module existed on the Lua side and was simply not
+	built for the default backend.
+* added: love_canvas_getWidth/getHeight/getDimensions. A canvas had no
+	accessors at all.
+* added: love_image_save(imageData, path), writing a PNG.
+	image_ImageData_save() has been in the engine since the module existed and
+	nothing exposed it.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

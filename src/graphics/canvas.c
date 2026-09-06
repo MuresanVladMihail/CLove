@@ -87,3 +87,12 @@ void graphics_setCanvas(graphics_Canvas* canvas) {
 		graphics_set_camera_2d(0, width, height, 0, 0.1f, 100.0f);
 	}
 }
+
+
+int graphics_Canvas_getWidth(graphics_Canvas const *canvas) {
+    return canvas ? canvas->image.width : 0;
+}
+
+int graphics_Canvas_getHeight(graphics_Canvas const *canvas) {
+    return canvas ? canvas->image.height : 0;
+}

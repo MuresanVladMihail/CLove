@@ -698,6 +698,44 @@ static int fn_love_image_setVectorScale(struct fh_program *prog,
     return 0;
 }
 
+/* love_image_save(imageData, path) -> bool
+ *
+ * image_ImageData_save() has been in the engine writing PNGs through
+ * stb_image_write for as long as the module has existed, and nothing exposed
+ * it -- so a game could read and edit pixels but never write them out. That is
+ * what a level thumbnail, a photo mode, or a paint tool needs.
+ *
+ * love_graphics_captureScreenshot() writes the framebuffer; this writes an
+ * ImageData a script built or edited itself. */
+static int fn_love_image_save(struct fh_program *prog,
+                              struct fh_value *ret, struct fh_value *args, int n_args) {
+    if (n_args != 2)
+        return fh_set_error(prog, "love_image_save(): expected 2 arguments (imageData, path), got %d", n_args);
+
+    if (!fh_is_string(&args[1]))
+        return fh_set_error(prog, "love_image_save(): the path must be a string");
+
+    image_ImageData *data = NULL;
+    if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_DATA_TYPE)) {
+        data = fh_get_c_obj_value(&args[0]);
+    } else if (fh_is_c_obj_of_type(&args[0], FH_IMAGE_TYPE)) {
+        /* An Image keeps the pixels it was loaded from, so saving one is the
+         * obvious thing to want and there is no reason to make the caller dig
+         * the ImageData out first. */
+        fh_image_t *img = fh_get_c_obj_value(&args[0]);
+        data = img->data;
+    } else {
+        return fh_set_error(prog, "love_image_save(): expected image data or an image");
+    }
+
+    if (!data || !data->surface)
+        return fh_set_error(prog, "love_image_save(): this image has no pixels to save");
+
+    const char *path = fh_get_string(&args[1]);
+    *ret = fh_new_bool(image_ImageData_save(data, "png", path) != 0);
+    return 0;
+}
+
 #define DEF_FN(name) { #name, fn_##name }
 static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_graphics_newImageData),
@@ -716,6 +754,7 @@ static const struct fh_named_c_func c_funcs[] = {
     DEF_FN(love_image_getMipmapFilter),
     DEF_FN(love_image_getPixel),
     DEF_FN(love_image_setPixel),
+    DEF_FN(love_image_save),
     DEF_FN(love_image_isVector),
     DEF_FN(love_image_getVectorContours),
     DEF_FN(love_image_getVectorScale),

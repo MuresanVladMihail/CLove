@@ -23,6 +23,11 @@ typedef struct
 
 void graphics_Canvas_new(graphics_Canvas *canvas, int width, int height);
 void graphics_Canvas_free(graphics_Canvas *canvas);
+
+/* The canvas owns a graphics_Image, so its size is that image's -- but a
+ * caller should not have to know the layout to ask. */
+int graphics_Canvas_getWidth(graphics_Canvas const *canvas);
+int graphics_Canvas_getHeight(graphics_Canvas const *canvas);
 void graphics_Canvas_draw(graphics_Canvas const* canvas, graphics_Quad const* quad,
                          float x, float y, float r, float sx, float sy,
                          float ox, float oy, float kx, float ky);
