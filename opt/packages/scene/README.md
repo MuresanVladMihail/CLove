@@ -43,7 +43,7 @@ level that will not load is a bug, not a state every caller should poll for.
 
 `id`, `name`, `is_visible`, `position`, `angle`, `center`, `size`, `rect`,
 `color`, `fixture`, `filter_data`, `body_type`, `sprite_path`, `groups`,
-`has_group`, `props`, `prop`, `has_prop`.
+`has_group`, `props`, `prop`, `has_prop`, `links`, `link`.
 
 `filter_data(e)` is `[category, mask, group]` — what the thing is, what it is willing
 to touch, and the group override — ready for `love_fixture_setFilterData()`. A
@@ -76,6 +76,23 @@ for (let e in scene.in_group("enemies")) {
 Groups say *what* a thing is, properties say *with what parameters*. Between
 them the behaviour stays in game code and the level stays data — which is why
 there is no scripting attached to an entity.
+
+## Links
+
+`link(e, name)` follows a named reference to another entity and hands back the
+*entity*, not the id — an id the caller has to look up itself is a chore with a
+bug in it. `links(e)` is the raw map.
+
+```
+let door = scene.find("Door");
+let exit = scene.link(door, "exit");        # the entity it leads to
+let level = scene.prop(door, "level", "");  # or a level name, as a property
+```
+
+A property's value is data; a link's value is another entity. They are kept
+apart because the editor drops a link whose target is deleted, so a dangling
+one should not appear in a file it wrote — `link()` still answers `null` for a
+name that is not set.
 
 ## Joints
 

@@ -103,6 +103,7 @@ let GROUP_BOX     = 3;
 let NEW_SCENE_BOX = 4;
 let PROP_KEY_BOX  = 5;
 let PROP_VAL_BOX  = 6;
+let LINK_KEY_BOX  = 7;
 
 let ID_NUM_X       = 10;
 let ID_NUM_Y       = 11;

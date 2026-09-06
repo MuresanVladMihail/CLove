@@ -715,6 +715,7 @@ fn editor_new(opts) {
 	app.prop_order = [];
 	app.prop_key = "";
 	app.prop_value = "";
+	app.link_key = "";        # the name being given to a link, while typing it
 
 	# levels. app.scene_path comes from prefs_defaults()/prefs_load().
 	app.scene_files = [];     # the menu's listing, refreshed when it opens
@@ -784,8 +785,10 @@ fn editor_update(app, dt) {
 		love_ui_clear_textbox(GROUP_BOX);
 		love_ui_clear_textbox(PROP_KEY_BOX);
 		love_ui_clear_textbox(PROP_VAL_BOX);
+		love_ui_clear_textbox(LINK_KEY_BOX);
 		app.prop_key = "";
 		app.prop_value = "";
+		app.link_key = "";
 		app.prop_order = [];
 		app.last_selected = app.selected_id;
 	}

@@ -245,6 +245,7 @@ fn panels_inspector(app) {
 		# groups say what a thing is, props say with what parameters -- between
 		# them a game keeps its behaviour in code and the level stays data
 		props_panel(app, e);
+		links_panel(app, e);
 
 		if (love_ui_header("Collision", OPT_EXPANDED)) {
 			love_ui_layout_row(4, [56, 62, 66, -1], 0);

@@ -29,6 +29,10 @@ version 0.8.0 not yet released
 	default) exactly as in LOVE. See SKILLS.md for the API and the handful of
 	places Box2D 3 forced a difference (no gear or pulley joints, callbacks are
 	function names, user data is a number or a string).
+* the editor gained hover tips on every control (with a Tips box to turn them
+	off, remembered in editor.json), hand-drawn collision meshes with draggable
+	vertices, and named links between entities -- read back with scene.link(e,
+	name), which hands over the entity rather than an id.
 * added: love_ui_hovered(), love_ui_setWindowRect(name, x, y, w, h) and
 	love_ui_bringToFront(name) (FH only). Between them a script can build a
 	tooltip: ask whether the pointer is over the widget just built, then put a

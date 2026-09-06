@@ -326,6 +326,10 @@ fn panels_hierarchy(app) {
 				"scene.filter_data().");
 			love_ui_text("Z-order: the hierarchy list is the draw order, front " +
 				"last. Back / Down / Up / Front move the selection through it.");
+			love_ui_text("Links: name a reference from one entity to another " +
+				"-- a door's exit, a lever's target. A game follows it with " +
+				"scene.link(e, name) and gets the entity back; deleting the " +
+				"target drops the link rather than leaving it dangling.");
 			love_ui_text("Tips: hover any control for a line about what it " +
 				"does. The Tips box in the toolbar turns them off, and the " +
 				"setting is remembered in " + PREFS_PATH + ".");

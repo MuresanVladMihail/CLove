@@ -17,6 +17,7 @@
 #      "entities": [
 #        { "id": 1, "name": "Ground", "visible": true, "groups": ["terrain"],
 #          "props":     { "damage": 0 },   # free-form, authored per entity
+#          "links":     { "exit": 7 },      # named references to other entities
 #          "transform": { "x": 290, "y": 600, "angle": 0, "sx": 1, "sy": 1 },
 #          "color":     [92, 128, 84],
 #          "sprite":    { "path": "art/crate.svg" },   # or null
@@ -62,6 +63,11 @@ fn doc_new_entity(app, id, name, kind, x, y, w, h, r, g, b) {
 		# level, how much a pickup is worth. Values are typed (number, bool or
 		# string), see properties.fh. The game reads them with scene.props().
 		"props": {},
+		# Named references to other entities, by id: a door's exit, a lever's
+		# target. Kept apart from props because a props value is data and this
+		# is a pointer -- the editor has to keep it honest when the thing it
+		# points at goes away, and a game wants the entity back, not a number.
+		"links": {},
 		"transform": { "x": x, "y": y, "angle": 0, "sx": 1, "sy": 1 },
 		"color": [r, g, b],
 		"sprite": null,
@@ -252,6 +258,29 @@ fn doc_joints_of(app, id) {
 		if (joints[i].a == id || joints[i].b == id) { append(out, joints[i]); }
 	}
 	return out;
+}
+
+# Drops links pointing at entities that are gone. A dangling reference is worse
+# than a missing one: a game reading it gets an id that resolves to nothing and
+# has no way to tell that from a typo.
+fn doc_prune_links(app) {
+	let entities = doc_entities(app);
+	for (let i = 0; i < len(entities); i = i + 1) {
+		let links = doc_links(app, entities[i]);
+		let k = next_key(links, null);
+		let dead = [];
+		while (k != null) {
+			if (doc_find(app, links[k]) == null) { append(dead, k); }
+			k = next_key(links, k);
+		}
+		for (let j = 0; j < len(dead); j = j + 1) { delete(links, dead[j]); }
+	}
+	return 0;
+}
+
+fn doc_links(app, e) {
+	if (!contains_key(e, "links")) { e.links = {}; }
+	return e.links;
 }
 
 fn doc_prune_joints(app) {
@@ -521,6 +550,7 @@ fn doc_delete_selected(app) {
 	}
 	app.doc_data.entities = kept;
 	doc_prune_joints(app);
+	doc_prune_links(app);
 
 	let what = gone[0].name;
 	if (len(gone) > 1) { what = len(gone) + " entities"; }
@@ -563,6 +593,7 @@ fn doc_migrate(app, parsed) {
 	for (let i = 0; i < len(parsed.entities); i = i + 1) {
 		if (!contains_key(parsed.entities[i], "groups")) { parsed.entities[i].groups = []; }
 		if (!contains_key(parsed.entities[i], "props")) { parsed.entities[i].props = {}; }
+		if (!contains_key(parsed.entities[i], "links")) { parsed.entities[i].links = {}; }
 
 		let fixtures = parsed.entities[i].fixtures;
 		for (let k = 0; k < len(fixtures); k = k + 1) {

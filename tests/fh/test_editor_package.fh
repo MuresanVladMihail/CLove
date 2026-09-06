@@ -88,6 +88,35 @@ fn run() {
     check(len(ed.selection) == 0,
           "without reselecting it -- the selection only survives, never revives");
 
+    # --- links ---
+    # A property's value is data; a link's value is another entity, which the
+    # editor has to keep honest when that entity goes away.
+    doc_end_edit(ed);
+    let door = doc_add(ed, "Door", "rect", 0, 0, 40, 40, 200, 200, 200);
+    let room = doc_add(ed, "Room", "rect", 200, 0, 40, 40, 200, 200, 200);
+
+    check(len(doc_links(ed, door)) == 0, "an entity starts with no links");
+    doc_select_only(ed, door.id);
+    links_set(ed, door, "exit", room.id);
+    check(doc_links(ed, door).exit == room.id, "a link stores the target's id");
+
+    let scene_with_link = Scene(editor_document(ed));
+    check(scene_with_link.link(door, "exit") != null, "the package follows it");
+    check(scene_with_link.link(door, "exit").id == room.id, "to the right entity");
+    check(scene_with_link.link(door, "nowhere") == null,
+          "and answers null for a name that is not set");
+
+    # deleting the target drops the link rather than leaving it dangling
+    doc_end_edit(ed);
+    doc_select_only(ed, room.id);
+    doc_delete_selected(ed);
+    check(!contains_key(doc_links(ed, door), "exit"),
+          "deleting the target removes the link");
+
+    doc_end_edit(ed);
+    doc_select_only(ed, door.id);
+    doc_delete_selected(ed);
+
     # --- joints ---
     # They hold two entities together and belong to neither, so they live at
     # the top level and name their ends by id.
