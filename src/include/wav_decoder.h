@@ -10,4 +10,4 @@
 
 #include "../3rdparty/mojoAL/AL/al.h"
 
-int audio_wav_load(unsigned int buffer, char const* filename);
+int audio_wav_load(unsigned int buffer, char const* filename, float* outSeconds);

@@ -153,6 +153,31 @@ upstream first).
   `world:update()`). It now starts at `prev_frame->stack_top`, which is the
   right bound for both frame kinds.
 
+## The vendored mojoAL is patched — offsets
+
+`src/3rdparty/mojoAL/mojoal.c` is upstream
+(https://github.com/icculus/mojoAL) **plus an implementation of
+`AL_SEC_OFFSET` / `AL_SAMPLE_OFFSET` / `AL_BYTE_OFFSET`**, which upstream
+leaves as `FIXME("offsets")` in all four places (get and set, float and int).
+Without them a source cannot say where it is or be moved, so
+`love_audio_tell()` and `love_audio_seek()` have nothing to stand on — and
+that rules out anything that lines up with the audio: a rhythm game, a
+cutscene, a replay, a loop point.
+
+The patch is `source_current_buffer()`, `source_offset_units()`,
+`source_get_offset()` and `source_set_offset()` just above `alSourcefv()`,
+plus the four case bodies that call them. It leans on state the mixer already
+keeps: `src->offset` (bytes into the *converted* float32 data, at the
+buffer's channel count) and `src->offset_latched`, which `source_play()`
+already honours. Re-apply it if mojoAL is re-synced;
+`tests/fh/test_audio_wav.fh` fails without it.
+
+One upstream quirk the patch does **not** change: `alGetBufferi(AL_SIZE)`
+reports mojoAL's float32 length while `AL_BITS` reports the source file's
+depth, so the two do not divide into each other. That is why
+`audio_StaticSource_getDuration()` takes the length from the decoders
+(`audio_wav_load` / `audio_vorbis_load` report it) instead of asking OpenAL.
+
 ## Writing bindings (conventions)
 
 A binding has the signature

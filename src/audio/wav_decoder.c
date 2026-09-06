@@ -39,7 +39,11 @@ static int tag_is(const char id[4], const char *tag) {
     return memcmp(id, tag, 4) == 0;
 }
 
-int audio_wav_load(unsigned int buffer, char const * filename) {
+int audio_wav_load(unsigned int buffer, char const * filename, float *outSeconds) {
+    if (outSeconds) {
+        *outSeconds = 0.0f;
+    }
+
     FILE *file = fopen(filename, "rb");
     if (file == NULL) {
         clove_error("Can't read input file %s\n", filename);
@@ -129,6 +133,17 @@ int audio_wav_load(unsigned int buffer, char const * filename) {
     // dataSize, not the RIFF chunk's total length: handing OpenAL a size
     // larger than the buffer made it read past the end of the allocation.
     alBufferData(buffer, format, data, (ALsizei)dataSize, (ALsizei)fmt.sampleRate);
+
+    /* The length has to come from here rather than from alGetBufferi(AL_SIZE):
+     * mojoAL reports that in its own float32 representation while AL_BITS
+     * stays the source file's depth, so the two do not divide into each other
+     * and the answer came out exactly twice too long. */
+    if (outSeconds) {
+        int frameBytes = (int) fmt.channels * ((int) fmt.bitsPerSample / 8);
+        if (frameBytes > 0 && fmt.sampleRate > 0) {
+            *outSeconds = (float) dataSize / (float) (frameBytes * (int) fmt.sampleRate);
+        }
+    }
 
     // alBufferData copies, so the decoded file does not have to stay around.
     // It used to leak in full, once per source.

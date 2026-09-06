@@ -44,7 +44,38 @@ fn test_volume_and_pitch() {
     check(love_audio_isLooping(s), "looping should stick");
 }
 
+fn near(a, b, tol) {
+    let d = a - b;
+    if (d < 0) { d = 0 - d; }
+    return d <= tol;
+}
+
+fn test_position() {
+    # A source had no notion of position at all: no duration, no tell, no seek,
+    # which ruled out anything that has to line up with the music.
+    let s = love_audio_newSource("assets/tone_stereo16.wav", "static");
+
+    # 22050 Hz stereo, 0.05s of samples.
+    check(near(love_audio_getDuration(s), 0.05, 0.005), "the duration comes back in seconds");
+    check(love_audio_tell(s) == 0, "a source that has not played is at zero");
+
+    love_audio_seek(s, 0.02);
+    check(near(love_audio_tell(s), 0.02, 0.005), "seek moves the play head");
+
+    love_audio_seek(s, 0);
+    check(love_audio_tell(s) == 0, "and back to the start again");
+
+    # Seeking before the start is clamped rather than refused.
+    love_audio_seek(s, -5);
+    check(love_audio_tell(s) == 0, "a negative position clamps to zero");
+
+    # An 8-bit mono file at half the rate is twice as long per byte.
+    let m = love_audio_newSource("assets/tone_mono8.wav", "static");
+    check(near(love_audio_getDuration(m), 0.05, 0.005), "duration is right for 8-bit mono too");
+}
+
 fn run() {
+    test_position();
     test_stereo16();
     test_mono8();
     test_extra_chunk();

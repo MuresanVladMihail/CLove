@@ -3193,6 +3193,112 @@ void alSource3f(ALuint name, ALenum param, ALfloat value1, ALfloat value2, ALflo
     set_al_error(get_current_context(), AL_INVALID_ENUM);
 }
 
+
+/* --- CLove: AL_SEC_OFFSET / AL_SAMPLE_OFFSET / AL_BYTE_OFFSET -------------
+ *
+ * Upstream mojoAL leaves all four of these paths as a FIXME -- get and set,
+ * float and int -- so a source could not say where it was and could not be
+ * moved. That rules out anything that has to line up with the audio: a rhythm
+ * game, a cutscene, a replay, a loop point.
+ *
+ * The mixer already keeps src->offset (bytes into the *converted* float32
+ * data, at the buffer's own channel count) and source_play() already honours
+ * src->offset_latched, so this only has to convert between that and the three
+ * units the API asks for.
+ * ------------------------------------------------------------------------- */
+
+/* The buffer a source's offset is measured against: the one bound to a static
+ * source, or the head of the queue for a streaming one. */
+static const ALbuffer *source_current_buffer(const ALsource *src)
+{
+    if (src->buffer) {
+        return src->buffer;
+    }
+    return src->buffer_queue.head ? src->buffer_queue.head->buffer : NULL;
+}
+
+static ALboolean source_offset_units(const ALsource *src, int *channels, int *bits, int *freq)
+{
+    const ALbuffer *buffer = source_current_buffer(src);
+    if (!buffer || buffer->frequency <= 0 || buffer->channels <= 0) {
+        return AL_FALSE;
+    }
+    *channels = (int) buffer->channels;
+    *bits = (int) buffer->bits;
+    *freq = (int) buffer->frequency;
+    return AL_TRUE;
+}
+
+static ALfloat source_get_offset(const ALsource *src, ALenum param)
+{
+    int channels, bits, freq;
+    if (!source_offset_units(src, &channels, &bits, &freq)) {
+        return 0.0f;
+    }
+
+    /* src->offset counts bytes of float32 samples at `channels` channels. */
+    const int convertedFrame = channels * (int) sizeof (float);
+    const ALsizei frames = convertedFrame > 0 ? (src->offset / convertedFrame) : 0;
+
+    switch (param) {
+        case AL_SEC_OFFSET:    return (ALfloat) frames / (ALfloat) freq;
+        case AL_SAMPLE_OFFSET: return (ALfloat) frames;
+        case AL_BYTE_OFFSET:   return (ALfloat) (frames * channels * (bits / 8));
+        default: break;
+    }
+    return 0.0f;
+}
+
+static void source_set_offset(ALsource *src, ALenum param, ALfloat value)
+{
+    int channels, bits, freq;
+    const ALbuffer *buffer;
+    ALsizei frames = 0;
+    ALsizei bytes;
+    int convertedFrame;
+
+    if (value < 0.0f) {
+        value = 0.0f;
+    }
+    if (!source_offset_units(src, &channels, &bits, &freq)) {
+        return;
+    }
+    buffer = source_current_buffer(src);
+
+    switch (param) {
+        case AL_SEC_OFFSET:    frames = (ALsizei) (value * (ALfloat) freq); break;
+        case AL_SAMPLE_OFFSET: frames = (ALsizei) value; break;
+        case AL_BYTE_OFFSET: {
+            const int srcFrame = channels * (bits / 8);
+            frames = srcFrame > 0 ? (ALsizei) (value / (ALfloat) srcFrame) : 0;
+            break;
+        }
+        default: return;
+    }
+
+    convertedFrame = channels * (int) sizeof (float);
+    bytes = frames * convertedFrame;
+    if (bytes > buffer->len) {
+        bytes = buffer->len;
+    }
+    /* The mixer asserts src->offset < buffer->len, so the very end has to
+     * stay one frame short of it. */
+    if ((bytes >= buffer->len) && (buffer->len >= convertedFrame)) {
+        bytes = buffer->len - convertedFrame;
+    }
+
+    src->offset = bytes;
+
+    /* Whatever the resampler still holds belongs to the old position. */
+    if (src->stream) {
+        SDL_AudioStreamClear(src->stream);
+    }
+
+    /* AL says a value set while the source is not playing applies to the next
+     * alSourcePlay(); source_play() reads this flag. */
+    src->offset_latched = (src->state == AL_PLAYING) ? AL_FALSE : AL_TRUE;
+}
+
 void alSourcefv(ALuint name, ALenum param, const ALfloat *values)
 {
     ALCcontext *ctx = get_current_context();
@@ -3219,7 +3325,7 @@ void alSourcefv(ALuint name, ALenum param, const ALfloat *values)
         case AL_SEC_OFFSET:
         case AL_SAMPLE_OFFSET:
         case AL_BYTE_OFFSET:
-            FIXME("offsets");
+            source_set_offset(src, param, *values);
             break;
 
         default: set_al_error(ctx, AL_INVALID_ENUM); return;
@@ -3346,7 +3452,7 @@ void alSourceiv(ALuint name, ALenum param, const ALint *values)
         case AL_SEC_OFFSET:
         case AL_SAMPLE_OFFSET:
         case AL_BYTE_OFFSET:
-            FIXME("offsets");
+            source_set_offset(src, param, (ALfloat) *values);
             break;
 
         default: set_al_error(ctx, AL_INVALID_ENUM); return;
@@ -3424,8 +3530,8 @@ void alGetSourcefv(ALuint name, ALenum param, ALfloat *values)
         case AL_SEC_OFFSET:
         case AL_SAMPLE_OFFSET:
         case AL_BYTE_OFFSET:
-            FIXME("offsets");
-            break;
+            *values = source_get_offset(src, param);
+            return;
 
         default: break;
     }
@@ -3506,8 +3612,8 @@ void alGetSourceiv(ALuint name, ALenum param, ALint *values)
         case AL_SEC_OFFSET:
         case AL_SAMPLE_OFFSET:
         case AL_BYTE_OFFSET:
-            FIXME("offsets");
-            break; /*return;*/
+            *values = (ALint) source_get_offset(src, param);
+            return;
 
         default: break;
     }

@@ -38,6 +38,12 @@ version 0.8.0 not yet released
 	that drew nothing, and had no binding; it is implemented for both TTF and
 	bitmap fonts now, with "left", "center" and "right" ("justify" behaves as
 	left until per-space stretching exists).
+* added: love_audio_getDuration(), love_audio_tell() and love_audio_seek().
+	A source had no notion of position at all, which ruled out anything that
+	has to line up with the music. This needed AL_SEC_OFFSET/SAMPLE_OFFSET/
+	BYTE_OFFSET, which the vendored mojoAL left as FIXME in all four of its
+	get/set paths -- see CLAUDE.md, the patch has to be re-applied if mojoAL
+	is re-synced.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

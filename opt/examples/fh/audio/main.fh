@@ -10,8 +10,9 @@
 # module-level map. A map works where a plain `let` would not: a global
 # binding in FH is constant, but the map it points at is not.
 #
-#   SPACE play        L   toggle looping     UP/DOWN   volume
-#   S     stop        P   pause / resume     LEFT/RIGHT pitch
+#   SPACE play        L   toggle looping     UP/DOWN     volume
+#   S     stop        P   pause / resume     LEFT/RIGHT  pitch
+#   click the bar to seek
 #
 #   cd opt/examples/fh/audio && ../../../../build/clove
 
@@ -43,6 +44,16 @@ fn love_keypressed(key) {
     elif (k == "p") {
         if (love_audio_isPaused(A.src)) { love_audio_resume(A.src); }
         else { love_audio_pause(A.src); }
+    }
+}
+
+fn love_mousepressed(m) {
+    # Seeking: the bar is 300px wide at x = 40, y = 230.
+    let mx = love_mouse_getX();
+    let my = love_mouse_getY();
+    if (my > 242 && my < 264 && mx >= 40 && mx <= 620) {
+        let where = (mx - 40) / 580.0 * love_audio_getDuration(A.src);
+        love_audio_seek(A.src, where);
     }
 }
 
@@ -83,12 +94,24 @@ fn love_draw(self) {
     love_graphics_print("pitch", 40, 190);
     love_graphics_print("" + love_audio_getPitch(A.src), 160, 190);
 
+    # Position. A source had no notion of one until love_audio_tell() existed,
+    # which is what a rhythm game, a cutscene or a replay needs.
+    love_graphics_print("position", 40, 220);
+    love_graphics_print("" + love_audio_tell(A.src) + " / " + love_audio_getDuration(A.src), 160, 220);
+
     bar(320, 163, 300, A.volume, 120, 220, 160);
     bar(320, 193, 300, A.pitch / 3.0, 220, 180, 120);
 
+    # A seek bar, clickable.
+    let dur = love_audio_getDuration(A.src);
+    let at = 0.0;
+    if (dur > 0) { at = love_audio_tell(A.src) / dur; }
+    bar(40, 248, 580, at, 120, 180, 240);
+
     love_graphics_setColor(150, 155, 170);
-    love_graphics_print("SPACE play    S stop    P pause/resume    L loop", 40, 280);
-    love_graphics_print("UP/DOWN volume    LEFT/RIGHT pitch    escape quit", 40, 305);
+    love_graphics_print("SPACE play    S stop    P pause/resume    L loop", 40, 296);
+    love_graphics_print("UP/DOWN volume    LEFT/RIGHT pitch    escape quit", 40, 321);
+    love_graphics_print("click the blue bar to seek", 40, 346);
 }
 
 fn main() {}

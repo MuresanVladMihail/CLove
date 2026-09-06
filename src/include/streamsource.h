@@ -34,6 +34,11 @@ typedef struct {
     int maxFrameSamples;
     int samplesRead;
     int nextBuffer;
+    /* Samples that have finished playing, counted as buffers are unqueued.
+     * The decoder runs ahead of the speaker by whatever is still queued, so
+     * this is what tell() has to be built on rather than the decoder's own
+     * position. */
+    long long samplesPlayed;
 } audio_StreamSource;
 
 void audio_updateStreams(void);
@@ -55,3 +60,6 @@ void audio_StreamSource_setPosition(audio_StreamSource* source, float x, float y
 void audio_StreamSource_setVelocity(audio_StreamSource* source, float x, float y, float z);
 void audio_StreamSource_setLooping(audio_StreamSource* source, int value);
 void audio_StreamSource_free(audio_StreamSource* source);
+float audio_StreamSource_getDuration(audio_StreamSource* source);
+float audio_StreamSource_tell(audio_StreamSource* source);
+void audio_StreamSource_seek(audio_StreamSource* source, float seconds);

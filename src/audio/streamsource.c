@@ -73,6 +73,7 @@ int audio_loadStream(audio_StreamSource *source, char const * filename) {
         audio_vorbis_uploadSreamSamples(source->decoderData, source->buffers[i]);
     }
     source->loop = false;
+    source->samplesPlayed = 0;
     return 1;
 }
 
@@ -104,8 +105,10 @@ void audio_updateStreams() {
             //printf("%d buffers free, %d queued, state=%d\n", count, queued, state);
             if(loaded == 0) {
                 //moduleData.playingStreamCount = 0;
-                if (source->loop)
+                if (source->loop) {
                     audio_vorbis_rewindStream(source->decoderData);
+                    source->samplesPlayed = 0;   /* the clock restarts with it */
+                }
                 else
                     source->state = audio_SourceState_stopped;
             }
@@ -113,6 +116,20 @@ void audio_updateStreams() {
             //            for(int j = 0; j < count; ++j) {
             ALuint buf;
             alSourceUnqueueBuffers(src, 1, &buf);
+
+            /* The buffer that just finished is now behind the play head, so
+             * its samples count towards the playback position. */
+            {
+                ALint bufBytes = 0, bufChannels = 0, bufBits = 0;
+                alGetBufferi(buf, AL_SIZE, &bufBytes);
+                alGetBufferi(buf, AL_CHANNELS, &bufChannels);
+                alGetBufferi(buf, AL_BITS, &bufBits);
+                int frame = bufChannels * (bufBits / 8);
+                if (frame > 0) {
+                    source->samplesPlayed += bufBytes / frame;
+                }
+            }
+
             int uploaded = audio_vorbis_uploadSreamSamples(source->decoderData, buf);
             if (uploaded > 0 && queued < 7)
                 alSourceQueueBuffers(src, 1, &buf);
@@ -233,3 +250,64 @@ void audio_StreamSource_free(audio_StreamSource* source) {
     }
 }
 
+
+
+float audio_StreamSource_getDuration(audio_StreamSource *source) {
+    if (!source || !source->decoderData) {
+        return 0.0f;
+    }
+    return audio_vorbis_getDuration(source->decoderData);
+}
+
+/* Where the speaker is, not where the decoder is. The decoder runs ahead by
+ * whatever is still queued, so this is the samples of the buffers that have
+ * already been unqueued plus the offset into the one playing now. */
+float audio_StreamSource_tell(audio_StreamSource *source) {
+    if (!source || source->sampleRate <= 0) {
+        return 0.0f;
+    }
+
+    ALint offset = 0;
+    alGetSourcei(source->source, AL_SAMPLE_OFFSET, &offset);
+
+    double samples = (double) source->samplesPlayed + (double) offset;
+    return (float) (samples / (double) source->sampleRate);
+}
+
+void audio_StreamSource_seek(audio_StreamSource *source, float seconds) {
+    if (!source || !source->decoderData || source->sampleRate <= 0) {
+        return;
+    }
+    if (seconds < 0.0f) {
+        seconds = 0.0f;
+    }
+
+    bool wasPlaying = source->state == audio_SourceState_playing;
+
+    /* Everything queued belongs to the old position, so the queue is torn
+     * down rather than drained -- stopping first is what lets the buffers be
+     * unqueued at all. */
+    alSourceStop(source->source);
+
+    ALint queued = 0;
+    alGetSourcei(source->source, AL_BUFFERS_QUEUED, &queued);
+    while (queued-- > 0) {
+        ALuint buf;
+        alSourceUnqueueBuffers(source->source, 1, &buf);
+    }
+
+    audio_vorbis_seekSample(source->decoderData, (unsigned int) (seconds * (float) source->sampleRate));
+    source->samplesPlayed = (long long) (seconds * (float) source->sampleRate);
+
+    for (int i = 0; i < 6; ++i) {
+        audio_vorbis_preloadStreamSamples(source->decoderData, 100);
+        if (audio_vorbis_uploadSreamSamples(source->decoderData, source->buffers[i]) > 0) {
+            alSourceQueueBuffers(source->source, 1, &source->buffers[i]);
+        }
+    }
+
+    if (wasPlaying) {
+        alSourcePlay(source->source);
+        source->state = audio_SourceState_playing;
+    }
+}

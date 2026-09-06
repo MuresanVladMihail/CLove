@@ -14,11 +14,17 @@
 #include "../include/utils.h"
 
 
-int audio_vorbis_load(ALuint buffer, char const *filename) {
+int audio_vorbis_load(ALuint buffer, char const *filename, float *outSeconds) {
   short *data;
   int channels;
   int samplingrate;
   int len = stb_vorbis_decode_filename(filename, &channels, &samplingrate, &data);
+
+  if (outSeconds) {
+      /* stb_vorbis hands back the frame count, which is the length; asking
+         OpenAL later would not work, see the note in wav_decoder.c. */
+      *outSeconds = (len > 0 && samplingrate > 0) ? ((float) len / (float) samplingrate) : 0.0f;
+  }
 
   if(len == -1) {
       clove_error("%s %s \n", "Error in loading ", filename);
@@ -124,6 +130,22 @@ int audio_vorbis_uploadSreamSamples(audio_vorbis_DecoderData *data, ALuint buffe
 void audio_vorbis_rewindStream(audio_vorbis_DecoderData *decoderData) {
   audio_vorbis_DecoderData * data = (audio_vorbis_DecoderData*)decoderData;
   stb_vorbis_seek_start(data->vorbis);
+}
+
+float audio_vorbis_getDuration(audio_vorbis_DecoderData *decoderData) {
+  if (!decoderData || !decoderData->vorbis) {
+    return 0.0f;
+  }
+  return stb_vorbis_stream_length_in_seconds(decoderData->vorbis);
+}
+
+bool audio_vorbis_seekSample(audio_vorbis_DecoderData *decoderData, unsigned int sample) {
+  if (!decoderData || !decoderData->vorbis) {
+    return false;
+  }
+  // Anything already decoded belongs to the old position.
+  decoderData->preloadedSamples = 0;
+  return stb_vorbis_seek(decoderData->vorbis, sample) != 0;
 }
 
 int audio_vorbis_getChannelCount(audio_vorbis_DecoderData *data) {

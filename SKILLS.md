@@ -352,6 +352,13 @@ next to the automatic one, zooming in and out).
 
 ## Audio — `src/fhapi/audio.c`
 
+`love_audio_getDuration(src)`, `love_audio_tell(src)` and
+`love_audio_seek(src, seconds)` are all in seconds. They work for both static
+and streaming sources, though a stream's `tell` is only as fine-grained as
+its buffers between the offsets the mixer reports. Seeking a stream tears the
+queue down and re-decodes from the new point, so it is not free — a rhythm
+game should seek once and then read `tell`, not seek every frame.
+
 `love_audio_newSource(path, "static" | "stream")` then `love_audio_play`,
 `pause`, `resume`, `stop`. Vorbis (.ogg) and Wav are supported; streaming is for
 .ogg. (mojoAL/OpenAL over SDL.)
