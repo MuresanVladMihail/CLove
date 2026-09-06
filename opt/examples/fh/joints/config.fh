@@ -1,0 +1,6 @@
+fn love_config(c) {
+    c.window_title = "CLove -- love.physics joints";
+    c.window_width = 1200;
+    c.window_height = 700;
+    c.window_resizable = true;
+}

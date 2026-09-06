@@ -1,0 +1,143 @@
+# love.window: the window itself, and reacting when it changes.
+#
+# config.fh sets the window up before it opens (see the `config` example);
+# love.window changes it afterwards. The one thing that is easy to miss is
+# love_resize(w, h) -- the engine calls it whenever the window changes size,
+# and a game that lays anything out has to listen.
+#
+#   F  fullscreen (desktop)     B  borderless
+#   1/2/3  720x480 / 960x600 / 1280x720
+#   T  retitle      V  vsync      C  centre on screen
+#   escape  quit
+#
+#   cd opt/examples/fh/window && ../../../../build/clove
+
+let W = {"log": [], "fullscreen": false, "borderless": false, "vsync": true,
+         "resizes": 0, "focus": true, "mouseFocus": true, "title": "CLove -- love.window"};
+
+# The log keeps the last ten lines. An FH array has no shift, so dropping the
+# oldest means building a new one.
+fn note(text) {
+    append(W.log, text);
+    while (len(W.log) > 10) {
+        let out = [];
+        for (let i = 1; i < len(W.log); i++) { append(out, W.log[i]); }
+        W.log = out;
+    }
+}
+
+fn apply() {
+    let d = love_window_getDimensions();
+    love_window_setMode(d[0], d[1], W.fullscreen, W.vsync,
+                        400, 300,                       # min size
+                        4000, 3000,                     # max size
+                        !W.borderless);
+}
+
+fn love_load() {
+    love_window_setTitle(W.title);
+    note("started at " + love_window_getWidth() + "x" + love_window_getHeight());
+    return W;
+}
+
+# The engine calls this on every size change -- dragging the corner included.
+fn love_resize(w, h) {
+    W.resizes++;
+    note("resized to " + w + "x" + h);
+}
+
+fn love_focus(focused) {
+    W.focus = focused;
+    note("window focus: " + focused);
+}
+
+fn love_keypressed(key) {
+    let k = key[0];
+
+    if (k == "escape") { love_event_quit(); }
+
+    elif (k == "f") {
+        W.fullscreen = !W.fullscreen;
+        love_window_setFullscreen(W.fullscreen, "desktop");
+        note("fullscreen: " + W.fullscreen);
+    }
+    elif (k == "b") {
+        W.borderless = !W.borderless;
+        apply();
+        note("borderless: " + W.borderless);
+    }
+    elif (k == "v") {
+        W.vsync = !W.vsync;
+        love_window_setVsync(W.vsync);
+        note("vsync: " + W.vsync);
+    }
+    elif (k == "t") {
+        W.title = "CLove -- " + tointeger(love_timer_getTime() * 10);
+        love_window_setTitle(W.title);
+        note("title: " + W.title);
+    }
+    elif (k == "c") {
+        let desk = love_window_getDesktopDimension();
+        let d = love_window_getDimensions();
+        love_window_setPosition(tointeger((desk[0] - d[0]) / 2), tointeger((desk[1] - d[1]) / 2));
+        note("centred on a " + desk[0] + "x" + desk[1] + " desktop");
+    }
+    elif (k == "1") { love_window_setMode(720, 480, false, W.vsync); note("720x480"); }
+    elif (k == "2") { love_window_setMode(960, 600, false, W.vsync); note("960x600"); }
+    elif (k == "3") { love_window_setMode(1280, 720, false, W.vsync); note("1280x720"); }
+
+}
+
+fn love_update(dt, self) {
+    W.mouseFocus = love_window_hasMouseFocus();
+}
+
+fn row(label, value, y) {
+    love_graphics_setColor(150, 155, 170);
+    love_graphics_print(label, 30, y);
+    love_graphics_setColor(228, 232, 240);
+    love_graphics_print(value, 210, y);
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(24, 26, 34);
+
+    let w = love_window_getWidth();
+    let h = love_window_getHeight();
+
+    # A frame that follows the window, so a resize is visible without reading
+    # the numbers.
+    love_graphics_setColor(70, 120, 200);
+    love_geometry_rectangle("line", 10, 10, w - 20, h - 20);
+    love_graphics_setColor(45, 70, 120);
+    love_geometry_rectangle("line", 20, 20, w - 40, h - 40);
+
+    love_graphics_setColor(235, 235, 245);
+    love_graphics_print("love.window", 30, 34);
+
+    row("size", "" + w + " x " + h, 70);
+    row("desktop", "" + love_window_getDesktopDimension()[0] + " x "
+                      + love_window_getDesktopDimension()[1], 92);
+    row("displays", "" + love_window_getDisplayCount() + "   (" + love_window_getDisplayName(0) + ")", 114);
+    row("title", love_window_getTitle(), 136);
+    row("fullscreen", "" + W.fullscreen, 158);
+    row("borderless", "" + W.borderless, 180);
+    row("vsync", "" + W.vsync, 202);
+    row("has focus", "" + W.focus, 224);
+    row("mouse over", "" + W.mouseFocus, 246);
+    row("love_resize calls", "" + W.resizes, 268);
+    row("fps", "" + love_timer_getFPS(), 290);
+
+    love_graphics_setColor(120, 200, 255);
+    love_graphics_print("events", 30, 330);
+    love_graphics_setColor(190, 195, 208);
+    for (let i = 0; i < len(W.log); i++) {
+        love_graphics_print(W.log[i], 30, 354 + i * 20);
+    }
+
+    love_graphics_setColor(150, 155, 170);
+    love_graphics_print("F fullscreen   B borderless   V vsync   T retitle   C centre", 30, h - 54);
+    love_graphics_print("1/2/3 resize   drag the corner   escape quit", 30, h - 34);
+}
+
+fn main() {}

@@ -1,0 +1,204 @@
+# Keyboard, mouse and joystick -- polling versus events.
+#
+# The two are not interchangeable:
+#
+#   * love_keyboard_isDown("left") answers "is it held right now". Right for
+#     movement, wrong for a toggle -- polled every frame, a toggle flips sixty
+#     times a second while the key is down.
+#   * love_keypressed(key) fires once per press. Right for toggles, menus and
+#     anything that must not repeat. key[0] is the name, key[1] the keycode,
+#     key[2] whether it is an auto-repeat.
+#
+# The input callbacks do NOT receive love_load's state -- they take only their
+# own arguments -- so anything they touch lives in a module-level map.
+#
+#   move with WASD or the arrows, or a gamepad stick
+#   T  trail on/off      escape  quit
+#
+#   cd opt/examples/fh/input && ../../../../build/clove
+
+let I = {"x": 320.0, "y": 270.0, "trail": true, "log": [],
+         "lastKey": "-", "lastText": "", "wheel": 0, "clicks": 0, "path": []};
+
+fn note(s) {
+    append(I.log, s);
+    while (len(I.log) > 8) {
+        let out = [];
+        for (let i = 1; i < len(I.log); i++) { append(out, I.log[i]); }
+        I.log = out;
+    }
+}
+
+fn love_load() {
+    let self = {};
+    self.sticks = love_joystick_getCount();
+    return self;
+}
+
+# --- events -------------------------------------------------------------
+fn love_keypressed(key) {
+    I.lastKey = key[0];
+    if (key[0] == "escape") { love_event_quit(); }
+
+    # A toggle belongs here, not in isDown().
+    if (key[0] == "t") {
+        I.trail = !I.trail;
+        I.path = [];
+    }
+
+    let again = "";
+    if (key[2]) { again = "  (auto-repeat)"; }
+    note("keypressed  " + key[0] + "  code " + key[1] + again);
+}
+
+fn love_keyreleased(key) { note("keyreleased " + key[0]); }
+
+fn love_textinput(text) {
+    # What the OS produced, after keyboard layout and dead keys -- not the
+    # same thing as a key name. This is what a text field should listen to.
+    I.lastText = I.lastText + text;
+    while (len(I.lastText) > 28) {
+        I.lastText = string_substr(I.lastText, 1, len(I.lastText) - 1);
+    }
+    note("textinput   '" + text + "'");
+}
+
+fn love_mousepressed(m) {
+    I.clicks++;
+    note("mousepressed at " + love_mouse_getX() + ", " + love_mouse_getY());
+}
+
+fn love_mousereleased(m) { note("mousereleased"); }
+
+fn love_wheelmoved(y) {
+    I.wheel = I.wheel + y;
+    note("wheelmoved " + y);
+}
+
+fn love_joystickpressed(j) { note("joystick " + j[0] + " button " + j[1]); }
+fn love_joystickreleased(j) { note("joystick " + j[0] + " release " + j[1]); }
+
+# --- polling ------------------------------------------------------------
+fn love_update(dt, self) {
+    let speed = 260.0 * dt;
+    let dx = 0.0;
+    let dy = 0.0;
+
+    if (love_keyboard_isDown("left") || love_keyboard_isDown("a"))  { dx = dx - speed; }
+    if (love_keyboard_isDown("right") || love_keyboard_isDown("d")) { dx = dx + speed; }
+    if (love_keyboard_isDown("up") || love_keyboard_isDown("w"))    { dy = dy - speed; }
+    if (love_keyboard_isDown("down") || love_keyboard_isDown("s"))  { dy = dy + speed; }
+
+    # A gamepad stick, if one is plugged in. The small values around centre
+    # are dead zone, not intent.
+    if (self.sticks > 0 && love_joystick_isConnected(0)) {
+        let ax = love_joystick_getAxis(0, 0);
+        let ay = love_joystick_getAxis(0, 1);
+        if (ax * ax + ay * ay > 0.04) {
+            dx = dx + ax * speed;
+            dy = dy + ay * speed;
+        }
+    }
+
+    I.x = I.x + dx;
+    I.y = I.y + dy;
+
+    if (I.x < 28) { I.x = 28.0; }
+    if (I.y < 76) { I.y = 76.0; }
+    if (I.x > 620) { I.x = 620.0; }
+    if (I.y > 470) { I.y = 470.0; }
+
+    if (I.trail && (dx != 0.0 || dy != 0.0)) {
+        append(I.path, I.x);
+        append(I.path, I.y);
+        while (len(I.path) > 400) {
+            let out = [];
+            for (let i = 2; i < len(I.path); i++) { append(out, I.path[i]); }
+            I.path = out;
+        }
+    }
+}
+
+fn row(label, value, y) {
+    love_graphics_setColor(150, 155, 170);
+    love_graphics_print(label, 660, y);
+    love_graphics_setColor(228, 232, 240);
+    love_graphics_print(value, 812, y);
+}
+
+fn love_draw(self) {
+    love_graphics_setBackgroundColor(22, 24, 32);
+
+    love_graphics_setColor(60, 64, 78);
+    love_geometry_rectangle("line", 14, 62, 620, 424);
+
+    if (I.trail && len(I.path) >= 4) {
+        love_graphics_setColor(70, 110, 160);
+        love_geometry_polygon("line", I.path);
+    }
+
+    # the thing you are moving
+    love_graphics_setColor(120, 210, 255);
+    love_geometry_circle("fill", I.x, I.y, 12);
+
+    # the mouse, and a line to it
+    let mx = love_mouse_getX();
+    let my = love_mouse_getY();
+    love_graphics_setColor(255, 190, 100);
+    love_geometry_circle("line", mx, my, 8);
+    love_graphics_setColor(90, 80, 60);
+    love_geometry_polygon("line", [I.x, I.y, mx, my]);
+
+    love_graphics_setColor(235, 235, 245);
+    love_graphics_print("input -- polling and events", 20, 16);
+    love_graphics_setColor(150, 155, 170);
+    love_graphics_print("WASD / arrows / left stick to move    T trail    escape quit", 20, 38);
+
+    row("last key", I.lastKey, 70);
+    row("text input", I.lastText, 92);
+    row("mouse", "" + mx + ", " + my, 114);
+    row("buttons", "l " + love_mouse_isDown("l") + "  r " + love_mouse_isDown("r")
+                   + "  m " + love_mouse_isDown("m"), 136);
+    row("clicks", "" + I.clicks, 158);
+    row("wheel", "" + I.wheel, 180);
+    row("shift held", "" + (love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift")), 202);
+    row("trail", "" + I.trail, 224);
+
+    love_graphics_setColor(120, 200, 255);
+    love_graphics_print("love.joystick", 660, 262);
+    row("connected", "" + self.sticks, 286);
+
+    if (self.sticks > 0 && love_joystick_isConnected(0)) {
+        row("name", love_joystick_getName(0), 308);
+        row("gamepad", "" + love_joystick_isGamepad(0), 330);
+        row("axes", "" + love_joystick_getAxisCount(0), 352);
+        row("buttons", "" + love_joystick_getButtonCount(0), 374);
+        row("hats", "" + love_joystick_getHatCount(0), 396);
+
+        # every axis as a bar, centred on zero
+        let n = love_joystick_getAxisCount(0);
+        for (let i = 0; i < n; i++) {
+            let v = love_joystick_getAxis(0, i);
+            let y = 424 + i * 18;
+            love_graphics_setColor(70, 74, 88);
+            love_geometry_rectangle("fill", 812, y, 200, 8);
+            love_graphics_setColor(120, 210, 255);
+            love_geometry_rectangle("fill", 912, y, v * 100, 8);
+            love_graphics_setColor(150, 155, 170);
+            love_graphics_print("axis " + i, 660, y - 5);
+        }
+    } else {
+        love_graphics_setColor(120, 124, 140);
+        love_graphics_print("plug a gamepad in and it appears here --", 660, 312);
+        love_graphics_print("name, axes, buttons and hats, live.", 660, 332);
+    }
+
+    love_graphics_setColor(120, 200, 255);
+    love_graphics_print("events", 20, 510);
+    love_graphics_setColor(190, 195, 208);
+    for (let i = 0; i < len(I.log); i++) {
+        love_graphics_print(I.log[i], 20, 534 + i * 18);
+    }
+}
+
+fn main() {}

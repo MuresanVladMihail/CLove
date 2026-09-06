@@ -1,0 +1,6 @@
+fn love_config(c) {
+    c.window_title = "CLove -- love.math noise";
+    c.window_width = 1000;
+    c.window_height = 600;
+    c.window_resizable = true;
+}
