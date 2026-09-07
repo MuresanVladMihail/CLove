@@ -1,7 +1,7 @@
 #
 #   clove
 #
-#   Copyright (C) 2016-2025 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -112,6 +112,7 @@ endif()
 file(GLOB SOURCE_FILES CONFIGURE_DEPENDS
     src/*.c               src/*.h
     src/asset/*.c         src/asset/*.h
+    src/error/*.c         src/error/*.h
     src/audio/*.c         src/audio/*.h
     src/filesystem/*.c    src/filesystem/*.h
     src/graphics/*.c      src/graphics/*.h
@@ -250,4 +251,4 @@ if(DYNAMIC_LIB)
     add_library(love_shared SHARED ${SOURCE_FILES})
 endif()
 
-message(STATUS "Copyright (c) 2015-2025, Mureşan Vlad-Mihail.")
+message(STATUS "Copyright (c) 2015-2026, Mureşan Vlad-Mihail.")
