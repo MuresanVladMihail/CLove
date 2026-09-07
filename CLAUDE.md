@@ -83,9 +83,29 @@ wraps them as script-callable functions and registers them with
 
 `src/3rdparty/FH` is a full copy of the FH language
 (https://github.com/MuresanVladMihail/FH), tracked here as plain files (no inner
-`.git`). To upgrade it, sync `src/` and `tests/` from an FH checkout
-(`rsync -a --exclude='*.o' --exclude='.DS_Store' .../FH/src/ src/3rdparty/FH/src/`)
-and rebuild.
+`.git`), and it is **unpatched** — keep it that way. It used to carry three
+local fixes; all three are upstream now (FH PRs #11 and #12), so an upgrade is
+a plain copy:
+
+```sh
+for d in src tests docs tools; do
+  rsync -a --exclude='*.o' --exclude='.DS_Store' --exclude='build/' \
+        .../FH/$d/ src/3rdparty/FH/$d/
+done
+```
+
+Afterwards `diff -rq --exclude='*.o' .../FH/src/ src/3rdparty/FH/src/` should
+come back empty. (`TODO` is the one file here that upstream no longer has.)
+
+What those fixes were, because they explain behaviour you may remember: the
+`c_funcs` name map held pointers into an array that reallocs, and CLove
+registers ~680 functions — well past the 512-entry growth chunk — so the ones
+registered first stopped resolving and even `error()` came back as "unknown
+variable or function"; `fh_call_vm_function()` computed the callee's register
+window from `prev_frame->closure` and fell back to register 0 when a C
+function called back into the script, scribbling over the outermost
+function's registers; and the optional-include warning had no trailing
+newline, so a missing `config.fh` ran into the next line of output.
 
 FH's public API is `src/3rdparty/FH/src/fh.h`. Notes for binding authors:
 - Values carry separate integer and float types. `fh_get_number(v)` reads
@@ -96,7 +116,12 @@ FH's public API is `src/3rdparty/FH/src/fh.h`. Notes for binding authors:
   callbacks so a missing function isn't a per-frame error.
 - CMake globs `FH/src/*.c` + map/vec/regex/crypto subdirs but **not**
   `FH/src/tar`; FH's `mtar_*` calls link against CLove's own
-  `src/3rdparty/microtar` (the two microtar headers must stay identical).
+  `src/3rdparty/microtar` (the two microtar headers must stay identical —
+  check that after every re-sync).
+- `pcall(f [, args...])` works on CLove's bindings, not only on script
+  functions, so a failed `love_graphics_newImage()` is recoverable rather
+  than fatal. See SKILLS.md; `tests/fh/test_pcall.fh` locks it in and doubles
+  as the check that all ~680 bindings still resolve by name.
 
 ## Physics (Box2D)
 
@@ -133,26 +158,6 @@ LÖVE's API needs on top of Box2D:
 
 The API's differences from LÖVE 11 (no gear/pulley joints, callbacks by name,
 number/string user data) are listed in SKILLS.md.
-
-## Local fixes in the vendored FH
-
-Two bugs in `src/3rdparty/FH` had to be fixed here; both are latent in FH
-itself, so re-apply them if you re-sync from an FH checkout (better: push them
-upstream first).
-
-- `program.c`, `fh_add_c_func()` / `fh_get_c_func_by_name()`: the name map used
-  to hold a **pointer** into the `c_funcs` stack. That stack is one contiguous
-  array that is realloc'd as it grows, so every pointer handed out before a
-  growth dangled afterwards. It held together only while realloc happened to
-  extend in place; registering the ~216 physics functions was enough to move it
-  and make even `error()` resolve as "unknown variable or function". The map now
-  stores a 1-based index.
-- `vm.c`, `fh_call_vm_function()`: the new frame's register window was computed
-  from `prev_frame->closure->func_def->n_regs`, and fell back to register **0**
-  when the frame it nested inside had no closure — which is exactly the case
-  when a C function calls back into the script (a collision callback fired from
-  `world:update()`). It now starts at `prev_frame->stack_top`, which is the
-  right bound for both frame kinds.
 
 ## The vendored mojoAL is patched — offsets
 

@@ -1,0 +1,64 @@
+# pcall(): a binding that fails no longer ends the game.
+#
+# FH's pcall works on C functions as well as script ones, which is the half
+# that matters here: every love_* binding reports failure by returning -1, and
+# that used to take the process with it. A game can now lose one texture
+# instead of the session.
+#
+# This is also the test that CLove's ~680 registered bindings are all still
+# reachable by name: FH's c_funcs table used to hold pointers into an array
+# that reallocs as it grows, so the ones registered first stopped resolving
+# once the table crossed 512 entries.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn love_load() {
+    # --- a binding whose file is not there ---
+    let miss = pcall(love_graphics_newImage, "definitely_not_here.png");
+    check(miss.ok == false, "a missing image should be caught, not fatal");
+    check(len(miss.error) > 0, "and it should say what happened");
+
+    # --- a binding called wrongly ---
+    let bad = pcall(love_graphics_newImageData, 64);
+    check(bad.ok == false, "a wrong argument count is caught too");
+
+    # --- a binding that succeeds comes back with its value ---
+    let good = pcall(love_graphics_newImage, "assets/async_a.png");
+    check(good.ok == true, "a load that works reports ok");
+    check(love_image_getWidth(good.value) == 64, "and hands back the image itself");
+
+    # --- an engine error raised from inside a script function ---
+    let inner = pcall(fn() {
+        let job = love_asset_loadImage("assets/async_a.png");
+        return love_asset_take(job);          # still pending: an error
+    });
+    check(inner.ok == false, "taking a pending job is caught");
+    check(inner.line > 0, "and carries the line it happened on");
+    check(len(inner.traceback) > 0, "and a traceback");
+
+    # --- the engine is fully usable afterwards ---
+    let img = love_graphics_newImage("assets/async_a.png");
+    check(love_image_getWidth(img) == 64, "the engine still works after a caught error");
+    check(love_window_getWidth() > 0, "and so does the window");
+
+    # --- functions registered early in the table still resolve ---
+    # love.graphics is registered first and love.asset last; both must answer.
+    check(love_asset_pending() >= 0, "a late-registered binding resolves");
+    check(love_timer_getTime() > 0, "and an early one still does");
+
+    # --- a caught error does not leave the program in an error state ---
+    let after = pcall(fn() { return "fine"; });
+    check(after.ok == true, "the next pcall is unaffected");
+    check(after.value == "fine", "and returns normally");
+
+    # --- string + null, which is what r.error is on success ---
+    check(("err: " + after.error) == "err: null", "null concatenates as a word");
+
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+    return {};
+}
+
+fn love_draw(self) {}
+
+fn main() {}
