@@ -147,11 +147,14 @@ fn draw_body(entry) {
         return;
     }
 
-    love_graphics_push();
-    love_graphics_translate(x, y);
-    love_graphics_rotate(love_body_getAngle(body));
-    love_geometry_rectangle("fill", 0 - size[0] / 2, 0 - size[1] / 2, size[0], size[1]);
-    love_graphics_pop();
+    # Rotation goes to the shape, not through the matrix stack:
+    # love_graphics_rotate() is an absolute setter that rebuilds the current
+    # matrix, so a translate() before it is thrown away (see "Two transform
+    # gotchas" in SKILLS.md). The rectangle takes the angle and an origin of
+    # its own, which is what you want here anyway.
+    love_geometry_rectangle("fill", x, y, size[0], size[1],
+                            love_body_getAngle(body),
+                            1, 1, size[0] / 2, size[1] / 2);
 }
 
 fn love_draw(self) {

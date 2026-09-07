@@ -1,13 +1,15 @@
 /*
 #   clove
 #
-#   Copyright (C) 2019-2025 Muresan Vlad
+#   Copyright (C) 2019-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
 */
 
 #ifdef USE_FH
+
+#include <stdlib.h>
 
 #include "include/fh_mainactivity.h"
 
@@ -38,6 +40,8 @@
 #include "fhapi/system.h"
 #include "fhapi/asset.h"
 #include "fhapi/graphics_canvas.h"
+
+#include "include/error_screen.h"
 #include "fhapi/config.h"
 #include "fhapi/physics.h"
 
@@ -169,6 +173,51 @@ static const char ui_button_map[256] = {
 
 static struct fh_value update_args[2];
 
+
+/* Every way a script can end the game goes through here: print the error the
+ * way it always has -- a terminal is still where a developer looks -- and then,
+ * if there is a window to draw in, show it to whoever is actually playing.
+ * The exit code is unchanged either way, so tests and CI still see a failure.
+ *
+ * fh_get_error() renders into the same buffer it returns, so it is called once
+ * and the result copied. */
+static int clove_fail(void) {
+    char message[2048];
+    snprintf(message, sizeof(message), "%s", fh_get_error(loopData.prog));
+
+    clove_error("ERROR: %s\n", message);
+    error_screen_show(message);
+
+    return clove_finish(1);
+}
+
+
+/* CLOVE_SCREENSHOT=<path> writes one frame to a .png and quits;
+ * CLOVE_SCREENSHOT_FRAME=<n> picks which frame (default 60, so anything that
+ * animates has settled). This is how the pictures in README.md are taken, so
+ * they can be remade after a change instead of quietly going stale --
+ * tools/make_screenshots.sh drives every example through it. */
+static void screenshot_tick(void) {
+    static const char *path = NULL;
+    static long at = -1;
+    static long frame = 0;
+
+    if (at == -1) {
+        path = SDL_getenv("CLOVE_SCREENSHOT");
+        const char *when = SDL_getenv("CLOVE_SCREENSHOT_FRAME");
+        at = (when && *when) ? strtol(when, NULL, 10) : 60;
+        if (at < 1) { at = 1; }
+    }
+    if (!path) {
+        return;
+    }
+
+    if (++frame >= at) {
+        graphics_captureScreenshot(path);
+        clove_running = false;
+    }
+}
+
 void fh_main_loop(int argc, char **argv) {
     timer_step();
     matrixstack_origin();
@@ -202,6 +251,8 @@ void fh_main_loop(int argc, char **argv) {
     game_draw();
 #endif
     ui_draw();
+
+    screenshot_tick();
 
     graphics_swap();
 
@@ -436,8 +487,7 @@ int fh_main_activity_load(int argc, char *argv[]) {
     }
 
     if (ret < 0) {
-        clove_error("ERROR: %s\n", fh_get_error(loopData.prog));
-        return clove_finish(1);
+        return clove_fail();
     }
 
     loopData.delta = fh_new_number(1);
@@ -449,9 +499,8 @@ int fh_main_activity_load(int argc, char *argv[]) {
      * callbacks simply stays empty. */
     if (fh_function_exists(loopData.prog, "love_load") &&
         fh_call_function(loopData.prog, "love_load", NULL, 0, &loopData.opt) < 0) {
-        clove_error("Error: %s\n", fh_get_error(loopData.prog));
         fh_running = false;
-        return clove_finish(1);
+        return clove_fail();
     }
 
 
@@ -480,7 +529,10 @@ int fh_main_activity_load(int argc, char *argv[]) {
      */
     int exit_code = 0;
     if (!fh_running) {
-        clove_error("ERROR: %s\n", fh_get_error(loopData.prog));
+        char message[2048];
+        snprintf(message, sizeof(message), "%s", fh_get_error(loopData.prog));
+        clove_error("ERROR: %s\n", message);
+        error_screen_show(message);
         exit_code = 1;
     }
 

@@ -68,6 +68,32 @@ version 0.8.0 not yet released
 * fixed: love_graphics_newImageData() read args[1] after checking only that it
 	had been given *some* argument -- an out-of-bounds read on the argument
 	array for every one-argument call.
+* added: an error screen. A script error used to print a traceback to a
+	terminal the player very likely does not have open and then the window
+	vanished. It now draws the message, where it happened and the whole call
+	stack, in the logo's colours (#E33C77 with a #FB78AC frame), with C to copy
+	the lot and the wheel to scroll a long traceback. src/error/error_screen.c.
+	config.fh can switch it off with `error_screen = false`, and
+	CLOVE_NO_ERROR_SCREEN=1 does the same from the environment -- the test
+	runner sets it, since an xfail test has nobody to press a key.
+* fixed: opt/examples/fh/physics drew every box at the window's origin. It used
+	love_graphics_translate() followed by love_graphics_rotate(), and rotate()
+	is an absolute setter that rebuilds the current matrix -- so the translate
+	was thrown away. This is the trap SKILLS.md documents under "Two transform
+	gotchas"; the demo now passes the angle and origin to
+	love_geometry_rectangle() instead.
+* fixed: opt/examples/fh/editor's scene.json pointed two sprites at absolute
+	paths on the machine it was last saved on, so it opened with errors in its
+	console anywhere else. They point at art/crate.svg and art/coin.svg now.
+* added: CLOVE_SCREENSHOT=<path> (with an optional CLOVE_SCREENSHOT_FRAME=<n>)
+	grabs one frame of a running game and quits, and CLOVE_ERROR_SCREENSHOT
+	does the same for the error screen. tools/make_screenshots.sh drives every
+	example through them, which is where README.md's pictures come from -- so
+	they can be remade after a change instead of going stale.
+* changed: README.md now shows what the engine actually looks like: the editor,
+	particles, physics, vector art, shaders, tweens, the UI, meshes, noise and
+	the error screen, each linking to the example it came from.
+* changed: every copyright header in CLove's own sources now runs to 2026.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384
