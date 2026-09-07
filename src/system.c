@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -13,7 +13,7 @@
 
 #include "include/system.h"
 
-#include "3rdparty/SDL2/include/SDL.h"
+#include "3rdparty/SDL3/include/SDL3/SDL.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -29,7 +29,7 @@ const char* system_getOS() {
 
 int system_getProcessorCount()
 {
-  return SDL_GetCPUCount();
+  return SDL_GetNumLogicalCPUCores();
 }
 
 const char* system_getClipboardText()

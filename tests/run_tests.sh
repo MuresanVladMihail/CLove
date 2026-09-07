@@ -35,6 +35,11 @@ fi
 # SDL's dummy driver has no GL, so only force it when explicitly requested.
 [ "${CLOVE_HEADLESS:-0}" = "1" ] && export SDL_VIDEODRIVER=dummy
 
+# A failing script normally gets the pink error screen, which waits for a
+# keypress. Every xfail_* test would hang on it, so switch it off here; the
+# exit code the runner reads is the same either way.
+export CLOVE_NO_ERROR_SCREEN=1
+
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/clove_tests.XXXXXX")
 trap 'rm -rf "$scratch"' EXIT
 

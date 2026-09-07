@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2019 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -148,18 +148,18 @@ static int l_joystick_getBallsCount(lua_State *state) {
 
 static float returnGamepadAxis(const char *v) {
     if (strncmp(v, "leftx", 5) == 0)
-        return SDL_CONTROLLER_AXIS_LEFTX;
+        return SDL_GAMEPAD_AXIS_LEFTX;
     if (strncmp(v, "lefty", 5) == 0)
-        return SDL_CONTROLLER_AXIS_LEFTY;
+        return SDL_GAMEPAD_AXIS_LEFTY;
     if (strncmp(v, "rightx", 6) == 0)
-        return SDL_CONTROLLER_AXIS_RIGHTX;
+        return SDL_GAMEPAD_AXIS_RIGHTX;
     if (strncmp(v, "righty", 6) == 0)
-        return SDL_CONTROLLER_AXIS_RIGHTY;
+        return SDL_GAMEPAD_AXIS_RIGHTY;
     if (strncmp(v, "left_trigger", 12) == 0)
-        return SDL_CONTROLLER_AXIS_TRIGGERLEFT;
+        return SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
     if (strncmp(v, "right_trigger", 13) == 0)
-        return SDL_CONTROLLER_AXIS_TRIGGERRIGHT;
-    return SDL_CONTROLLER_AXIS_INVALID;
+        return SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+    return SDL_GAMEPAD_AXIS_INVALID;
 }
 
 static int l_joystick_getGamepadAxis(lua_State *state) {

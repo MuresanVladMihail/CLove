@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2025 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 
 #include "../include/svg.h"
 #include "../include/system.h"
@@ -32,9 +32,9 @@ static struct {
     SDL_Thread   *workers[ASYNCLOAD_MAX_WORKERS];
     int           workerCount;
 
-    SDL_mutex    *lock;
-    SDL_sem      *work;          /* posted once per queued job, and once per worker at shutdown */
-    SDL_atomic_t  quit;
+    SDL_Mutex    *lock;
+    SDL_Semaphore      *work;          /* posted once per queued job, and once per worker at shutdown */
+    SDL_AtomicInt  quit;
 
     Job          *jobs;
     int           jobCount;
@@ -83,9 +83,9 @@ static int worker_main(void *unused) {
     (void) unused;
 
     for (;;) {
-        SDL_SemWait(moduleData.work);
+        SDL_WaitSemaphore(moduleData.work);
 
-        if (SDL_AtomicGet(&moduleData.quit)) {
+        if (SDL_GetAtomicInt(&moduleData.quit)) {
             return 0;
         }
 
@@ -173,7 +173,7 @@ void asyncload_init(int workers) {
         return;
     }
 
-    SDL_AtomicSet(&moduleData.quit, 0);
+    SDL_SetAtomicInt(&moduleData.quit, 0);
     moduleData.nextId = 1;
     moduleData.jobs = NULL;
     moduleData.jobCount = 0;
@@ -195,9 +195,9 @@ void asyncload_shutdown(void) {
         return;
     }
 
-    SDL_AtomicSet(&moduleData.quit, 1);
+    SDL_SetAtomicInt(&moduleData.quit, 1);
     for (int i = 0; i < moduleData.workerCount; i++) {
-        SDL_SemPost(moduleData.work);
+        SDL_SignalSemaphore(moduleData.work);
     }
     for (int i = 0; i < moduleData.workerCount; i++) {
         SDL_WaitThread(moduleData.workers[i], NULL);
@@ -266,7 +266,7 @@ int asyncload_requestImage(char const *path) {
     int id = slot->id;
     SDL_UnlockMutex(moduleData.lock);
 
-    SDL_SemPost(moduleData.work);
+    SDL_SignalSemaphore(moduleData.work);
     return id;
 }
 

@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2017-2020 Muresan Vlad
+#   Copyright (C) 2017-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -171,16 +171,16 @@ SDL_Event event;
     while(SDL_PollEvent(&event)) {
     if (event.type == SDL_WINDOWEVENT) {
         switch (event.window.event) {
-            case SDL_WINDOWEVENT_ENTER:
+            case SDL_EVENT_WINDOW_MOUSE_ENTER:
                 graphics_setMouseFocus(1);
                 break;
-            case SDL_WINDOWEVENT_LEAVE:
+            case SDL_EVENT_WINDOW_MOUSE_LEAVE:
                 graphics_setMouseFocus(0);
                 break;
-            case SDL_WINDOWEVENT_FOCUS_LOST:
+            case SDL_EVENT_WINDOW_FOCUS_LOST:
                 graphics_setFocus(0);
                 break;
-            case SDL_WINDOWEVENT_FOCUS_GAINED:
+            case SDL_EVENT_WINDOW_FOCUS_GAINED:
                 graphics_setFocus(1);
                 break;
             default:
@@ -188,9 +188,9 @@ SDL_Event event;
         }
     }
     switch (event.wheel.type) {
-        case SDL_MOUSEWHEEL:
+        case SDL_EVENT_MOUSE_WHEEL:
             mouse_mousewheel(event.wheel.y);
-            int _what = event.wheel.y == 1 ? SDL_MOUSEBUTTONUP : SDL_MOUSEBUTTONDOWN;
+            int _what = event.wheel.y == 1 ? SDL_EVENT_MOUSE_BUTTON_UP : SDL_EVENT_MOUSE_BUTTON_DOWN;
             mouse_mousepressed(event.button.x, event.button.y,
                                _what);
             mouse_setButton(event.button.button);
@@ -199,43 +199,43 @@ SDL_Event event;
             break;
     }
     switch (event.type) {
-        case SDL_KEYDOWN:
+        case SDL_EVENT_KEY_DOWN:
             keyboard_keypressed(event.key.keysym.sym);
             break;
-        case SDL_KEYUP:
+        case SDL_EVENT_KEY_UP:
             keyboard_keyreleased(event.key.keysym.sym);
             break;
-        case SDL_TEXTINPUT:
+        case SDL_EVENT_TEXT_INPUT:
             keyboard_textInput(event.text.text);
             break;
-        case SDL_MOUSEMOTION:
+        case SDL_EVENT_MOUSE_MOTION:
             mouse_mousemoved(event.motion.x, event.motion.y);
             break;
-        case SDL_MOUSEBUTTONDOWN:
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
             mouse_mousepressed(event.button.x, event.button.y, event.button.button);
             mouse_setButton(event.button.button);
             break;
-        case SDL_MOUSEBUTTONUP:
+        case SDL_EVENT_MOUSE_BUTTON_UP:
             mouse_mousereleased(event.button.x, event.button.y,
                                 event.button.button);
             mouse_setButton(0);
             break;
-        case SDL_JOYDEVICEADDED:
+        case SDL_EVENT_JOYSTICK_ADDED:
             joystick_added(event.jdevice.which);
             break;
-        case SDL_JOYDEVICEREMOVED:
+        case SDL_EVENT_JOYSTICK_REMOVED:
             joystick_remove(event.jdevice.which);
             break;
-        case SDL_JOYAXISMOTION:
+        case SDL_EVENT_JOYSTICK_AXIS_MOTION:
             break;
-        case SDL_JOYBUTTONDOWN:
-            joystick_buttonDown(event.jbutton.which, event.jbutton.button, event.jbutton.state);
+        case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+            joystick_buttonDown(event.jbutton.which, event.jbutton.button, event.jbutton.down);
             break;
-        case SDL_JOYBUTTONUP:
-            joystick_buttonUp(event.jbutton.which, event.jbutton.button, event.jbutton.state);
+        case SDL_EVENT_JOYSTICK_BUTTON_UP:
+            joystick_buttonUp(event.jbutton.which, event.jbutton.button, event.jbutton.down);
             break;
 #ifdef CLOVE_DESKTOP
-case SDL_QUIT: {
+case SDL_EVENT_QUIT: {
     quit_function(loopData.luaState);
     l_running = 0;
     break;

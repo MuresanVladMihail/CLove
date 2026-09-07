@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -102,8 +102,7 @@ void audio_StaticSource_seek(audio_StaticSource *source, float seconds) {
 	}
 
 	/* OpenAL treats an out-of-range offset as an error; a game wants it
-	 * clamped, so the clamping happens here rather than in the AL layer --
-	 * which keeps the mojoAL patch matching upstream's semantics. */
+	 * clamped, so the clamping happens here rather than in the AL layer. */
 	if (seconds < 0.0f) {
 		seconds = 0.0f;
 	}
@@ -111,7 +110,22 @@ void audio_StaticSource_seek(audio_StaticSource *source, float seconds) {
 		seconds = source->duration;
 	}
 
-	alSourcef(source->common.source, AL_SEC_OFFSET, seconds);
+	/* Seconds go in as a *sample* offset, not as AL_SEC_OFFSET.
+	 *
+	 * mojoAL's AL_SEC_OFFSET setter reads `((int) value) * freq * framesize`
+	 * -- it truncates the seconds to a whole number before scaling, so every
+	 * seek inside the first second lands on zero and 1.75s lands on 1s. That
+	 * is upstream's bug, not something CLove should patch its copy of mojoAL
+	 * for; samples are whole numbers, so AL_SAMPLE_OFFSET has no such
+	 * problem and is the more precise thing to ask for anyway. */
+	ALint freq = 0;
+	alGetBufferi(source->buffer, AL_FREQUENCY, &freq);
+	if (freq <= 0) {
+		alSourcef(source->common.source, AL_SEC_OFFSET, seconds);
+		return;
+	}
+
+	alSourcei(source->common.source, AL_SAMPLE_OFFSET, (ALint) (seconds * (float) freq));
 }
 
 void audio_StaticSource_setLooping(audio_StaticSource *source, bool loop) {

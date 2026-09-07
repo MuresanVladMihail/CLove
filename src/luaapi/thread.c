@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2018 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -13,8 +13,8 @@
 #include <stdio.h>
 
 #include "../3rdparty/lua/lauxlib.h"
-#include "../3rdparty/SDL2/include/SDL_thread.h"
-#include "../3rdparty/SDL2/include/SDL_timer.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL_thread.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL_timer.h"
 
 #include "thread.h"
 #include "tools.h"

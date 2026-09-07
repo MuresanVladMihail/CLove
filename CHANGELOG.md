@@ -81,6 +81,59 @@ version 0.8.0 not yet released
 	concatenation with null -- which used to leave the whole expression
 	holding a stale register, so `"failed: " + err` printed garbage and
 	blamed a later line. See SKILLS.md and FH PRs #11 and #12.
+* added: an error screen. A script error used to print a traceback to a
+	terminal the player very likely does not have open and then the window
+	vanished. It now draws the message, where it happened and the whole call
+	stack, in the logo's colours (#E33C77 with a #FB78AC frame), with C to copy
+	the lot and the wheel to scroll a long traceback. src/error/error_screen.c.
+	config.fh can switch it off with `error_screen = false`, and
+	CLOVE_NO_ERROR_SCREEN=1 does the same from the environment -- the test
+	runner sets it, since an xfail test has nobody to press a key.
+* fixed: opt/examples/fh/physics drew every box at the window's origin. It used
+	love_graphics_translate() followed by love_graphics_rotate(), and rotate()
+	is an absolute setter that rebuilds the current matrix -- so the translate
+	was thrown away. This is the trap SKILLS.md documents under "Two transform
+	gotchas"; the demo now passes the angle and origin to
+	love_geometry_rectangle() instead.
+* fixed: opt/examples/fh/editor's scene.json pointed two sprites at absolute
+	paths on the machine it was last saved on, so it opened with errors in its
+	console anywhere else. They point at art/crate.svg and art/coin.svg now.
+* added: CLOVE_SCREENSHOT=<path> (with an optional CLOVE_SCREENSHOT_FRAME=<n>)
+	grabs one frame of a running game and quits, and CLOVE_ERROR_SCREENSHOT
+	does the same for the error screen. tools/make_screenshots.sh drives every
+	example through them, which is where README.md's pictures come from -- so
+	they can be remade after a change instead of going stale.
+* changed: README.md now shows what the engine actually looks like: the editor,
+	particles, physics, vector art, shaders, tweens, the UI, meshes, noise and
+	the error screen, each linking to the example it came from.
+* changed: every copyright header in CLove's own sources now runs to 2026.
+* changed: upgraded the vendored SDL from 2.32.10 to SDL **3.4.16**, and with
+	it mojoAL to upstream. The two had to move together: upstream mojoAL is
+	SDL3-only, which is exactly why CLove's copy of it could not be refreshed
+	before. src/3rdparty/SDL2 is gone; src/3rdparty/SDL3 is the release tarball
+	minus its tests and examples.
+* removed: CLove's local patch to mojoAL. It implemented AL_SEC_OFFSET /
+	AL_SAMPLE_OFFSET / AL_BYTE_OFFSET, which upstream left as FIXME in all four
+	get/set paths; upstream has implemented them since, so the vendored mojoAL
+	is unmodified now. CLAUDE.md said "when the SDL3 port happens, delete this
+	patch -- do not merge it", and that is what happened.
+* fixed: three SDL3 behaviour changes that compile silently and behave
+	backwards. SDL_Init() and SDL_InitSubSystem() return true on success where
+	SDL2 returned 0, so `SDL_InitSubSystem(...) != 0` took the *failure* branch
+	on success and left joysticks looking broken, and `SDL_Init(...) < 0` could
+	never be true, so a failed video init went unnoticed. SDL_GetBasePath()
+	now returns a string SDL owns rather than one the caller frees, and
+	filesystem_setSource() free()s what filesystem_getSource() left there.
+* changed: love_audio_seek() sets AL_SAMPLE_OFFSET rather than AL_SEC_OFFSET.
+	Upstream mojoAL reads AL_SEC_OFFSET as ((int) value) * freq * framesize --
+	it truncates the seconds before scaling, so every seek inside the first
+	second landed on zero. Samples are whole numbers, so the sample offset has
+	no such problem, and CLove knows the sample rate anyway. This is a
+	workaround, not a patch to the vendored copy.
+* known: build_web.sh is not ported to SDL3, and did not build before this
+	either -- its hand-written source list had drifted far from the tree. It
+	now says so at the top rather than carrying a one-line flag change that
+	would look ported and would not be.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

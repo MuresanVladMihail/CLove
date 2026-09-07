@@ -222,6 +222,31 @@ Vector art is refused on purpose: `src/graphics/svg.c` keeps one shared
 worker's copy of the path outlives the worker, so the ImageData frees it,
 while the four ordinary constructors keep borrowing the caller's string.
 
+## The error screen and screenshots
+
+A script error used to print a traceback and close the window. `src/error/`
+draws it instead, in the logo's colours (`#E33C77` body, `#FB78AC` frame), with
+the message, its location, the call stack and a key to copy the lot. It runs
+its own loop after the game's is over; the process still exits non-zero, so
+tests and CI are unaffected.
+
+- It is entered from `clove_fail()` in `fh_mainactivity.c`, which every fatal
+  script path goes through. `fh_get_error()` renders into the buffer it
+  returns, so it is called once and the result copied.
+- **`tests/run_tests.sh` sets `CLOVE_NO_ERROR_SCREEN=1`.** Without it every
+  `xfail_*` test would sit on a screen waiting for a keypress. `config.fh` can
+  also switch it off with `error_screen = false`.
+- Whatever the game left bound — a canvas, a shader, a scissor, a transform —
+  is cleared first (`graphics_setCanvas(NULL)` then `graphics_reset()`), or
+  none of it would draw.
+
+Two environment variables take the pictures in README.md:
+`CLOVE_SCREENSHOT=<path>` with an optional `CLOVE_SCREENSHOT_FRAME=<n>`
+(see `screenshot_tick()` in `fh_mainactivity.c`) grabs one frame of a running
+game and quits; `CLOVE_ERROR_SCREENSHOT=<path>` does the same for the error
+screen. `tools/make_screenshots.sh` drives every example through them into
+`opt/data/`. Re-run it after anything that changes how the examples look.
+
 ## Writing bindings (conventions)
 
 A binding has the signature

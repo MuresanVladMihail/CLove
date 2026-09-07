@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -428,15 +428,20 @@ bool filesystem_setSource(const char* source)
 
 const char* filesystem_getSource() {
     if (moduleData.source == NULL) {
-        // SDL_GetBasePath() hands back a buffer the caller owns. Keeping the
-        // first one makes this a borrow rather than a transfer, so callers do
-        // not have to guess whether to free what they got -- and one of them
-        // was freeing a pointer it did not own.
-        char* base = SDL_GetBasePath();
+        // SDL3's SDL_GetBasePath() hands back a string SDL owns and never
+        // frees on your behalf -- unlike SDL2's, which was the caller's to
+        // free. moduleData.source is free()d by setSource(), so it has to be
+        // a copy of ours either way.
+        const char* base = SDL_GetBasePath();
         if (base == NULL) {
             return "";
         }
-        moduleData.source = base;
+        char* copy = malloc(strlen(base) + 1);
+        if (copy == NULL) {
+            return "";
+        }
+        strcpy(copy, base);
+        moduleData.source = copy;
     }
     return moduleData.source;
 }

@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2017-2020 Muresan Vlad
+#   Copyright (C) 2017-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -15,7 +15,7 @@
 #include "../3rdparty/lua/lua.h"
 #include "../3rdparty/lua/lauxlib.h"
 #include "../3rdparty/lua/lualib.h"
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 #include "../3rdparty/microtar/microtar.h"
 
 #include "../luaapi/audio.h"

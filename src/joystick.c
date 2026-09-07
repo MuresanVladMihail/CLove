@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -34,16 +34,16 @@ joystick_Joystick* joystick_get(SDL_JoystickID id) {
 }
 
 static joystick_Joystick* openJoystick(int index) {
-    moduleData.list->joystick = SDL_JoystickOpen(index);
+    moduleData.list->joystick = SDL_OpenJoystick(index);
 
     if (moduleData.list->joystick == NULL) {
         clove_error("Joystick error: %s \n", SDL_GetError());
         return NULL;
     }
-    moduleData.list->id = SDL_JoystickInstanceID(moduleData.list->joystick);
+    moduleData.list->id = SDL_GetJoystickID(moduleData.list->joystick);
 
-    if (SDL_IsGameController(index))
-        moduleData.list->controller = SDL_GameControllerOpen(index);
+    if (SDL_IsGamepad(index))
+        moduleData.list->controller = SDL_OpenGamepad(index);
     else
         moduleData.list->controller = 0;
 
@@ -52,16 +52,22 @@ static joystick_Joystick* openJoystick(int index) {
 
 void joystick_init() {
     moduleData.list = realloc(moduleData.list, sizeof(joystick_Joystick) * 1);
-    if(SDL_InitSubSystem(SDL_INIT_JOYSTICK) != 0) {
+    /* true on success in SDL3; `!= 0` took the failure branch on success
+     * and left the joystick subsystem looking broken when it was fine. */
+    if (!SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
         clove_error("Joystick error %s \n", SDL_GetError());
         return;
     }
 
-    if(SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0) {
+    if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
         clove_error("Joystick error %s \n", SDL_GetError());
         return;
     }
-    moduleData.joystick_count = SDL_NumJoysticks();
+    /* SDL3 has no joystick count: it hands back the list of ids instead. */
+    int count = 0;
+    SDL_JoystickID *ids = SDL_GetJoysticks(&count);
+    SDL_free(ids);
+    moduleData.joystick_count = count;
 }
 
 void joystick_added(int id) {
@@ -72,24 +78,24 @@ void joystick_added(int id) {
 void joystick_close() {
     for (int i = 0; i < moduleData.joystick_count; i++) {
         joystick_Joystick* js = joystick_get(i);
-        if (SDL_JoystickGetAttached(js->joystick))
-            SDL_JoystickClose(js->joystick);
+        if (SDL_JoystickConnected(js->joystick))
+            SDL_CloseJoystick(js->joystick);
         free(js);
     }
 }
 // Close a certain device when it has been disconected from machine
 void joystick_remove(int id) {
     joystick_Joystick* js = joystick_get(id);
-    SDL_JoystickClose(js->joystick);
+    SDL_CloseJoystick(js->joystick);
 }
 
 float joystick_getAxis(joystick_Joystick* joystick, int axis) {
-    int16_t val = SDL_JoystickGetAxis(joystick->joystick, axis);
+    int16_t val = SDL_GetJoystickAxis(joystick->joystick, axis);
     return val / 32767.0f;
 }
 
 bool joystick_isDown(joystick_Joystick* joystick, int button) {
-    return SDL_JoystickGetButton(joystick->joystick, button);
+    return SDL_GetJoystickButton(joystick->joystick, button);
 }
 
 void joystick_buttonDown(int id, int button, int state) {
@@ -109,23 +115,25 @@ int joystick_getCount() {
 }
 
 int joystick_getNumAxes(joystick_Joystick* joystick) {
-    return SDL_JoystickNumAxes(joystick->joystick);
+    return SDL_GetNumJoystickAxes(joystick->joystick);
 }
 
 int joystick_getNumButtons(joystick_Joystick* joystick) {
-    return SDL_JoystickNumButtons(joystick->joystick);
+    return SDL_GetNumJoystickButtons(joystick->joystick);
 }
 
 int joystick_getNumBalls(joystick_Joystick* joystick) {
-    return SDL_JoystickNumBalls(joystick->joystick);
+    return SDL_GetNumJoystickBalls(joystick->joystick);
 }
 
 const char* joystick_getName(joystick_Joystick* joystick) {
-    return SDL_JoystickNameForIndex(joystick->id);
+    /* SDL3 asks the opened joystick for its name rather than the index it
+     * was opened from -- ids are not indices any more. */
+    return SDL_GetJoystickName(joystick->joystick);
 }
 
 bool joystick_isConnected(joystick_Joystick* joystick) {
-    return SDL_JoystickGetAttached(joystick->joystick);
+    return SDL_JoystickConnected(joystick->joystick);
 }
 
 bool joystick_isGamepad(joystick_Joystick* joystick) {
@@ -133,84 +141,84 @@ bool joystick_isGamepad(joystick_Joystick* joystick) {
 }
 
 int joystick_getHatCount(joystick_Joystick* joystick) {
-    return SDL_JoystickNumHats(joystick->joystick);
+    return SDL_GetNumJoystickHats(joystick->joystick);
 }
 
 int joystick_getHat(joystick_Joystick* joystick, int hat) {
-    return SDL_JoystickGetHat(joystick->joystick, hat);
+    return SDL_GetJoystickHat(joystick->joystick, hat);
 }
 
 float joystick_getGamepadAxis(joystick_Joystick* joystick, int axis) {
-    return SDL_GameControllerGetAxis(joystick->controller, (SDL_GameControllerAxis) axis) / 32767.0f;
+    return SDL_GetGamepadAxis(joystick->controller, (SDL_GamepadAxis) axis) / 32767.0f;
 }
 
 
 int joystick_convert_str_to_button(const char* v) {
     if (strcmp("a", v) == 0)
-        return SDL_CONTROLLER_BUTTON_A;
+        return SDL_GAMEPAD_BUTTON_SOUTH;
     else if (strcmp("b", v) == 0)
-        return SDL_CONTROLLER_BUTTON_B;
+        return SDL_GAMEPAD_BUTTON_EAST;
     else if (strcmp("x", v) == 0)
-        return SDL_CONTROLLER_BUTTON_X;
+        return SDL_GAMEPAD_BUTTON_WEST;
     else if (strcmp("y", v) == 0)
-        return SDL_CONTROLLER_BUTTON_Y;
+        return SDL_GAMEPAD_BUTTON_NORTH;
     else if (strcmp("back", v) == 0)
-        return SDL_CONTROLLER_BUTTON_BACK;
+        return SDL_GAMEPAD_BUTTON_BACK;
     else if (strcmp("guide", v) == 0)
-        return SDL_CONTROLLER_BUTTON_GUIDE;
+        return SDL_GAMEPAD_BUTTON_GUIDE;
     else if (strcmp("start", v) == 0)
-        return SDL_CONTROLLER_BUTTON_START;
+        return SDL_GAMEPAD_BUTTON_START;
     else if (strcmp("leftstick", v) == 0)
-        return SDL_CONTROLLER_BUTTON_LEFTSTICK;
+        return SDL_GAMEPAD_BUTTON_LEFT_STICK;
     else if (strcmp("rightstick", v) == 0)
-        return SDL_CONTROLLER_BUTTON_RIGHTSTICK;
+        return SDL_GAMEPAD_BUTTON_RIGHT_STICK;
     else if (strcmp("leftshoulder", v) == 0)
-        return SDL_CONTROLLER_BUTTON_LEFTSHOULDER;
+        return SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
     else if (strcmp("rightshoulder", v) == 0)
-        return SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;
+        return SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER;
     else if (strcmp("dpup", v) == 0)
-        return SDL_CONTROLLER_BUTTON_DPAD_UP;
+        return SDL_GAMEPAD_BUTTON_DPAD_UP;
     else if (strcmp("dpdown", v) == 0)
-        return SDL_CONTROLLER_BUTTON_DPAD_DOWN;
+        return SDL_GAMEPAD_BUTTON_DPAD_DOWN;
     else if (strcmp("dpleft", v) == 0)
-        return SDL_CONTROLLER_BUTTON_DPAD_LEFT;
+        return SDL_GAMEPAD_BUTTON_DPAD_LEFT;
     else if (strcmp("dpright", v) == 0)
-        return SDL_CONTROLLER_BUTTON_DPAD_RIGHT;
+        return SDL_GAMEPAD_BUTTON_DPAD_RIGHT;
 
     clove_error("Error: %s is not a valid joystick button!\n", v);
     return 0;
 }
 
 const char* joystick_convert_button_to_str(int v) {
-    if (v == SDL_CONTROLLER_BUTTON_A)
+    if (v == SDL_GAMEPAD_BUTTON_SOUTH)
         return "a";
-     else if (v == SDL_CONTROLLER_BUTTON_B)
+     else if (v == SDL_GAMEPAD_BUTTON_EAST)
         return "b";
-     else if (v == SDL_CONTROLLER_BUTTON_X)
+     else if (v == SDL_GAMEPAD_BUTTON_WEST)
         return "x";
-     else if (v == SDL_CONTROLLER_BUTTON_Y)
+     else if (v == SDL_GAMEPAD_BUTTON_NORTH)
         return "y";
-     else if (v == SDL_CONTROLLER_BUTTON_BACK)
+     else if (v == SDL_GAMEPAD_BUTTON_BACK)
         return "back";
-     else if (v == SDL_CONTROLLER_BUTTON_GUIDE)
+     else if (v == SDL_GAMEPAD_BUTTON_GUIDE)
         return "guide";
-     else if (v == SDL_CONTROLLER_BUTTON_START)
+     else if (v == SDL_GAMEPAD_BUTTON_START)
         return "start";
-     else if (v == SDL_CONTROLLER_BUTTON_LEFTSTICK)
+     else if (v == SDL_GAMEPAD_BUTTON_LEFT_STICK)
         return "leftstick";
-     else if (v == SDL_CONTROLLER_BUTTON_RIGHTSTICK)
+     else if (v == SDL_GAMEPAD_BUTTON_RIGHT_STICK)
         return "rightstick";
-     else if (v == SDL_CONTROLLER_BUTTON_LEFTSHOULDER)
+     else if (v == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)
         return "leftshoulder";
-     else if (v == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)
+     else if (v == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)
         return "rightshoulder";
-     else if (v == SDL_CONTROLLER_BUTTON_DPAD_UP)
+     else if (v == SDL_GAMEPAD_BUTTON_DPAD_UP)
         return "dpup";
-     else if (v == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+     else if (v == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         return "dpdown";
-     else if (v == SDL_CONTROLLER_BUTTON_DPAD_LEFT)
+     else if (v == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
         return "dpleft";
-     else if (v == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+     else if (v == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
         return "dpright";
 
     clove_error("Error: %d is not a valid joystick button!\n", v);

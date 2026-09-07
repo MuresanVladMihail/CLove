@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2021 Muresan Vlad
+#   Copyright (C) 2021-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -13,6 +13,7 @@
 #include "../include/love.h"
 #include "../include/graphics.h"
 #include "../include/filesystem.h"
+#include "../include/error_screen.h"
 
 int fh_config(struct fh_program *prog) {
 
@@ -96,6 +97,14 @@ int fh_config(struct fh_program *prog) {
         if (fh_get_bool(&ret)) {
             graphics_shutdown();
         }
+    }
+
+    /* Off for a game that would rather handle its own failures, or draw its
+     * own screen; on by default, because a player with no terminal open
+     * otherwise just sees the window disappear. */
+    key = fh_new_string(prog, "error_screen");
+    if (fh_get_map_object_value(map, &key, &ret) == 0) {
+        error_screen_setEnabled(fh_get_bool(&ret));
     }
 
     key = fh_new_string(prog, "window_icon");

@@ -1,13 +1,13 @@
 /*
 #   clove
 #
-#   Copyright (C) 2016-2020 Muresan Vlad
+#   Copyright (C) 2016-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
 */
 
-#include "3rdparty/SDL2/include/SDL.h"
+#include "3rdparty/SDL3/include/SDL3/SDL.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,9 +44,9 @@ const char *mouse_button_to_str(int x) {
             return "r";
         case SDL_BUTTON_MIDDLE:
             return "m";
-        case SDL_MOUSEBUTTONUP:
+        case SDL_EVENT_MOUSE_BUTTON_UP:
             return "wu";
-        case SDL_MOUSEBUTTONDOWN:
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
             return "wd";
         case SDL_BUTTON_X1:
             return "x1";
@@ -97,7 +97,7 @@ void mouse_mousemoved(int x, int y) {
 }
 
 void mouse_mousepressed(int x, int y, int button) {
-    if (button == SDL_MOUSEBUTTONUP || button == SDL_MOUSEBUTTONDOWN) {
+    if (button == SDL_EVENT_MOUSE_BUTTON_UP || button == SDL_EVENT_MOUSE_BUTTON_DOWN) {
 #ifdef USE_LUA
         l_mouse_pressed(moduleData.x, moduleData.y, button);
 #endif
@@ -161,7 +161,8 @@ void mouse_setPosition(int x, int y) {
 
 void mouse_setVisible(int b) {
     moduleData.visible = !!b;
-    SDL_ShowCursor(b ? SDL_ENABLE : SDL_DISABLE);
+    /* SDL3 split the old tri-state SDL_ShowCursor() into two calls. */
+    if (b) { SDL_ShowCursor(); } else { SDL_HideCursor(); }
 }
 
 void mouse_setX(int x) {

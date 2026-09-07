@@ -1,7 +1,7 @@
 /*
 #   clove
 #
-#   Copyright (C) 2019-2021 Muresan Vlad
+#   Copyright (C) 2019-2026 Muresan Vlad
 #
 #   This project is free software; you can redistribute it and/or modify it
 #   under the terms of the MIT license. See LICENSE.md for details.
@@ -13,7 +13,7 @@
 #endif
 
 #include "../3rdparty/FH/src/fh.h"
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 #include "../3rdparty/microtar/microtar.h"
 
 #include "utils.h"

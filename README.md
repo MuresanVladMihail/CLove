@@ -12,6 +12,13 @@ register-based VM, separate integer/float types, fused loop opcodes, an
 adaptive garbage collector and a small-object allocator — on the bundled
 benchmarks it outruns Lua 5.4, Python and Ruby.
 
+There is a level editor, a particle system, Box2D 3 physics, tweening, SVG
+that stays sharp as you scale it, image loading on worker threads, and a
+`pcall` that lets a game survive a bad level file instead of closing on the
+player. Everything below is a screenshot of something in
+[`opt/examples/fh`](opt/examples/fh) — run any of them yourself in two
+commands.
+
 How to build
 ============
 
@@ -42,7 +49,7 @@ On Windows:
   `copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe`)
 - Download DX SDK 2010 only if you get errors from SDL when building:
   http://www.microsoft.com/en-us/download/details.aspx?id=6812
-- SDL2 and audio (MojoAL) are built and linked statically into `clove.exe`, so
+- SDL3 and audio (MojoAL) are built and linked statically into `clove.exe`, so
   there are no `.dll` files to copy next to it after building.
 
 For Web:
@@ -85,12 +92,17 @@ Features
 - Primitive drawing.
 - UI module.
 - Filesystem functions.
-- OpenGL ES 2.0.
-- Networking (unix only, TCP with IPv4 or IPv6, WIP).
+- OpenGL 3.3 core (OpenGL ES 2.0 on the web build).
+- Networking: BSD-socket helpers in `src/net/net.c` (unix only, TCP over IPv4
+  or IPv6). Not yet reachable from a script — there are no bindings for it, and
+  the calls block, so they would stall the frame as written.
 - Powerful font loading and drawing using batch system.
 - Support for image fonts.
 - Keyboard, mouse and joystick support.
-- Error handling.
+- Tweening: 31 easings, chaining, looping and yoyo.
+- Physics: Box2D 3.1.1 behind LÖVE-shaped bindings.
+- Asynchronous image loading on a worker thread pool.
+- Error handling: `pcall` in scripts, and an error screen for the player.
 
 Examples
 --------
@@ -187,13 +199,98 @@ Contact
 1. GitHub issues: https://github.com/MuresanVladMihail/CLove/issues
 1. Email: muresanvladmihail@gmail.com
 
-CLove pictures
------------------------------
+What it looks like
+------------------
 
-![Image 1:](opt/data/4.png?raw=true "See examples folder")
-![Image 2:](opt/data/1.png?raw=true "Web")
-![Image 3:](opt/data/2.png?raw=true "Linux")
-![Image 4:](opt/data/3.png?raw=true "Os X")
+Every picture here is one of the examples in [`opt/examples/fh`](opt/examples/fh),
+taken by `tools/make_screenshots.sh` so they can be remade rather than left to
+go stale. Run any of them with two commands:
+
+```sh
+cd opt/examples/fh/particles
+../../../../build/clove
+```
+
+### The editor — [`opt/examples/fh/editor`](opt/examples/fh/editor)
+
+A 2D level editor written in FH on top of [`opt/packages/editor`](opt/packages/editor):
+hierarchy, inspector, undo/redo, physics bodies and fixtures, JSON scenes, and
+a console. [`opt/examples/fh/game`](opt/examples/fh/game) embeds it behind F1
+and reloads the level live.
+
+![The CLove editor](opt/data/example_editor.png?raw=true "opt/examples/fh/editor")
+
+### Particles — [`particles`](opt/examples/fh/particles)
+
+![Particle system](opt/data/example_particles.png?raw=true "opt/examples/fh/particles")
+
+### Physics — [`physics`](opt/examples/fh/physics)
+
+Box2D 3.1.1 through `love.physics`: a world, bodies, fixtures and a mouse joint
+to drag them with. [`joints`](opt/examples/fh/joints) covers every joint kind.
+
+![Box2D physics](opt/data/example_physics.png?raw=true "opt/examples/fh/physics")
+
+### Vector art — [`vector_art`](opt/examples/fh/vector_art)
+
+An `.svg` loads like any other image and is re-rasterized as it is drawn
+bigger, so it stays sharp. On the left the same drawing pinned to one
+resolution, for comparison.
+
+![SVG re-rasterized as it scales](opt/data/example_vector_art.png?raw=true "opt/examples/fh/vector_art")
+
+### Shaders — [`shaders`](opt/examples/fh/shaders)
+
+GLSL through LÖVE's `position`/`effect` pair, with `extern` uniforms.
+
+![GLSL shaders](opt/data/example_shaders.png?raw=true "opt/examples/fh/shaders")
+
+### Tweening — [`tweens`](opt/examples/fh/tweens)
+
+`love.tween` is CLove's own — LÖVE has no equivalent. All 31 easings drawn as
+curves, plus chaining, delays, looping and yoyo.
+
+![All 31 easings](opt/data/example_tweens.png?raw=true "opt/examples/fh/tweens")
+
+### UI — [`ui`](opt/examples/fh/ui)
+
+The microui widget set: windows, buttons, sliders, tree nodes and popups.
+
+![The UI module](opt/data/example_ui.png?raw=true "opt/examples/fh/ui")
+
+### Meshes and noise — [`mesh`](opt/examples/fh/mesh), [`noise`](opt/examples/fh/noise)
+
+![Textured mesh](opt/data/example_mesh.png?raw=true "opt/examples/fh/mesh")
+![Simplex noise](opt/data/example_noise.png?raw=true "opt/examples/fh/noise")
+
+### When a game breaks
+
+A script error used to print a traceback to a terminal the player very likely
+does not have open, and the window would just disappear. Now it lands here —
+the message, where it happened, the whole call stack, and a key to copy it all
+so it can be pasted into a bug report.
+
+![The CLove error screen](opt/data/error_screen.png?raw=true "the error screen")
+
+Scripts can catch failures themselves with `pcall`, which works on CLove's own
+bindings too:
+
+~~~php
+let r = pcall(love_graphics_newImage, "level3/bg.png");
+if (r.ok) { self.bg = r.value; }
+else      { self.bg = love_graphics_newImage("art/missing.png"); }
+~~~
+
+Set `error_screen = false` in `config.fh` for a game that would rather draw its
+own, or set `CLOVE_NO_ERROR_SCREEN=1` in the environment (the test runner does).
+
+### Elsewhere
+
+CLove on the web build, on Linux and on OS X:
+
+![Web](opt/data/1.png?raw=true "Web")
+![Linux](opt/data/2.png?raw=true "Linux")
+![Os X](opt/data/3.png?raw=true "Os X")
 
 Contribuitors
 -------------
@@ -205,7 +302,7 @@ License
 
 CLove comes with two licenses which you can choose from:
 
-Copyright © 2015 - 2020 Mureșan Vlad Mihail
+Copyright © 2015 - 2026 Mureșan Vlad Mihail
 
 Contact Info muresanvladmihail@gmail.com
 
@@ -219,7 +316,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 OR: 
 
-Copyright © 2015 - 2020 Mureșan Vlad Mihail
+Copyright © 2015 - 2026 Mureșan Vlad Mihail
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
