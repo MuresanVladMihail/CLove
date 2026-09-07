@@ -5,12 +5,59 @@
 FH is designed to be embedded inside native applications (e.g. game engines),
 where scripts are sandboxed, deterministic, and tightly integrated with C code.
 
-Test with:
+## Getting Started
+
+### Build
+
+FH is a single C99 codebase with no external runtime dependencies. From the
+repo root:
 
 ```text
 $ make -j2
+```
+
+This produces the `fh` interpreter binary in the repo root. See `make check`
+(valgrind), `make TARGETS=debug` and `make TARGETS=asan` for other build
+modes, and `CLAUDE.md` for the full list of build/test commands.
+
+### Run a script
+
+```text
 $ ./fh tests/mandelbrot.fh
 ```
+
+Run the test suite with `./run_tests.sh` (executes every `tests/test_*.fh`
+script through the real interpreter and checks its exit status).
+
+### Embedding FH
+
+FH's whole purpose is to be dropped into a host C/C++ application as a
+scripting layer. The public embedding API is [`src/fh.h`](src/fh.h); the
+typical pattern is:
+
+```text
+fh_init();                                        // once, process-wide
+struct fh_program *prog = fh_new_program();
+fh_add_c_func(prog, "my_host_func", my_host_func); // expose host functions to scripts
+fh_compile_file(prog, "script.fh", true);          // compile a script into prog
+struct fh_value ret;
+fh_call_function(prog, "main", NULL, 0, &ret);      // call a script function
+fh_free_program(prog);                              // tear down
+```
+
+`fh_add_c_func`/`fh_add_c_funcs` register C callbacks the script can call;
+`fh_compile_file`/`fh_compile_input`/`fh_compile_pack` compile source (from a
+file, an in-memory string, or a `.fhpack` archive) into a `fh_program`; and
+`fh_call_function` invokes a named script function, passing/returning
+`struct fh_value`s. See `src/main.c` for a complete, real usage of this
+sequence (it's how the `fh` CLI itself runs scripts).
+
+## Standard Library
+
+FH's built-in functions (`string_*`, `math_*`, `io_*`, `os_*`, `json_*`,
+plus core helpers like `len`, `append`, `has`, `type`, `assert`, `error`, and
+GC controls) are documented with parameters, return values and examples in
+[`docs/doc.mkd`](docs/doc.mkd).
 
 ## Features
 
@@ -24,16 +71,35 @@ $ ./fh tests/mandelbrot.fh
 - simple regex support
 - simple tar support
 - own packaging format
-- hashing algoriths: bcrypt and md5
+- hashing algorithms: bcrypt and md5
 - uses fast and uniform random generator, mt19937
-- just ~10k C loc
 
 ## Implementation Notes
 
-- register-based virtual machine (fast dispatch)
-- bytecode compiler
+- register-based virtual machine (fast dispatch with computed goto)
+- bytecode compiler with type hints
 - compact (~10k lines of C)
 - no external runtime dependencies
+
+## Error Reporting
+
+FH provides detailed error messages with full stacktraces:
+
+- **Error location**: File, line, and column number where the error occurred
+- **Call stack**: Complete traceback showing the call chain from entry point to error
+- **Function names**: Each frame shows which function was executing
+- **Call sites**: Line numbers show where each function was called from
+
+Example error output:
+```
+ERROR: file.fh:5:14: error: division by zero
+
+Traceback (most recent call last):
+  File "file.fh", line 33, in main
+  File "file.fh", line 20, in process_data
+  File "file.fh", line 16, in calculate_average
+  File "file.fh", line 5, in divide
+```
 
 ## Example Code
 
@@ -63,10 +129,15 @@ fn main() {
     if (c1.read() == 2 && c2.read() == 11) {
         printf("ok!\n");
     } else {
-        error("this should will not happen");
+        error("this should not happen");
     }
 }
 ```
+
+A closure returning a map of functions is how FH does objects: the locals it
+captures are private state, each call makes an independent instance, and the
+methods need no `self`. Section 1.12 of [`docs/doc.mkd`](docs/doc.mkd) covers
+the pattern and how to give each object its own file.
 
 ### Mandelbrot Set
 
@@ -138,31 +209,39 @@ fn main() {
 }
 ```
 
+## Editor Support
+
+Editor integrations live under `tools/`:
+
+- **Sublime Text** -- `tools/Sublime/FH` (syntax, completions, build system,
+  symbol list; see its README for installation)
+- **VS Code** -- `tools/VSCode/extensions/gwl.fh-0.1.0`
+- **Vim** -- `tools/vim`
+
 ## License
 
-Copyright (c) 2019-2025 Mureşan Vlad Mihail
+Copyright (c) 2019-2026 Mureşan Vlad Mihail
 
-Contact Info muresanvladmihail@gmail.com
+Contact Info <muresanvladmihail@gmail.com
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. Shall you use this software
+   in a product, an acknowledgment and the contact info(if there is any)
+   of the author(s) must be placed in the product documentation.
+2. This notice may not be removed or altered from any source distribution.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT.
+IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE FOR ANY DAMAGES OR OTHER
+LIABILITY, WHETHER IN CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-## Contribuitors
+## Contributors
 
 - Ricardo Massaro
 - Bitpuffin

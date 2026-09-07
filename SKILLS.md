@@ -91,6 +91,69 @@ panning a camera.
 
 `love_event_quit()` ends the game; `love_event_reload()` requests a reload.
 
+## Surviving an error — `pcall`
+
+Until now any failure ended the game: a missing texture, a malformed level
+file, a binding called with the wrong argument count — the process printed a
+traceback and exited. That is right for a test and wrong for a game, which
+would rather lose one level than the session.
+
+`pcall(f [, args...])` is FH's protected call. It runs `f` and comes back
+either way, and it works on **CLove's bindings too** — a binding that fails
+is caught exactly like a script error:
+
+```php
+fn love_load() {
+    let self = {};
+
+    let r = pcall(love_graphics_newImage, "level3/bg.png");
+    if (r.ok) {
+        self.bg = r.value;
+    } else {
+        println("background missing, using the placeholder: " + r.error);
+        self.bg = love_graphics_newImage("art/missing.png");
+    }
+
+    return self;
+}
+```
+
+It always returns a map:
+
+| Key | On success | On failure |
+| --- | --- | --- |
+| `ok` | `true` | `false` |
+| `value` | what `f` returned | `null` |
+| `error` | `null` | the message |
+| `file`, `line`, `col` | absent | where it was raised |
+| `traceback` | absent | the stack trace CLove would have printed before exiting |
+
+To protect an expression rather than a call, wrap it in an anonymous
+function: `pcall(fn() { return risky() + 1; })`. It nests, and there is no
+`finally` — undo your own work after looking at `ok`.
+
+Two places this earns its keep in a game:
+
+- **Loading.** Level files, mods, user-supplied art and save games are all
+  things that can be wrong through no fault of your code. `pcall` around the
+  load lets you fall back instead of dying.
+- **A live-reload loop.** `love_event_reload()` plus `pcall` around whatever
+  the reloaded script does means a typo costs you a frame, not the session.
+
+CLove itself does *not* wrap `love_update` / `love_draw` in a `pcall` — an
+error in the game loop still ends the process with its traceback, which is
+what you want while you are writing it. Wrap what you want protected.
+
+`error(x)` takes any value, not only a string, so `error(404)` and
+`error({"code": 404})` both work.
+
+**A related change in the same FH release:** `+` between a string and `null`
+now produces the word `"null"` rather than silently collapsing the whole
+expression, and adding a string to something with no text form (an array, a
+map) is an error raised *where it happens*. Both used to leave the register
+holding whatever was in it before, so `"failed: " + err` — the first thing
+anyone writes with `pcall` — evaluated to garbage and blamed a later line.
+
 ## Graphics — `src/fhapi/graphics*.c`
 
 - **Drawing & transforms** (`graphics.c`): `love_graphics_draw`,

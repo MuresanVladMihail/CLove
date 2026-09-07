@@ -68,6 +68,19 @@ version 0.8.0 not yet released
 * fixed: love_graphics_newImageData() read args[1] after checking only that it
 	had been given *some* argument -- an out-of-bounds read on the argument
 	array for every one-argument call.
+* changed: re-synced the vendored FH to upstream main, which brings pcall()
+	and drops the last of CLove's local patches to it -- src/3rdparty/FH is
+	byte-identical to the FH repository again.
+	pcall(f [, args...]) runs f and comes back either way, returning
+	{ok: true, value: ...} or {ok: false, error, file, line, col, traceback}.
+	It works on CLove's own bindings, so a missing texture or a malformed
+	level file is now something a game can recover from instead of the thing
+	that ends it. tests/fh/test_pcall.fh covers both.
+	The same sync fixes a GC crash on ordinary counter-style closures, a
+	use-after-free when a C function calls back into the script, and string
+	concatenation with null -- which used to leave the whole expression
+	holding a stale register, so `"failed: " + err` printed garbage and
+	blamed a later line. See SKILLS.md and FH PRs #11 and #12.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

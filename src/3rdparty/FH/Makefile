@@ -3,9 +3,20 @@ OS=$(shell uname -s)
 CC = gcc
 CFLAGS = -std=c99 -DFH_USE_MAIN_FUNC=1
 LDFLAGS =
+DEBUG_SAN_CFLAGS = -O1 -g3 -fno-omit-frame-pointer -fno-optimize-sibling-calls \
+  -Wall -Wextra -Wpedantic -Wshadow -Wundef -Wconversion -Wstrict-prototypes \
+  -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls \
+  -Wdouble-promotion -Wformat=2 -Wcast-qual -Wwrite-strings \
+  -fsanitize=address,undefined \
+  -fno-sanitize-recover=all
+DEBUG_DEV_CFLAGS = -O0 -g3 -fno-omit-frame-pointer -fno-optimize-sibling-calls \
+  -Wall -Wextra -Wpedantic -Wshadow -Wundef -Wconversion -Wstrict-prototypes \
+  -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls \
+  -Wdouble-promotion -Wformat=2 -Wcast-qual -Wwrite-strings
 LIBS = -lm -ldl
 
 ifeq ($(OS), Darwin)
+	CC = clang
 	LIBS := $(filter-out -ldl,$(LIBS))
 endif
 ifeq ($(OS), OpenBSD)
@@ -18,30 +29,47 @@ ifeq ($(OS), Windows_NT)
 	CC = x86_64-w64-mingw32-gcc
 endif 
 
-OBJS = src/main.o src/functions.o
+OBJS = src/main.o
 OBJS += src/crypto/bcrypt.o src/crypto/mt19937.o src/crypto/mt19937-jump.o src/crypto/md5.o \
 		src/tar/microtar.o src/regex/re.o src/vec/vec.o src/map/map.o src/util.o src/input.o src/buffer.o src/stack.o src/symtab.o \
 		src/operator.o src/tokenizer.o src/parser.o src/ast.o src/dump_ast.o \
 		src/compiler.o src/dump_bytecode.o src/vm.o src/gc.o \
-		src/map.o src/value.o src/src_loc.o src/program.o src/c_funcs.o
+		src/map.o src/value.o src/array.o src/pool.o src/c_args.o src/src_loc.o src/program.o src/c_funcs.o src/cJSON.o
 SRCS=$(patsubst %.o,%.c,$(OBJS)) 
 
 CHECK_SCRIPT = tests/test.fh
 
-# Possible inputs: debug, debug2, release and asan.
+# Possible inputs: debug, debug_dev, debug2, release, debug_san and asan.
 # Note: leave no spaces behind or after the equal sign below
-TARGETS =debug
+TARGETS =release
 
-#-Wundef: undefined macro variables used in #if.
-#-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations: make sure that functions are prototyped properly.
+# Object files don't encode which TARGETS config they were built with, so
+# switching configs (e.g. `make` then `make TARGETS=debug`) without an
+# intervening `make clean` would otherwise silently link together objects
+# built with different flags, producing a broken binary. Track the last
+# used TARGETS in a stamp file and force a full rebuild when it changes.
+LAST_TARGETS_FILE := .last_targets
+LAST_TARGETS := $(shell cat $(LAST_TARGETS_FILE) 2>/dev/null)
+ifneq ($(TARGETS),$(LAST_TARGETS))
+$(shell touch $(SRCS) 2>/dev/null)
+$(shell echo $(TARGETS) > $(LAST_TARGETS_FILE))
+endif
+
+ifeq ($(TARGETS), debug_dev)
+	CFLAGS += $(DEBUG_DEV_CFLAGS)
+endif
 ifeq ($(TARGETS), debug)
 	CFLAGS += -O0 -g3 -pedantic -Wall -Wextra -Wundef -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
 endif
 ifeq ($(TARGETS), debug2) # Used for gprof
 	CFLAGS += -O0 -g3 -pedantic-errors -pg -Wall -Wextra -Wundef -no-pie
 endif
+ifeq ($(TARGETS), debug_san)
+	CFLAGS += $(DEBUG_SAN_CFLAGS)
+	LDFLAGS += $(DEBUG_SAN_LDFLAGS)
+endif
 ifeq ($(TARGETS), release)
-	CFLAGS += -O3
+	CFLAGS += -O3 -DNDEBUG -flto -fomit-frame-pointer -march=native
 endif
 ifeq ($(TARGETS), asan)
 	CFLAGS += -fsanitize=address -fno-omit-frame-pointer -O -g -Wall -Wextra
@@ -54,8 +82,6 @@ build: fh
 	@echo "Compilation successful!  Try these examples:"
 	@echo
 	@echo "  ./fh tests/test.fh"
-	@echo "  ./fh tests/mandelbrot.fh"
-	@echo "  ./fh tests/mandel_color.fh"
 	@echo
 
 fh: $(OBJS)

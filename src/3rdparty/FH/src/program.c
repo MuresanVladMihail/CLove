@@ -1,8 +1,8 @@
 /* fh.c */
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <time.h>
 
 #include "program.h"
@@ -291,8 +291,16 @@ void fh_restore_pin_state(struct fh_program *prog, int state) {
     prog->pinned_objs.length = state;
 }
 
+/* The name map holds a 1-based *index* into prog->c_funcs, not a pointer into
+ * it. That stack is one contiguous array which is realloc'd as it grows, so
+ * every pointer handed out before a growth dangled afterwards. It held
+ * together only while realloc happened to extend in place -- and because the
+ * stack grows in chunks of 512, only an embedder that registers more than 512
+ * functions ever crossed a boundary. CLove registers around 680, and after the
+ * move even error() resolved as "unknown variable or function". */
 int fh_add_c_func(struct fh_program *prog, const char *name, fh_c_func func) {
-    if (map_get(&prog->c_funcs_map, name)) {
+    void **cfn = map_get(&prog->c_funcs_map, name);
+    if (cfn) {
         fprintf(stderr, "Error: duplicating C function '%s'!\n", name);
         return -1;
     }
@@ -301,14 +309,9 @@ int fh_add_c_func(struct fh_program *prog, const char *name, fh_c_func func) {
         return fh_set_error(prog, "out of memory");
     cf->name = name;
     cf->func = func;
-    /*
-     * The map holds a 1-based index into the stack, not a pointer into it.
-     * The stack is one contiguous array that is realloc'd as it grows, so
-     * every pointer handed out before a growth would dangle afterwards --
-     * which silently broke name lookup for the functions registered first
-     * once the table grew past whatever realloc could extend in place.
-     */
-    map_set(&prog->c_funcs_map, name, (void *) (intptr_t) named_c_func_stack_size(&prog->c_funcs));
+
+    const intptr_t index = named_c_func_stack_size(&prog->c_funcs);  /* 1-based */
+    map_set(&prog->c_funcs_map, name, (void *) index);
     return 0;
 }
 
@@ -331,8 +334,9 @@ fh_c_func fh_get_c_func_by_name(struct fh_program *prog, const char *name) {
     void **slot = map_get(&prog->c_funcs_map, name);
     if (!slot)
         return NULL;
-    struct named_c_func *cf = named_c_func_stack_item(&prog->c_funcs,
-                                                      (int) (intptr_t) *slot - 1);
+
+    const int index = (int) (intptr_t) *slot;   /* 1-based, see fh_add_c_func() */
+    const struct named_c_func *cf = named_c_func_stack_item(&prog->c_funcs, index - 1);
     return cf ? cf->func : NULL;
 }
 
