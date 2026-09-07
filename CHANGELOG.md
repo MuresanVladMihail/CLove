@@ -107,6 +107,33 @@ version 0.8.0 not yet released
 	particles, physics, vector art, shaders, tweens, the UI, meshes, noise and
 	the error screen, each linking to the example it came from.
 * changed: every copyright header in CLove's own sources now runs to 2026.
+* changed: upgraded the vendored SDL from 2.32.10 to SDL **3.4.16**, and with
+	it mojoAL to upstream. The two had to move together: upstream mojoAL is
+	SDL3-only, which is exactly why CLove's copy of it could not be refreshed
+	before. src/3rdparty/SDL2 is gone; src/3rdparty/SDL3 is the release tarball
+	minus its tests and examples.
+* removed: CLove's local patch to mojoAL. It implemented AL_SEC_OFFSET /
+	AL_SAMPLE_OFFSET / AL_BYTE_OFFSET, which upstream left as FIXME in all four
+	get/set paths; upstream has implemented them since, so the vendored mojoAL
+	is unmodified now. CLAUDE.md said "when the SDL3 port happens, delete this
+	patch -- do not merge it", and that is what happened.
+* fixed: three SDL3 behaviour changes that compile silently and behave
+	backwards. SDL_Init() and SDL_InitSubSystem() return true on success where
+	SDL2 returned 0, so `SDL_InitSubSystem(...) != 0` took the *failure* branch
+	on success and left joysticks looking broken, and `SDL_Init(...) < 0` could
+	never be true, so a failed video init went unnoticed. SDL_GetBasePath()
+	now returns a string SDL owns rather than one the caller frees, and
+	filesystem_setSource() free()s what filesystem_getSource() left there.
+* changed: love_audio_seek() sets AL_SAMPLE_OFFSET rather than AL_SEC_OFFSET.
+	Upstream mojoAL reads AL_SEC_OFFSET as ((int) value) * freq * framesize --
+	it truncates the seconds before scaling, so every seek inside the first
+	second landed on zero. Samples are whole numbers, so the sample offset has
+	no such problem, and CLove knows the sample rate anyway. This is a
+	workaround, not a patch to the vendored copy.
+* known: build_web.sh is not ported to SDL3, and did not build before this
+	either -- its hand-written source list had drifted far from the tree. It
+	now says so at the top rather than carrying a one-line flag change that
+	would look ported and would not be.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

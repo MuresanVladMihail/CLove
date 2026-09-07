@@ -16,7 +16,7 @@
 #include "../3rdparty/physfs/physfs.h"
 #endif
 
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 
 enum FileType {
 	FileType_REGULAR,

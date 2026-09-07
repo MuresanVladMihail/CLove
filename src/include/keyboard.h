@@ -8,7 +8,7 @@
 */
 #pragma once
 
-#include "../3rdparty/SDL2/include/SDL_keyboard.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL_keyboard.h"
 
 #include <stdbool.h>
 

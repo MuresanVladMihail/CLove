@@ -10,7 +10,7 @@
 
 #ifdef USE_LUA
 #include "../3rdparty/lua/lua.h"
-#include "../3rdparty/SDL2/include/SDL_keycode.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL_keycode.h"
 
 #include <stdbool.h>
 

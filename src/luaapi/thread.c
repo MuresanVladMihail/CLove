@@ -13,8 +13,8 @@
 #include <stdio.h>
 
 #include "../3rdparty/lua/lauxlib.h"
-#include "../3rdparty/SDL2/include/SDL_thread.h"
-#include "../3rdparty/SDL2/include/SDL_timer.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL_thread.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL_timer.h"
 
 #include "thread.h"
 #include "tools.h"

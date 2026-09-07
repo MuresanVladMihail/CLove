@@ -1,4 +1,23 @@
 #!/bin/bash
+#
+# NOT PORTED TO SDL3 -- and it did not build before this either.
+#
+# This script hand-lists its sources rather than going through CMake, and the
+# list has drifted a long way from the tree: it compiles src/main.cpp (the
+# entry point is src/main.c), includes src/3rdparty/openal/include (there is
+# no such directory -- audio is mojoAL), and knows nothing about src/fhapi,
+# src/physics, src/tween, src/asset, src/error, src/svg or FH itself, so it
+# can only ever have produced a Lua-only build.
+#
+# On top of that it asks emscripten for SDL2 (`-s USE_SDL=2`). Emscripten's
+# SDL3 port is `--use-port=sdl3`, which is a different flag with different
+# behaviour, and CLove now needs SDL3. Changing the flag alone would not make
+# this build; the source list has to be rebuilt first, ideally by driving the
+# real CMake build with emcmake so it cannot drift again.
+#
+# It is left as it was on purpose: a script that looks ported but is not is
+# worse than one that says it isn't. See the SDL3 section of CLAUDE.md.
+
 
 # Use this when you want to create a working Lua+CLove game
 function build_html_clove() {
