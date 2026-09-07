@@ -13,7 +13,7 @@
 #endif
 
 #include "../3rdparty/FH/src/fh.h"
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 #include "../3rdparty/microtar/microtar.h"
 
 #include "utils.h"

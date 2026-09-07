@@ -49,7 +49,7 @@ On Windows:
   `copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe`)
 - Download DX SDK 2010 only if you get errors from SDL when building:
   http://www.microsoft.com/en-us/download/details.aspx?id=6812
-- SDL2 and audio (MojoAL) are built and linked statically into `clove.exe`, so
+- SDL3 and audio (MojoAL) are built and linked statically into `clove.exe`, so
   there are no `.dll` files to copy next to it after building.
 
 For Web:

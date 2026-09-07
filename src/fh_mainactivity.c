@@ -67,7 +67,7 @@ static MainLoopData loopData;
 /* Runs the optional love_quit callback and answers whether the quit should go
  * ahead. Returning true from love_quit aborts it, the way LOVE's love.quit
  * does -- without that a tool has no way to ask "save first?" when the window's
- * close button is pressed, because SDL_QUIT is not something a script sees. */
+ * close button is pressed, because SDL_EVENT_QUIT is not something a script sees. */
 static bool quit_function(void) {
     bool allow = true;
     if (fh_function_exists(loopData.prog, "love_quit")) {
@@ -258,45 +258,46 @@ void fh_main_loop(int argc, char **argv) {
 
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_WINDOWEVENT) {
-            switch (event.window.event) {
-                case SDL_WINDOWEVENT_ENTER:
-                    graphics_setMouseFocus(true);
-                    focus_callback("love_mousefocus", true);
-                    break;
-                case SDL_WINDOWEVENT_LEAVE:
-                    graphics_setMouseFocus(false);
-                    focus_callback("love_mousefocus", false);
-                    break;
-                case SDL_WINDOWEVENT_FOCUS_LOST:
-                    graphics_setFocus(false);
-                    focus_callback("love_focus", false);
-                    break;
-                case SDL_WINDOWEVENT_FOCUS_GAINED:
-                    graphics_setFocus(true);
-                    focus_callback("love_focus", true);
-                    break;
-                case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    /* SDL has already resized the window; only the drawing
-                     * state is behind. Without this the projection and the GL
-                     * viewport stay at the size the context was created with,
-                     * so a resized window keeps drawing the scene into a
-                     * corner of itself. */
-                    int w = event.window.data1;
-                    int h = event.window.data2;
-                    graphics_updateViewport(w, h);
-                    resize_function(w, h);
-                    break;
-                }
-                default:
-                    break;
+        /* SDL3 gave every window event its own type instead of packing them
+         * into one SDL_WINDOWEVENT with a sub-field, so these sit alongside
+         * the key and mouse cases rather than in a switch of their own. */
+        switch (event.type) {
+            case SDL_EVENT_WINDOW_MOUSE_ENTER:
+                graphics_setMouseFocus(true);
+                focus_callback("love_mousefocus", true);
+                break;
+            case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+                graphics_setMouseFocus(false);
+                focus_callback("love_mousefocus", false);
+                break;
+            case SDL_EVENT_WINDOW_FOCUS_LOST:
+                graphics_setFocus(false);
+                focus_callback("love_focus", false);
+                break;
+            case SDL_EVENT_WINDOW_FOCUS_GAINED:
+                graphics_setFocus(true);
+                focus_callback("love_focus", true);
+                break;
+            case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: {
+                /* SDL has already resized the window; only the drawing
+                 * state is behind. Without this the projection and the GL
+                 * viewport stay at the size the context was created with,
+                 * so a resized window keeps drawing the scene into a
+                 * corner of itself. */
+                int w = event.window.data1;
+                int h = event.window.data2;
+                graphics_updateViewport(w, h);
+                resize_function(w, h);
+                break;
             }
+            default:
+                break;
         }
         switch (event.wheel.type) {
-            case SDL_MOUSEWHEEL: {
+            case SDL_EVENT_MOUSE_WHEEL: {
                 ui_input_scroll(0, event.wheel.y * -30);
                 mouse_mousewheel(event.wheel.y);
-                int _what = event.wheel.y == 1 ? SDL_MOUSEBUTTONUP : SDL_MOUSEBUTTONDOWN;
+                int _what = event.wheel.y == 1 ? SDL_EVENT_MOUSE_BUTTON_UP : SDL_EVENT_MOUSE_BUTTON_DOWN;
                 mouse_mousepressed(event.button.x, event.button.y, _what);
                 mouse_setButton(event.button.button);
                 break;
@@ -305,36 +306,36 @@ void fh_main_loop(int argc, char **argv) {
                 break;
         }
         switch (event.type) {
-            case SDL_KEYDOWN: {
-                int c = ui_key_map[event.key.keysym.sym & 0xff];
+            case SDL_EVENT_KEY_DOWN: {
+                int c = ui_key_map[event.key.key & 0xff];
                 if (c) {
                     ui_input_keydown(c);
                 }
-                keyboard_keypressed(event.key.keysym.sym);
+                keyboard_keypressed(event.key.key);
                 break;
             }
-            case SDL_KEYUP: {
-                int c = ui_key_map[event.key.keysym.sym & 0xff];
+            case SDL_EVENT_KEY_UP: {
+                int c = ui_key_map[event.key.key & 0xff];
                 if (c) {
                     ui_input_keyup(c);
                 }
-                keyboard_keyreleased(event.key.keysym.sym);
+                keyboard_keyreleased(event.key.key);
                 break;
             }
-            case SDL_TEXTINPUT: {
+            case SDL_EVENT_TEXT_INPUT: {
                 const char *text = event.text.text;
                 ui_input_text(text);
                 keyboard_textInput(text);
                 break;
             }
-            case SDL_MOUSEMOTION: {
+            case SDL_EVENT_MOUSE_MOTION: {
                 int x = event.motion.x;
                 int y = event.motion.y;
                 ui_input_mouse_move(x, y);
                 mouse_mousemoved(x, y);
                 break;
             }
-            case SDL_MOUSEBUTTONDOWN: {
+            case SDL_EVENT_MOUSE_BUTTON_DOWN: {
                 int x = event.button.x;
                 int y = event.button.y;
                 int btn = event.button.button;
@@ -346,7 +347,7 @@ void fh_main_loop(int argc, char **argv) {
                 mouse_setButton(btn);
                 break;
             }
-            case SDL_MOUSEBUTTONUP: {
+            case SDL_EVENT_MOUSE_BUTTON_UP: {
                 int x = event.button.x;
                 int y = event.button.y;
                 int btn = event.button.button;
@@ -358,22 +359,22 @@ void fh_main_loop(int argc, char **argv) {
                 mouse_setButton(0);
                 break;
             }
-            case SDL_JOYDEVICEADDED:
+            case SDL_EVENT_JOYSTICK_ADDED:
                 joystick_added(event.jdevice.which);
                 break;
-            case SDL_JOYDEVICEREMOVED:
+            case SDL_EVENT_JOYSTICK_REMOVED:
                 joystick_remove(event.jdevice.which);
                 break;
-            case SDL_JOYAXISMOTION:
+            case SDL_EVENT_JOYSTICK_AXIS_MOTION:
                 break;
-            case SDL_JOYBUTTONDOWN:
-                joystick_buttonDown(event.jbutton.which, event.jbutton.button, event.jbutton.state);
+            case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+                joystick_buttonDown(event.jbutton.which, event.jbutton.button, event.jbutton.down);
                 break;
-            case SDL_JOYBUTTONUP:
-                joystick_buttonUp(event.jbutton.which, event.jbutton.button, event.jbutton.state);
+            case SDL_EVENT_JOYSTICK_BUTTON_UP:
+                joystick_buttonUp(event.jbutton.which, event.jbutton.button, event.jbutton.down);
                 break;
 #ifdef CLOVE_DESKTOP
-            case SDL_QUIT: {
+            case SDL_EVENT_QUIT: {
                 if (quit_function()) {
                     loopData.called_quit = true;
                     clove_running = false;

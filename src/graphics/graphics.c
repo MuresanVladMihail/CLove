@@ -154,7 +154,9 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
         return;
     }
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    /* SDL3 returns true on success where SDL2 returned 0, so `< 0` would
+     * never be taken and a failed init would go unnoticed. */
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
         clove_error("Error: Could not init SDL video \n");
         return;
     }
@@ -163,15 +165,17 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
     moduleData.y = SDL_WINDOWPOS_CENTERED;
     moduleData.title = "CLove: Untitled window";
 
-    moduleData.w_flags = (SDL_WindowFlags) (SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+    /* SDL3 shows a window by default; SDL_WINDOW_SHOWN is gone. */
+    moduleData.w_flags = (SDL_WindowFlags) (SDL_WINDOW_OPENGL);
     if (resizable) {
         moduleData.w_flags = (SDL_WindowFlags) (moduleData.w_flags | SDL_WINDOW_RESIZABLE);
     }
 
     graphics_setGLAttributes(4);
-    moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
-                                         moduleData.w_flags);
+    /* SDL3's SDL_CreateWindow() takes no position; it is set afterwards. */
+    moduleData.window = SDL_CreateWindow(moduleData.title, width, height, moduleData.w_flags);
     if (moduleData.window) {
+        SDL_SetWindowPosition(moduleData.window, moduleData.x, moduleData.y);
         moduleData.context = SDL_GL_CreateContext(moduleData.window);
     }
 
@@ -187,8 +191,7 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
         }
 
         graphics_setGLAttributes(0);
-        moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
-                                             moduleData.w_flags);
+        moduleData.window = SDL_CreateWindow(moduleData.title, width, height, moduleData.w_flags);
         if (!moduleData.window) {
             clove_error("Error: Could not create window :O %s\n", SDL_GetError());
             return;
@@ -206,7 +209,7 @@ void graphics_init(int width, int height, bool resizable, bool stats, bool show)
     SDL_GL_SetSwapInterval(1);
 
     if (stats > 0) {
-        printf("Sdl version: %d.%d.%d\n", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
+        printf("Sdl version: %d.%d.%d\n", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_MICRO_VERSION);
         printf("OpenGL version: %s\n", glGetString(GL_VERSION));
         printf("GLSL version: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
         printf("Vendor: %s\n", glGetString(GL_VENDOR));
@@ -225,7 +228,7 @@ void graphics_shutdown() {
             glDeleteVertexArrays(1, &moduleData.defaultVao);
             moduleData.defaultVao = 0;
         }
-        SDL_GL_DeleteContext(moduleData.context);
+        SDL_GL_DestroyContext(moduleData.context);
         SDL_DestroyWindow(moduleData.window);
     }
     moduleData.hasWindow = false;
@@ -335,13 +338,16 @@ void graphics_drawBatch(
 }
 
 int *graphics_getDesktopDimension() {
-    SDL_DisplayMode dm;
-    if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
-        clove_error("Error, love.window.getDesktopDimension(): %s", SDL_GetError());
-    }
     static int ret[2] = {0};
-    ret[0] = dm.w;
-    ret[1] = dm.h;
+    /* SDL3 addresses displays by id, not by index, and hands back a pointer
+     * into its own state instead of filling in a copy. */
+    const SDL_DisplayMode *dm = SDL_GetDesktopDisplayMode(SDL_GetPrimaryDisplay());
+    if (!dm) {
+        clove_error("Error, love.window.getDesktopDimension(): %s", SDL_GetError());
+        return ret;
+    }
+    ret[0] = dm->w;
+    ret[1] = dm->h;
     return ret;
 }
 
@@ -422,7 +428,7 @@ void graphics_setVsync(bool value) {
 
 void graphics_setBordless(bool value) {
     if (moduleData.hasWindow)
-        SDL_SetWindowBordered(moduleData.window, (SDL_bool) !value);
+        SDL_SetWindowBordered(moduleData.window, !value);
 }
 
 void graphics_setWindowResizable(bool value) {
@@ -441,21 +447,20 @@ void graphics_setMaxSize(int w, int h) {
 }
 
 int graphics_getDisplayCount() {
-    return moduleData.hasWindow ? SDL_GetNumVideoDisplays() : 0;
+    if (!moduleData.hasWindow) {
+        return 0;
+    }
+    int count = 0;
+    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    SDL_free(displays);
+    return count;
 }
 
 void graphics_setIcon(image_ImageData *imgd) {
     if (!moduleData.hasWindow) {
         return;
     }
-    //Adapted from Love
-    Uint32 rmask, gmask, bmask, amask;
     moduleData.icon = imgd;
-
-    rmask = 0x000000FF;
-    gmask = 0x0000FF00;
-    bmask = 0x00FF0000;
-    amask = 0xFF000000;
 
     int w = image_ImageData_getWidth(imgd);
     int h = image_ImageData_getHeight(imgd);
@@ -463,9 +468,12 @@ void graphics_setIcon(image_ImageData *imgd) {
 
     SDL_Surface *sdlicon = 0;
 
-    sdlicon = SDL_CreateRGBSurfaceFrom(image_ImageData_getSurface(imgd), w, h, 32, pitch, rmask, gmask, bmask, amask);
+    /* SDL3 names the layout instead of taking four channel masks; the image
+     * data is 8 bits per channel in R,G,B,A order. */
+    sdlicon = SDL_CreateSurfaceFrom(w, h, SDL_PIXELFORMAT_RGBA32,
+                                    image_ImageData_getSurface(imgd), pitch);
     SDL_SetWindowIcon(moduleData.window, sdlicon);
-    SDL_FreeSurface(sdlicon);
+    SDL_DestroySurface(sdlicon);
 }
 
 void graphics_loadAndSetIcon(const char *iconPath) {
@@ -513,9 +521,10 @@ int graphics_setMode(int width, int height,
      */
 #ifndef CLOVE_WEB
     if (!moduleData.hasWindow) {
-        moduleData.window = SDL_CreateWindow(moduleData.title, moduleData.x, moduleData.y, width, height,
-                                             moduleData.w_flags);
-        if (!moduleData.window)
+        moduleData.window = SDL_CreateWindow(moduleData.title, width, height, moduleData.w_flags);
+        if (moduleData.window)
+            SDL_SetWindowPosition(moduleData.window, moduleData.x, moduleData.y);
+        else
             clove_error("Error: Could not create window :O");
 
         moduleData.context = SDL_GL_CreateContext(moduleData.window);
@@ -537,11 +546,11 @@ int graphics_setMode(int width, int height,
     glViewport(0, 0, width, height);
 
     if (fullscreen)
-        SDL_SetWindowFullscreen(moduleData.window, SDL_WINDOW_FULLSCREEN);
+        SDL_SetWindowFullscreen(moduleData.window, true);
 
     SDL_SetWindowMinimumSize(moduleData.window, min_size_x, min_size_y);
     SDL_SetWindowMaximumSize(moduleData.window, max_size_x, max_size_y);
-    SDL_SetWindowBordered(moduleData.window, (SDL_bool) border);
+    SDL_SetWindowBordered(moduleData.window, border);
     if (x != -1 || y != -1)
         SDL_SetWindowPosition(moduleData.window, x, y);
     else if (x == -1 && y == -1)
@@ -581,16 +590,23 @@ int graphics_setFullscreen(bool fullscreen, const char *mode) {
 #ifndef CLOVE_WEB
     if (moduleData.hasWindow) {
         if (!fullscreen) {
-            SDL_SetWindowFullscreen(moduleData.window, 0);
+            SDL_SetWindowFullscreen(moduleData.window, false);
             return 0;
         }
 
+        /* SDL3 split the old flags in two: fullscreen is a bool, and *which*
+         * fullscreen is the window's fullscreen mode -- NULL for the
+         * borderless desktop kind, an exclusive mode otherwise. */
         if (strcmp(mode, "desktop") == 0) {
-            if (SDL_SetWindowFullscreen(moduleData.window, SDL_WINDOW_FULLSCREEN_DESKTOP) < 0) {
+            SDL_SetWindowFullscreenMode(moduleData.window, NULL);
+            if (!SDL_SetWindowFullscreen(moduleData.window, true)) {
                 clove_error("Error on 'fullscreen' %s", SDL_GetError());
             }
         } else if (strcmp(mode, "fullscreen") == 0) {
-            if (SDL_SetWindowFullscreen(moduleData.window, SDL_WINDOW_FULLSCREEN) < 0) {
+            const SDL_DisplayMode *dm =
+                SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(moduleData.window));
+            SDL_SetWindowFullscreenMode(moduleData.window, dm);
+            if (!SDL_SetWindowFullscreen(moduleData.window, true)) {
                 clove_error("Error on 'fullscreen' %s", SDL_GetError());
             }
         } else {
@@ -744,7 +760,7 @@ double graphics_getDPIScale() {
     }
 
     int pixelWidth, pixelHeight;
-    SDL_GL_GetDrawableSize(moduleData.window, &pixelWidth, &pixelHeight);
+    SDL_GetWindowSizeInPixels(moduleData.window, &pixelWidth, &pixelHeight);
     return (double) pixelHeight / (double) graphics_getHeight();
 }
 

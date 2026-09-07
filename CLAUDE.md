@@ -71,7 +71,7 @@ src/
   filesystem/, timer/, net/, tools/, ui/   supporting modules
   include/             CLove's own headers, plus vendored stb_image.c,
                        stb_image_write.h and stb_vorbis.c/.h
-  3rdparty/            vendored deps: FH, SDL2, box2d, mojoAL, microtar, slre,
+  3rdparty/            vendored deps: FH, SDL3, box2d, mojoAL, microtar, slre,
                        microui, physfs, glew, noise, CMath
 ```
 
@@ -154,49 +154,66 @@ upstream first).
   `world:update()`). It now starts at `prev_frame->stack_top`, which is the
   right bound for both frame kinds.
 
-## The vendored mojoAL is patched — offsets
+## SDL3, and the vendored mojoAL is no longer patched
 
-`src/3rdparty/mojoAL/mojoal.c` is upstream
-(https://github.com/icculus/mojoAL) **plus an implementation of
-`AL_SEC_OFFSET` / `AL_SAMPLE_OFFSET` / `AL_BYTE_OFFSET`**, which upstream
-leaves as `FIXME("offsets")` in all four places (get and set, float and int).
-Without them a source cannot say where it is or be moved, so
-`love_audio_tell()` and `love_audio_seek()` have nothing to stand on — and
-that rules out anything that lines up with the audio: a rhythm game, a
-cutscene, a replay, a loop point.
+`src/3rdparty/SDL3` is SDL **3.4.16**, vendored as the release tarball minus
+its `test/` and `examples/` directories (and its own `CLAUDE.md`/`AGENTS.md`,
+which would otherwise be picked up as instructions for this repository).
+`src/3rdparty/mojoAL/mojoal.c` is upstream (https://github.com/icculus/mojoAL)
+**unmodified** — CLove used to carry an implementation of `AL_SEC_OFFSET` /
+`AL_SAMPLE_OFFSET` / `AL_BYTE_OFFSET` there because upstream left them as
+`FIXME("offsets")`; upstream has since implemented them, and upstream mojoAL
+is SDL3-only, which is what made the two upgrades one job.
 
-The patch is `source_current_buffer()`, `source_offset_units()`,
-`source_get_offset()` and `source_set_offset()` just above `alSourcefv()`,
-plus the four case bodies that call them. It leans on state the mixer already
-keeps: `src->offset` (bytes into the *converted* float32 data, at the
-buffer's channel count) and `src->offset_latched`, which `source_play()`
-already honours. `tests/fh/test_audio_wav.fh` fails without it.
+Things to know before touching either:
 
-**Upstream has since implemented this itself**, with the same two function
-names — so the patch is a backport, not a divergence, and it is written to
-match upstream's semantics so that dropping it later is clean: an offset out
-of range is `AL_INVALID_VALUE` rather than a clamp (CLove clamps in
-`audio_StaticSource_seek()` instead), and seeking a *streaming* source is
-`AL_INVALID_OPERATION`, which is what upstream does too — only CLove knows
-about the vorbis decoder behind the queue, so `audio_StreamSource_seek()`
-moves the decoder and rebuilds the queue itself.
+- **CMake needs `OBJC` in `project()` on macOS**, because SDL3's macOS
+  backends are Objective-C. Without it CMake fails at generate time with
+  `Missing variable is: CMAKE_OBJC_COMPILE_OBJECT`.
+- **SDL3's include path is `<SDL3/SDL.h>`**, and mojoAL includes it that way,
+  so `src/3rdparty/SDL3/include` is on the global include path — the static
+  `love` library compiles SDL-using sources without linking SDL, the same
+  arrangement freetype and box2d have.
+- **There is no `SDLmain` any more.** `SDL_main.h` is header-only; `src/main.c`
+  defines a plain `main()` and links only `SDL3-static`.
+- **The return convention flipped.** `SDL_Init`, `SDL_InitSubSystem`,
+  `SDL_SetWindowFullscreen` and friends return `true` on success where SDL2
+  returned `0`. These compile silently and behave backwards: the joystick
+  subsystem's `!= 0` check took the failure branch on *success*, and
+  `SDL_Init(...) < 0` could never be true, so a failed video init went
+  unnoticed. Grep for `SDL_` with `!= 0` or `< 0` after any re-sync.
+- **`SDL_GetBasePath()` returns a string SDL owns**; SDL2's was the caller's to
+  free. `filesystem_getSource()` keeps its own copy because
+  `filesystem_setSource()` `free()`s what is there.
+- **Window events are their own event types now** (`SDL_EVENT_WINDOW_*`)
+  rather than one `SDL_WINDOWEVENT` with a sub-field, and a key event carries
+  `event.key.key` rather than `event.key.keysym.sym`.
+- **`SDL_CreateWindow()` takes no position** — set it afterwards with
+  `SDL_SetWindowPosition()`. Fullscreen split in two: a `bool` for whether,
+  and `SDL_SetWindowFullscreenMode()` for which kind (`NULL` = the borderless
+  desktop one).
+- `SDL_oldnames.h` in SDL3's includes is the full rename table, and the
+  compiler points at it by name (`SDL_AtomicGet_renamed_SDL_GetAtomicInt`),
+  which is what makes a re-sync mostly mechanical.
 
-What blocks simply taking upstream is that **mojoAL has moved to SDL3**
-(`SDL_PutAudioStreamData` and friends) while CLove vendors SDL 2.32.10. So
-the upgrade is an SDL3 port of the engine, not a file copy. When that
-happens, delete this patch — do not merge it.
+**One upstream mojoAL bug CLove works around rather than patching.**
+`source_set_offset()` reads `AL_SEC_OFFSET` as `((int) value) * freq *
+framesize` — it truncates the seconds to a whole number *before* scaling, so
+any seek inside the first second lands on zero and 1.75s lands on 1s.
+`audio_StaticSource_seek()` therefore converts seconds to samples itself and
+sets `AL_SAMPLE_OFFSET`, which has no such problem (samples are whole numbers)
+and is the more precise thing to ask for anyway. `tests/fh/test_audio_wav.fh`
+fails if that is undone. Do not patch the vendored mojoAL to fix it — report
+it upstream; the whole point of this upgrade was to stop carrying a patch.
 
-One thing the patch does *not* copy from upstream: their streaming getter
-assumes every queued buffer is the same length
-(`processed * buffer->len + offset`). CLove counts each buffer's real size as
-it is unqueued, in `audio_StreamSource`'s `samplesPlayed`, which is where the
-decoder lives anyway.
-
-One upstream quirk the patch does **not** change: `alGetBufferi(AL_SIZE)`
-reports mojoAL's float32 length while `AL_BITS` reports the source file's
-depth, so the two do not divide into each other. That is why
-`audio_StaticSource_getDuration()` takes the length from the decoders
-(`audio_wav_load` / `audio_vorbis_load` report it) instead of asking OpenAL.
+**The web build is not ported.** `build_web.sh` hand-lists its sources, and
+that list had already drifted so far from the tree that it could not have
+built (it compiles `src/main.cpp`, which does not exist, and knows nothing
+about `src/fhapi` or FH). It also asks emscripten for SDL2; the SDL3 port
+there is `--use-port=sdl3`, a different flag. The script carries a comment
+saying all of this rather than a one-line flag change that would look ported
+and would not be. Rebuilding it on top of `emcmake` and the real CMake build
+is the fix.
 
 ## Asynchronous loading
 
@@ -307,8 +324,9 @@ on a 2.9 MB, 1029-path cairo drawing it is ~5% of the rasterization time.
 
 - **macOS shutdown (fixed):** the bundled SDL 2.0.8 CoreAudio backend used to
   block ~15s closing the audio device at exit (`mojoAL alcCloseDevice` → SDL,
-  and via `SDL_Quit`). This was fixed by upgrading the vendored SDL to
-  2.32.10 (see `CHANGELOG.md`); `clove_finish()` in `fh_mainactivity.c` now
+  and via `SDL_Quit`). This was fixed by upgrading the vendored SDL, first to
+  2.32.10 and now to 3.4.16 (see `CHANGELOG.md`); `clove_finish()` in
+  `fh_mainactivity.c` now
   runs the same full teardown (`audio_close()` before `graphics_shutdown()`'s
   `SDL_Quit()`) on every platform, with no `__APPLE__`-specific early exit.
 - Build artifacts (`/build/`, `/cmake-build-*/`) and the local `glew-old/`

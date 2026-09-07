@@ -15,7 +15,7 @@
 #include "../3rdparty/lua/lua.h"
 #include "../3rdparty/lua/lauxlib.h"
 #include "../3rdparty/lua/lualib.h"
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 #include "../3rdparty/microtar/microtar.h"
 
 #include "../luaapi/audio.h"

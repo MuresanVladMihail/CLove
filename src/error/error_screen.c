@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 
 #include "../include/canvas.h"
 #include "../include/font.h"
@@ -153,16 +153,16 @@ bool error_screen_show(const char *message) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
-            case SDL_QUIT:
+            case SDL_EVENT_QUIT:
                 running = false;
                 break;
-            case SDL_KEYDOWN:
-                switch (event.key.keysym.sym) {
+            case SDL_EVENT_KEY_DOWN:
+                switch (event.key.key) {
                 case SDLK_ESCAPE:
-                case SDLK_q:
+                case SDLK_Q:
                     running = false;
                     break;
-                case SDLK_c:
+                case SDLK_C:
                     system_setClipboardText(message);
                     copied = true;
                     break;
@@ -177,14 +177,12 @@ bool error_screen_show(const char *message) {
                     break;
                 }
                 break;
-            case SDL_MOUSEWHEEL:
+            case SDL_EVENT_MOUSE_WHEEL:
                 scroll -= event.wheel.y * 32;
                 if (scroll < 0) { scroll = 0; }
                 break;
-            case SDL_WINDOWEVENT:
-                if (event.window.event == SDL_WINDOWEVENT_CLOSE) {
-                    running = false;
-                }
+            case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+                running = false;
                 break;
             default:
                 break;

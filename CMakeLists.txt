@@ -9,7 +9,13 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(clove C CXX)
+# SDL3's macOS backends are Objective-C, so OBJC has to be one of the project's
+# languages or CMake cannot generate rules for them.
+if(APPLE)
+    project(clove C CXX OBJC)
+else()
+    project(clove C CXX)
+endif()
 
 # ----------------------------------------------------------------------------
 # Options
@@ -34,7 +40,7 @@ endif()
 if(USE_LUA)
     add_compile_definitions(USE_LUA=ON)
 endif()
-add_compile_definitions(SDL2 FT2_BUILD_LIBRARY)
+add_compile_definitions(SDL3 FT2_BUILD_LIBRARY)
 
 # ----------------------------------------------------------------------------
 # Platform-specific compiler / linker setup
@@ -64,9 +70,9 @@ elseif(APPLE)
     find_library(FOUNDATION_LIB    Foundation)
     find_library(IOKIT_LIB         IOKit)
 
-    # SDL 2.32+ requires a deployment target of at least 10.7; 10.6 fails its
-    # SDL_platform.h guard. 10.11 is a safe modern floor for current toolchains.
-    set(MTCL_BUILD_FLAGS "-mmacosx-version-min=10.11")
+    # SDL3 wants a deployment target of at least 10.13; 10.11 is what the SDL2
+    # build used and no longer passes its platform guard.
+    set(MTCL_BUILD_FLAGS "-mmacosx-version-min=10.13")
     set(CMAKE_C_FLAGS         "${CMAKE_C_FLAGS} ${MTCL_BUILD_FLAGS} -Wall -Wvla -O3 -DOSX")
     set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} ${MTCL_BUILD_FLAGS} -D__Debug__ -g3")
     set(CMAKE_CXX_FLAGS       "${CMAKE_CXX_FLAGS} ${MTCL_BUILD_FLAGS} -O3 -DOSX")
@@ -174,14 +180,23 @@ set(FREETYPE_LIBRARIES freetype)
 add_subdirectory(src/3rdparty/glew/build/cmake)
 set(GLEW_LIBRARIES glew_s)
 
-# SDL2 — link statically; force the static target on and skip the shared lib
-# and tests so SDL exposes the SDL2-static / SDL2main targets.
+# SDL3 — link statically; force the static target on and skip the shared lib,
+# the test library and the examples so SDL exposes just SDL3-static.
+# SDL3 has no SDLmain library: SDL_main.h is header-only now, and CLove does
+# not use it (src/main.c defines a plain main()).
 set(SDL_SHARED        OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC        ON  CACHE BOOL "" FORCE)
-set(SDL_TEST          OFF CACHE BOOL "" FORCE)
-set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
-add_subdirectory(src/3rdparty/SDL2)
-set(SDL_LIBRARIES SDL2-static SDL2main)
+set(SDL_TEST_LIBRARY  OFF CACHE BOOL "" FORCE)
+set(SDL_EXAMPLES      OFF CACHE BOOL "" FORCE)
+set(SDL_INSTALL       OFF CACHE BOOL "" FORCE)
+add_subdirectory(src/3rdparty/SDL3)
+set(SDL_LIBRARIES SDL3-static)
+# The static `love` library compiles SDL-using sources without linking SDL, and
+# mojoAL includes <SDL3/SDL.h> by that name, so the headers go on the global
+# include path the same way freetype's and box2d's do.
+include_directories(src/3rdparty/SDL3/include)
+# mojoAL includes its own "al.h" / "alc.h" unqualified.
+include_directories(src/3rdparty/mojoAL/AL)
 
 if(USE_LUA)
     add_subdirectory(src/3rdparty/lua)

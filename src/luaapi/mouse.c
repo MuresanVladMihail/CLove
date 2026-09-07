@@ -13,7 +13,7 @@
 
 #include "../include/mouse.h"
 
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 
 
 static struct {

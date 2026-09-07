@@ -9,7 +9,7 @@
 #ifndef __clove_thread_
 #define __clove_thread_
 
-#include "../3rdparty/SDL2/include/SDL.h"
+#include "../3rdparty/SDL3/include/SDL3/SDL.h"
 
 SDL_Thread* createThread(int (SDLCALL * fn) (void *), const char* name, void *data);
 

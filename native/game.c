@@ -7,7 +7,7 @@
 */
 #include "game.h"
 
-#include "../src/3rdparty/SDL2/include/SDL.h"
+#include "../src/3rdparty/SDL3/include/SDL3/SDL.h"
 #include <stdio.h>
 
 #include <stdbool.h>
