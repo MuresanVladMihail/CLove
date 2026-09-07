@@ -21,4 +21,6 @@ typedef struct {
     graphics_Image *img;
 } fh_image_t;
 
+fh_c_obj_gc_callback fh_image_freeCallback(fh_image_t *data);
+
 void fh_image_register(struct fh_program *prog);

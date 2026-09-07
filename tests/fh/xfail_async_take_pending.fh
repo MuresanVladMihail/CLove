@@ -1,0 +1,15 @@
+# Taking a job that has not finished is an error, not a wait.
+#
+# The queue is filled first and the *last* job is the one taken: a worker
+# cannot have reached it yet, whatever the machine is doing, so this fails for
+# the reason it says rather than by a lucky race.
+fn love_load() {
+    let last = 0;
+    for (let i = 0; i < 200; i++) {
+        last = love_asset_loadImage("assets/async_a.png");
+    }
+    love_asset_take(last);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

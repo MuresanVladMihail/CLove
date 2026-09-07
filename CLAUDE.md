@@ -63,6 +63,7 @@ src/
                        Lua mirror: luaapi/
   graphics/            OpenGL rendering: window/context, batch, font, canvas,
                        shader, mesh, quad, particlesystem, geometry, image, svg
+  asset/               the worker-thread image loader behind love.asset
   audio/               OpenAL (via mojoAL/SDL) static + streaming sources
   image/               CPU-side image data (pixel get/set, load/save)
   math/                vectors, matrices, random, noise, triangulation
@@ -196,6 +197,25 @@ reports mojoAL's float32 length while `AL_BITS` reports the source file's
 depth, so the two do not divide into each other. That is why
 `audio_StaticSource_getDuration()` takes the length from the decoders
 (`audio_wav_load` / `audio_vorbis_load` report it) instead of asking OpenAL.
+
+## Asynchronous loading
+
+`src/asset/asyncload.c` is an SDL_Thread pool that decodes images off the main
+thread; `src/fhapi/asset.c` is `love.asset` on top of it. Two invariants:
+
+- **The GL upload stays on the main thread.** A worker produces an
+  `image_ImageData` — pixels in memory — and `love_asset_take()` turns that
+  into a `graphics_Image`. A GL context belongs to one thread.
+- **A `Job *` is only valid while the lock is held.** The job array is one
+  contiguous block that `asyncload_requestImage()` reallocs as it grows, so a
+  worker that unlocks and decodes must re-find its job by id afterwards
+  (`findJob`), never keep the pointer. That is what the comment in
+  `worker_main()` is about.
+
+Vector art is refused on purpose: `src/graphics/svg.c` keeps one shared
+`NSVGrasterizer`. `image_ImageData` grew an `ownsPath` flag for this — the
+worker's copy of the path outlives the worker, so the ImageData frees it,
+while the four ordinary constructors keep borrowing the caller's string.
 
 ## Writing bindings (conventions)
 

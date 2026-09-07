@@ -60,6 +60,8 @@ variables:
 
   clove_system: 'love_system_getProcessorCount|love_system_getClipboardText|love_system_setClipboardText|love_system_getPowerInfo|love_system_getOS'
 
+  clove_asset: 'love_asset_loadImage|love_asset_pending|love_asset_status|love_asset_take'
+
   clove_ui: 'love_ui_getContainerContentSize|love_ui_layout_begin_column|love_ui_getContainerScroll|love_ui_setContainerScroll|love_ui_layout_end_column|love_ui_capturesKeyboard|love_ui_getContainerInfo|love_ui_setContainerInfo|love_ui_layout_setNext|love_ui_clear_textbox|love_ui_layout_height|love_ui_setWindowOpen|love_ui_setWindowRect|love_ui_begin_window|love_ui_bringToFront|love_ui_control_text|love_ui_layout_width|love_ui_newContainer|love_ui_begin_panel|love_ui_begin_popup|love_ui_layout_next|love_ui_begin_tree|love_ui_end_window|love_ui_layout_row|love_ui_mouse_over|love_ui_open_popup|love_ui_popup_open|love_ui_end_panel|love_ui_end_popup|love_ui_res_state|love_ui_checkbox|love_ui_end_tree|love_ui_getColor|love_ui_hasFocus|love_ui_setColor|love_ui_setFocus|love_ui_hovered|love_ui_last_id|love_ui_textbox|love_ui_button|love_ui_header|love_ui_number|love_ui_pushId|love_ui_slider|love_ui_align|love_ui_begin|love_ui_label|love_ui_popId|love_ui_rect|love_ui_text|love_ui_end|love_ui_opt'
 
   clove_event: 'love_event_reload|love_event_quit'
@@ -100,7 +102,7 @@ variables:
 
   clove_callback: 'love_joystickreleased|love_joystickpressed|love_mousereleased|love_mousepressed|love_keyreleased|love_keypressed|love_mousefocus|love_wheelmoved|love_textinput|love_config|love_resize|love_update|love_focus|love_draw|love_load|love_quit'
 
-  clove_api: '{{clove_graphics}}|{{clove_geometry}}|{{clove_image}}|{{clove_quad}}|{{clove_font}}|{{clove_mesh}}|{{clove_shader}}|{{clove_particlesystem}}|{{clove_canvas}}|{{clove_window}}|{{clove_audio}}|{{clove_keyboard}}|{{clove_mouse}}|{{clove_joystick}}|{{clove_timer}}|{{clove_math}}|{{clove_tween}}|{{clove_filesystem}}|{{clove_system}}|{{clove_ui}}|{{clove_event}}|{{clove_physics}}|{{clove_world}}|{{clove_body}}|{{clove_shape}}|{{clove_fixture}}|{{clove_contact}}|{{clove_joint}}|{{clove_distancejoint}}|{{clove_frictionjoint}}|{{clove_motorjoint}}|{{clove_mousejoint}}|{{clove_prismaticjoint}}|{{clove_revolutejoint}}|{{clove_ropejoint}}|{{clove_weldjoint}}|{{clove_wheeljoint}}|{{clove_misc}}'
+  clove_api: '{{clove_graphics}}|{{clove_geometry}}|{{clove_image}}|{{clove_quad}}|{{clove_font}}|{{clove_mesh}}|{{clove_shader}}|{{clove_particlesystem}}|{{clove_canvas}}|{{clove_window}}|{{clove_audio}}|{{clove_keyboard}}|{{clove_mouse}}|{{clove_joystick}}|{{clove_timer}}|{{clove_math}}|{{clove_tween}}|{{clove_filesystem}}|{{clove_system}}|{{clove_asset}}|{{clove_ui}}|{{clove_event}}|{{clove_physics}}|{{clove_world}}|{{clove_body}}|{{clove_shape}}|{{clove_fixture}}|{{clove_contact}}|{{clove_joint}}|{{clove_distancejoint}}|{{clove_frictionjoint}}|{{clove_motorjoint}}|{{clove_mousejoint}}|{{clove_prismaticjoint}}|{{clove_revolutejoint}}|{{clove_ropejoint}}|{{clove_weldjoint}}|{{clove_wheeljoint}}|{{clove_misc}}'
   # >>> END GENERATED <<<
 
 contexts:

@@ -14,7 +14,9 @@
 
 #include "../3rdparty/FH/src/value.h"
 
-static fh_c_obj_gc_callback onFreeCallback(fh_image_t *data) {
+/* Shared with src/fhapi/asset.c, which builds the same fh_image_t from an
+ * ImageData a worker thread decoded. */
+fh_c_obj_gc_callback fh_image_freeCallback(fh_image_t *data) {
     graphics_Image_free(data->img);
     // data->data is NULL after newImage() adopts an existing ImageData
     // c_obj (ownership moves here - see below); nothing left to free then.
@@ -39,8 +41,8 @@ static fh_c_obj_gc_callback imageDataFreeCallback(image_ImageData *data) {
 
 static int fn_love_graphics_newImageData(struct fh_program *prog,
                                          struct fh_value *ret, struct fh_value *args, int n_args) {
-    if (n_args == 0)
-        return fh_set_error(prog, "Expected width & height");
+    if (n_args != 2)
+        return fh_set_error(prog, "love_graphics_newImageData(): expected 2 arguments (width, height), got %d", n_args);
 
     if (!fh_is_number(&args[0]) || !fh_is_number(&args[1]))
         return fh_set_error(prog, "Expected width & height");
@@ -100,7 +102,7 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
         image_ImageData *data = fh_get_c_obj_value(&args[0]);
         img->data = data;
         graphics_Image_new_with_ImageData(img->img, data);
-        // Ownership of `data` moves to the new Image (onFreeCallback above
+        // Ownership of `data` moves to the new Image (fh_image_freeCallback above
         // frees img->data). Null out the source c_obj's pointer so its own
         // free callback (imageDataFreeCallback) becomes a no-op instead of
         // double-freeing the same image_ImageData when it's GC'd too.
@@ -113,7 +115,7 @@ static int fn_love_graphics_newImage(struct fh_program *prog,
         return fh_set_error(prog, "Expected image data or path to image");
     }
 
-    fh_c_obj_gc_callback *onFree = onFreeCallback;
+    fh_c_obj_gc_callback *onFree = fh_image_freeCallback;
     *ret = fh_new_c_obj(prog, img, onFree, FH_IMAGE_TYPE);
     return 0;
 }

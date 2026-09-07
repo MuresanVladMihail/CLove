@@ -31,7 +31,7 @@ END = '  # >>> END GENERATED <<<'
 # Areas in the order they appear in the generated `clove_api` variable.
 AREA_ORDER = ['graphics', 'geometry', 'image', 'quad', 'font', 'mesh', 'shader',
               'particleSystem', 'canvas', 'window', 'audio', 'keyboard', 'mouse', 'joystick',
-              'timer', 'math', 'tween', 'filesystem', 'system', 'ui', 'event',
+              'timer', 'math', 'tween', 'filesystem', 'system', 'asset', 'ui', 'event',
               # love.physics: the world, the objects in it, and every joint kind
               'physics', 'world', 'body', 'shape', 'fixture', 'contact', 'joint',
               'distancejoint', 'frictionjoint', 'motorjoint', 'mousejoint',

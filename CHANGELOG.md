@@ -53,6 +53,21 @@ version 0.8.0 not yet released
 * added: love_image_save(imageData, path), writing a PNG.
 	image_ImageData_save() has been in the engine since the module existed and
 	nothing exposed it.
+* added: love.asset -- loading an image off the main thread.
+	love_asset_loadImage(path) queues a decode on a worker pool (one thread
+	per core bar one, at most eight) and returns a job handle in microseconds;
+	love_asset_status(job) reports "pending"/"ready"/"failed"/"unknown" and
+	love_asset_take(job) does the GL upload -- the only part that has to be on
+	the thread that owns the context -- and hands back an ordinary Image.
+	love_asset_pending() counts what is still in flight. Eight 1536x1536 PNGs
+	measured 62 ms in a single frame through love_graphics_newImage(); through
+	love.asset the worst frame was 19 ms and nothing else changed.
+	opt/examples/fh/async draws the frame-time graph of both. Vector art is
+	deliberately refused: src/graphics/svg.c keeps one shared rasterizer, and
+	an SVG is about a millisecond anyway.
+* fixed: love_graphics_newImageData() read args[1] after checking only that it
+	had been given *some* argument -- an out-of-bounds read on the argument
+	array for every one-argument call.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

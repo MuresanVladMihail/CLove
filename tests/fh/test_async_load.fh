@@ -1,0 +1,71 @@
+# love.asset: decoding an image on a worker thread.
+#
+# Decoding a 2048x2048 PNG measures 15-17 ms -- a whole frame at 60 Hz -- so a
+# level that pulls in twenty of them stalls for a third of a second. The decode
+# goes to a worker; the GL upload stays on this thread, in take(), because a GL
+# context belongs to one thread.
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+let T = {"n": 0, "jobs": [], "imgs": [], "queuedAt": 0.0};
+
+fn love_load() {
+    # Queueing must not block: that is the whole point.
+    T.queuedAt = love_timer_getTime();
+    append(T.jobs, love_asset_loadImage("assets/async_a.png"));
+    append(T.jobs, love_asset_loadImage("assets/async_b.png"));
+    let queueCost = love_timer_getTime() - T.queuedAt;
+
+    check(queueCost < 0.005, "queueing should return at once, took " + queueCost + "s");
+    check(T.jobs[0] > 0 && T.jobs[1] > 0, "each request gives a job handle");
+    check(T.jobs[0] != T.jobs[1], "and the handles are distinct");
+
+    # A job that was never issued is unknown, not pending.
+    check(love_asset_status(99999) == "unknown", "an unknown handle says so");
+
+    return T;
+}
+
+fn love_update(dt, self) {
+    T.n++;
+
+    for (let i = 0; i < len(T.jobs); i++) {
+        if (T.jobs[i] == 0) { continue; }
+
+        let s = love_asset_status(T.jobs[i]);
+        check(s == "pending" || s == "ready", "a live job is pending or ready, got " + s);
+
+        if (s == "ready") {
+            let img = love_asset_take(T.jobs[i]);
+            check(img != null, "take() hands back an image");
+            check(love_image_getWidth(img) == 64, "with the right width");
+            check(love_image_getHeight(img) == 64, "and height");
+
+            # Taking it again is an error, not a second image.
+            check(love_asset_status(T.jobs[i]) == "unknown", "a taken job is gone");
+
+            append(T.imgs, img);
+            T.jobs[i] = 0;
+        }
+    }
+
+    if (len(T.imgs) == 2) {
+        check(love_asset_pending() == 0, "nothing is left pending");
+
+        # The pixels really came through, not just the dimensions: async_b is a
+        # red and black checker with an 8px cell, so (0,0) is black and (8,0) red.
+        let b = T.imgs[1];
+        let p1 = love_image_getPixel(b, 2, 2);
+        let p2 = love_image_getPixel(b, 10, 2);
+        check(p1[0] < 60 && p2[0] > 200, "the decoded pixels are the ones in the file");
+
+        println("CLOVE_TEST_OK");
+        love_event_quit();
+    }
+
+    if (T.n > 600) { error("the workers never finished"); }
+}
+
+fn love_draw(self) {}
+
+fn main() {}

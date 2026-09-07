@@ -1,0 +1,9 @@
+# love_graphics_newImageData(w, h) used to check only that it had *some*
+# argument and then read args[1] -- an out-of-bounds read on the argument
+# array whenever it was called with one.
+fn love_load() {
+    love_graphics_newImageData(64);
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}
