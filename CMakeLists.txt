@@ -111,6 +111,7 @@ endif()
 # ----------------------------------------------------------------------------
 file(GLOB SOURCE_FILES CONFIGURE_DEPENDS
     src/*.c               src/*.h
+    src/asset/*.c         src/asset/*.h
     src/audio/*.c         src/audio/*.h
     src/filesystem/*.c    src/filesystem/*.h
     src/graphics/*.c      src/graphics/*.h

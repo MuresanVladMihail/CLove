@@ -620,6 +620,63 @@ from the module's own scale/rotation state rather than composing into it (see
 translate by the offset divided by the scale. `opt/examples/fh/editor` builds
 its camera that way.
 
+## Asynchronous loading — `src/fhapi/asset.c`
+
+Decoding a PNG is pure CPU work on a file: it needs no GPU and no reason to
+happen between two frames. `love_graphics_newImage()` does it anyway, on the
+thread that is drawing — a 1536×1536 texture measures about 8 ms here, so
+eight of them is four dropped frames and a level's worth is a visible freeze.
+
+`love.asset` hands the decode to a pool of worker threads and gives you a job
+handle back immediately.
+
+| Call | What it does |
+| --- | --- |
+| `love_asset_loadImage(path)` → job | Queues a raster image. Returns at once (microseconds). |
+| `love_asset_status(job)` → string | `"pending"`, `"ready"`, `"failed"`, or `"unknown"` (never issued, or already taken). |
+| `love_asset_take(job)` → Image | Uploads the decoded pixels and hands back an ordinary Image. The job is then gone. |
+| `love_asset_pending()` → number | How many jobs are still queued or running. |
+
+```fh
+fn love_load() {
+    let self = {"job": love_asset_loadImage("level/bg.png"), "bg": null};
+    return self;                       # the frame is not delayed at all
+}
+
+fn love_update(dt, self) {
+    if (self.job != 0 && love_asset_status(self.job) == "ready") {
+        self.bg = love_asset_take(self.job);
+        self.job = 0;
+    }
+}
+```
+
+Things worth knowing:
+
+- **`take()` is the only part on your thread**, because a GL context belongs
+  to one thread. It is the cheap half — but a texture upload is not free, so
+  when many jobs land at once, spend a fixed slice of the frame taking them
+  and leave the rest for the next one. `opt/examples/fh/async` does exactly
+  that, in six lines.
+- **`take()` on a job that is not ready is an error**, not a wait — check
+  `love_asset_status()` first. So is taking one twice: after a `take()` the
+  handle reads `"unknown"`.
+- **A failed job stays `"failed"`** until you take it, and `love_asset_take()`
+  then raises an error naming the file. A missing path fails the same way a
+  missing path fails in `love_graphics_newImage()`, only later.
+- **Vector art is refused.** `love_asset_loadImage("x.svg")` raises an error:
+  `src/graphics/svg.c` keeps one shared `NSVGrasterizer`, so two workers
+  rasterizing at once would corrupt it — and an SVG measures about a
+  millisecond, so there is nothing to win. Load `.svg` with
+  `love_graphics_newImage()`.
+- **The pool sizes itself** from `love_system_getProcessorCount()` minus one
+  (at most eight), so the frame still gets a core.
+- **Audio is not in this yet.** A streaming source already decodes as it
+  plays, which is the same idea by another route; a static source still loads
+  on the main thread.
+- Shutting the game down with jobs in flight is fine: the workers are joined
+  and anything nobody collected is freed.
+
 ## System — `src/fhapi/system.c`
 
 `love_system_getOS()`, `love_system_getProcessorCount()`,

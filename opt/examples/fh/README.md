@@ -34,6 +34,7 @@ Roughly in the order they are worth reading.
 | [`window`](window) | resizing, fullscreen, borderless, vsync, position — and `love_resize`, which is the only way to be *told* the window changed |
 | [`tweens`](tweens) | `love.tween`: all 31 easings drawn as curves, chained steps, delays, looping and yoyo |
 | [`batch`](batch) | sprite batches: 100 000 sprites filled once, refilled every frame, or drawn one at a time — with the frame rate of each |
+| [`async`](async) | `love.asset`: eight large PNGs loaded the blocking way and through a worker pool, with the frame-time graph of each |
 | [`canvas`](canvas) | render-to-texture: draw once into a canvas, then draw the canvas |
 | [`particles`](particles) | particle systems: five presets covering the emission areas, the size and colour curves, spin, and `moveTo` for trails |
 | [`shaders`](shaders) | GLSL through LÖVE's `position`/`effect` pair, `extern` uniforms, and `love_shader_send` |

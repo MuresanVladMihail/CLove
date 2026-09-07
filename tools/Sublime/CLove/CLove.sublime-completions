@@ -178,6 +178,50 @@
       "details": "j is the array [id, button]"
     },
     {
+      "trigger": "love_asset_loadImage",
+      "contents": "love_asset_loadImage($0)",
+      "annotation": "asset",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/asset.c"
+    },
+    {
+      "trigger": "love_asset_pending",
+      "contents": "love_asset_pending($0)",
+      "annotation": "asset",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/asset.c"
+    },
+    {
+      "trigger": "love_asset_status",
+      "contents": "love_asset_status($0)",
+      "annotation": "asset",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/asset.c"
+    },
+    {
+      "trigger": "love_asset_take",
+      "contents": "love_asset_take($0)",
+      "annotation": "asset",
+      "kind": [
+        "function",
+        "f",
+        "CLove API"
+      ],
+      "details": "src/fhapi/asset.c"
+    },
+    {
       "trigger": "love_audio_getDuration",
       "contents": "love_audio_getDuration($0)",
       "annotation": "audio",

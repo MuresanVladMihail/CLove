@@ -1,0 +1,10 @@
+# Vector art cannot go to a worker: src/graphics/svg.c keeps one shared
+# NSVGrasterizer, so two workers rasterizing at once would corrupt it -- and an
+# SVG measures about a millisecond, so there is nothing to win. Saying so beats
+# quietly handing back a broken image.
+fn love_load() {
+    love_asset_loadImage("assets/vector.svg");
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+fn main() {}

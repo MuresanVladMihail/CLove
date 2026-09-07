@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#include <stdbool.h>
+
 #include "svg.h"
 
 typedef struct {
@@ -22,7 +24,12 @@ typedef struct {
     int x;
     int y;
     unsigned int c;
+    /* Normally borrowed from the caller. The async loader decodes on a worker
+     * thread, where the caller's string is gone by the time anyone reads it,
+     * so it hands over a copy and sets ownsPath -- and only then does
+     * image_ImageData_free() release it. */
     const char *path;
+    bool ownsPath;
     unsigned char *surface;
     pixel *pixels;
     /* Vector art only (see image_ImageData_new_with_svg): the drawing the

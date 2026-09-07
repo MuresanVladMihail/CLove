@@ -36,6 +36,7 @@
 #include "fhapi/ui.h"
 #include "fhapi/tween.h"
 #include "fhapi/system.h"
+#include "fhapi/asset.h"
 #include "fhapi/graphics_canvas.h"
 #include "fhapi/config.h"
 #include "fhapi/physics.h"
@@ -43,6 +44,7 @@
 #include "include/batch.h"
 #include "include/geometry.h"
 #include "include/ui.h"
+#include "include/asyncload.h"
 
 #include "../native/game.h"
 
@@ -132,6 +134,11 @@ static void focus_callback(char const *name, bool focused) {
  * fixed that.)
  */
 static int clove_finish(int exit_code) {
+    /* Before the VM: a worker still decoding holds an image_ImageData that
+     * nobody has collected, and joining first means nothing is being written
+     * while the rest of this tears down. */
+    asyncload_shutdown();
+
     fh_deinit(loopData.prog);
     joystick_close();
     ui_deinit();
@@ -390,6 +397,11 @@ int fh_main_activity_load(int argc, char *argv[]) {
     fh_ui_register(loopData.prog);
     fh_tween_register(loopData.prog);
     fh_system_register(loopData.prog);
+    fh_asset_register(loopData.prog);
+
+    /* The workers are the whole point of love.asset; start them once the
+     * engine is up, and let clove_finish() join them. */
+    asyncload_init(0);
     fh_graphics_canvas_register(loopData.prog);
     fh_physics_register(loopData.prog);
     fh_love_register(loopData.prog);

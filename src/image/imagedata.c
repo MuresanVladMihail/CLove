@@ -19,6 +19,7 @@
 #include "../include/svg.h"
 
 void image_ImageData_new_with_filename(image_ImageData *dst, char const *filename) {
+  dst->ownsPath = false;
   dst->svg = NULL;
   dst->svg_scale = 1.0f;
 
@@ -42,6 +43,7 @@ void image_ImageData_new_with_filename(image_ImageData *dst, char const *filenam
 }
 
 void image_ImageData_new_with_svg(image_ImageData *dst, char const *filename, float scale) {
+  dst->ownsPath = false;
   dst->w = 0;
   dst->h = 0;
   dst->c = 4; /* the rasterizer always produces straight RGBA */
@@ -116,6 +118,7 @@ void image_ImageData_new_with_size(image_ImageData *dst, int width, int height, 
   dst->h = height;
   dst->c = num_channels;
   dst->path = "";
+  dst->ownsPath = false;
   dst->svg = NULL;
   dst->svg_scale = 1.0f;
   memset(dst->surface, 255, sizeof(unsigned char) * width * height * num_channels);
@@ -131,6 +134,7 @@ void image_ImageData_new_with_surface(image_ImageData *dst, unsigned char *surfa
   dst->h = height;
   dst->c = num_channels;
   dst->path = "";
+  dst->ownsPath = false;
   dst->svg = NULL;
   dst->svg_scale = 1.0f;
   dst->pixels = (pixel *) dst->surface;
@@ -204,6 +208,12 @@ const char *image_error(void) {
 }
 
 void image_ImageData_free(image_ImageData *data) {
+  if (data->ownsPath) {
+    free((char *) data->path);
+    data->ownsPath = false;
+  }
+  data->path = NULL;
+
   stbi_image_free(data->surface);
   data->surface = NULL;
   data->pixels = NULL;
