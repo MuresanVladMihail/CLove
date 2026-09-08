@@ -25,9 +25,13 @@
 #
 #  A scene is read once and not watched: reload it yourself if the file
 #  changes underneath you.
+#
+#  Version 2 documents also carry a tile map -- the spritesheets the level was
+#  painted from and the cells painted out of them. Version 1 ones do not, and
+#  read back as a map with no sheets and no cells rather than as an error.
 # ============================================================================
 
-let SCENE_SUPPORTED_VERSION = 1;
+let SCENE_SUPPORTED_VERSION = 2;
 
 # ---------------------------------------------------------------------------
 #  Scene(source)
@@ -137,6 +141,18 @@ fn Scene(source) {
 		if (!contains_key(e.sprite, "path")) { return null; }
 		if (len(e.sprite.path) == 0) { return null; }
 		return e.sprite.path;
+	};
+
+	# The rectangle of that image the entity actually draws, [x, y, w, h], when
+	# its artwork is one tile of a spritesheet -- null when it is the whole
+	# file. Turn it into something drawable with love_graphics_newQuad(x, y, w,
+	# h, image width, image height) and pass that to love_graphics_draw()
+	# before the position.
+	scene.sprite_quad = fn(e) {
+		if (e.sprite == null) { return null; }
+		if (!contains_key(e.sprite, "quad")) { return null; }
+		if (e.sprite.quad == null || len(e.sprite.quad) != 4) { return null; }
+		return e.sprite.quad;
 	};
 
 	scene.groups = fn(e) {
@@ -275,6 +291,247 @@ fn Scene(source) {
 		let all = scene.joints();
 		for (let i = 0; i < len(all); i++) {
 			if (all[i].a == e.id || all[i].b == e.id) { append(out, all[i]); }
+		}
+		return out;
+	};
+
+
+	# --- the tile map -------------------------------------------------
+	#
+	#  A level's ground, painted rather than placed: the sheets it was painted
+	#  from, and the cells. A cell is [tileset id, column, row] -- where the
+	#  tile is *in the sheet*, so nothing here depends on how wide the image
+	#  file happens to be.
+	#
+	#  Drawing one, in outline:
+	#
+	#      let size = scene.tile_size();
+	#      let sheets = {};
+	#      for (let i = 0; i < len(scene.tilesets()); i++) {
+	#          let ts = scene.tilesets()[i];
+	#          sheets["" + ts.id] = love_graphics_newImage(ts.path);
+	#      }
+	#      let cells = scene.tile_cells(layer);
+	#      for (let i = 0; i < len(cells); i++) {
+	#          let c = cells[i];
+	#          let ts = scene.tileset(c[2]);
+	#          let src = scene.tile_source(ts, c[3], c[4]);
+	#          let img = sheets["" + ts.id];
+	#          let quad = love_graphics_newQuad(src[0], src[1], src[2], src[3],
+	#              love_image_getWidth(img), love_image_getHeight(img));
+	#          love_graphics_draw(img, quad, c[0] * size[0], c[1] * size[1]);
+	#      }
+	#
+	#  Build the quads once, not per frame -- and a love_graphics_newBatch()
+	#  is what you want for a map of any size.
+
+	scene.tilemap = fn() {
+		if (!contains_key(doc, "tilemap")) {
+			return { "tile_w": 32, "tile_h": 32, "layers": [] };
+		}
+		return doc.tilemap;
+	};
+
+	# [width, height] of one cell, in world units. A sheet whose tiles are a
+	# different size is scaled onto it, which is what the editor draws.
+	scene.tile_size = fn() {
+		let m = scene.tilemap();
+		return [m.tile_w, m.tile_h];
+	};
+
+	scene.tilesets = fn() {
+		if (!contains_key(doc, "tilesets")) { return []; }
+		return doc.tilesets;
+	};
+
+	scene.tileset = fn(id) {
+		let sets = scene.tilesets();
+		for (let i = 0; i < len(sets); i++) {
+			if (sets[i].id == id) { return sets[i]; }
+		}
+		return null;
+	};
+
+	# Where a tile sits in its sheet, in pixels: [x, y, w, h]. The same
+	# arithmetic the editor draws with, and the reason a cell can name a
+	# column and a row instead of an index.
+	scene.tile_source = fn(ts, tx, ty) {
+		let margin = 0;
+		let spacing = 0;
+		if (contains_key(ts, "margin")) { margin = ts.margin; }
+		if (contains_key(ts, "spacing")) { spacing = ts.spacing; }
+		return [margin + tx * (ts.tile_w + spacing),
+		        margin + ty * (ts.tile_h + spacing),
+		        ts.tile_w, ts.tile_h];
+	};
+
+	# Whether a tile of a sheet collides wherever it is painted. The flag is a
+	# property of the picture rather than of any one cell: stone is stone in
+	# every level. A sheet written before the flag existed reads as none.
+	scene.tile_is_solid = fn(ts, tx, ty) {
+		if (ts == null || !contains_key(ts, "solid")) { return false; }
+		return contains_key(ts.solid, "" + tx + "," + ty);
+	};
+
+	# Back first: the layers are in draw order, the way the entities are.
+	scene.tile_layers = fn() {
+		let m = scene.tilemap();
+		if (!contains_key(m, "layers")) { return []; }
+		return m.layers;
+	};
+
+	scene.tile_layer = fn(name) {
+		let layers = scene.tile_layers();
+		for (let i = 0; i < len(layers); i++) {
+			if (layers[i].name == name) { return layers[i]; }
+		}
+		return null;
+	};
+
+	# Every painted cell of a layer, as [column, row, tileset id, tile column,
+	# tile row]. An array rather than the document's map, because the map is
+	# keyed by "column,row" as text and unpacking that is this package's job,
+	# not the caller's. Unordered -- a map has no order to give.
+	scene.tile_cells = fn(layer) {
+		let out = [];
+		if (layer == null || !contains_key(layer, "cells")) { return out; }
+
+		let k = next_key(layer.cells, null);
+		while (k != null) {
+			let parts = string_split(k, ",");
+			if (len(parts) == 2) {
+				let cell = layer.cells[k];
+				append(out, [tonumber(parts[0]), tonumber(parts[1]),
+				             cell[0], cell[1], cell[2]]);
+			}
+			k = next_key(layer.cells, k);
+		}
+		return out;
+	};
+
+	scene.tile_count = fn(layer) {
+		if (layer == null || !contains_key(layer, "cells")) { return 0; }
+		return len(layer.cells);
+	};
+
+	# What is painted in one cell, as [tileset id, tile column, tile row], or
+	# null when nothing is.
+	scene.tile_at = fn(layer, cx, cy) {
+		if (layer == null || !contains_key(layer, "cells")) { return null; }
+		let key = "" + cx + "," + cy;
+		if (!contains_key(layer.cells, key)) { return null; }
+		return layer.cells[key];
+	};
+
+	# World point -> the cell covering it, and a cell -> the rectangle it
+	# covers. math_floor, not truncation: x = -1 is in cell -1.
+	scene.tile_cell_at = fn(x, y) {
+		let size = scene.tile_size();
+		return [math_floor(x / size[0]), math_floor(y / size[1])];
+	};
+
+	scene.tile_rect = fn(cx, cy) {
+		let size = scene.tile_size();
+		return [cx * size[0], cy * size[1], size[0], size[1]];
+	};
+
+	# [min_x, min_y, max_x, max_y] over every painted cell, or null when
+	# nothing is painted.
+	scene.tile_bounds = fn() {
+		let size = scene.tile_size();
+		let layers = scene.tile_layers();
+		let found = false;
+		let b = [0, 0, 0, 0];
+
+		for (let i = 0; i < len(layers); i++) {
+			let cells = scene.tile_cells(layers[i]);
+			for (let c = 0; c < len(cells); c++) {
+				let x = cells[c][0] * size[0];
+				let y = cells[c][1] * size[1];
+				if (!found) {
+					found = true;
+					b = [x, y, x + size[0], y + size[1]];
+				} else {
+					if (x < b[0]) { b[0] = x; }
+					if (y < b[1]) { b[1] = y; }
+					if (x + size[0] > b[2]) { b[2] = x + size[0]; }
+					if (y + size[1] > b[3]) { b[3] = y + size[1]; }
+				}
+			}
+		}
+		if (!found) { return null; }
+		return b;
+	};
+
+	# Does this cell collide? Either because the layer it is in is solid --
+	# a ground layer, whatever is painted in it -- or because the tile itself
+	# is marked, which is how a stone block collides in a layer of grass that
+	# does not.
+	scene.tile_cell_is_solid = fn(layer, cell) {
+		if (contains_key(layer, "solid") && layer.solid) { return true; }
+		return scene.tile_is_solid(scene.tileset(cell[2]), cell[3], cell[4]);
+	};
+
+	# The collision the map stands for, as [x, y, w, h] in world units, with
+	# each row of touching cells merged into one rectangle. Hand them to
+	# love_physics_newRectangleShape() on static bodies.
+	#
+	# The merge is here rather than shared with the editor because this package
+	# deliberately depends on nothing: a game reads a level with scene.fh alone.
+	scene.solid_tile_rects = fn() {
+		let size = scene.tile_size();
+		let layers = scene.tile_layers();
+		let out = [];
+
+		for (let i = 0; i < len(layers); i++) {
+			let layer = layers[i];
+
+			# gather each row's columns, sort them, then merge the runs
+			let rows = {};
+			let cells = scene.tile_cells(layer);
+			for (let c = 0; c < len(cells); c++) {
+				if (!scene.tile_cell_is_solid(layer, cells[c])) { continue; }
+				let row = "" + cells[c][1];
+				if (!contains_key(rows, row)) { rows[row] = []; }
+				append(rows[row], cells[c][0]);
+			}
+
+			let row = next_key(rows, null);
+			while (row != null) {
+				let cols = rows[row];
+				for (let a = 1; a < len(cols); a++) {
+					let v = cols[a];
+					let k = a - 1;
+					while (k >= 0 && cols[k] > v) {
+						cols[k + 1] = cols[k];
+						k = k - 1;
+					}
+					cols[k + 1] = v;
+				}
+
+				let start = 0;
+				let prev = 0;
+				let open = false;
+				for (let a = 0; a < len(cols); a++) {
+					if (!open) {
+						start = cols[a];
+						prev = cols[a];
+						open = true;
+					} else if (cols[a] == prev + 1) {
+						prev = cols[a];
+					} else if (cols[a] != prev) {
+						append(out, [start * size[0], tonumber(row) * size[1],
+						             (prev - start + 1) * size[0], size[1]]);
+						start = cols[a];
+						prev = cols[a];
+					}
+				}
+				if (open) {
+					append(out, [start * size[0], tonumber(row) * size[1],
+					             (prev - start + 1) * size[0], size[1]]);
+				}
+				row = next_key(rows, row);
+			}
 		}
 		return out;
 	};

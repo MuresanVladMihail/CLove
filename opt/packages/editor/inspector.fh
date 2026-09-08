@@ -276,6 +276,11 @@ fn panels_inspector(app) {
 		let e = doc_selected(app);
 		inspector_level(app, e == null);
 
+		# The map belongs to the level rather than to anything selected, so it
+		# sits with the level's own settings and stays reachable with nothing
+		# picked -- which is how a map is usually painted.
+		tiles_panel(app);
+
 		if (e == null) {
 			love_ui_layout_row(1, [-1], 0);
 			love_ui_text("Nothing selected. Pick an entity in the viewport or " +
@@ -351,8 +356,9 @@ fn panels_inspector(app) {
 		}
 
 		if (love_ui_header("Sprite", OPT_EXPANDED)) {
-			# Only the path is stored. love_graphics_newImage() takes .svg
-			# and .png alike, so the format never has to be recorded.
+			# Only the path is stored, plus the crop when the artwork is one
+			# tile of a sheet. love_graphics_newImage() takes .svg and .png
+			# alike, so the format never has to be recorded.
 			love_ui_layout_row(1, [-1], 0);
 			let current = "";
 			if (e.sprite != null) { current = e.sprite.path; }
@@ -383,6 +389,22 @@ fn panels_inspector(app) {
 
 			love_ui_layout_row(1, [-1], 0);
 
+			# the crop, when the sprite is one tile of a sheet: what it is,
+			# and a way back to the whole image
+			if (e.sprite != null && contains_key(e.sprite, "quad") &&
+			    e.sprite.quad != null) {
+				let q = e.sprite.quad;
+				love_ui_layout_row(2, [-90, -1], 0);
+				love_ui_label("tile " + q[0] + "," + q[1] + " " + q[2] + "x" + q[3]);
+				if (love_ui_button("Whole", ALIGN_CENTER)) {
+					doc_begin_edit(app);
+					e.sprite = { "path": e.sprite.path };
+				}
+				tip(app, "Drop the crop and draw the whole image. The brush " +
+					"in Tilemap > Brush puts one back.");
+			}
+
+			love_ui_layout_row(1, [-1], 0);
 			let img = sprite_of(app, e);
 			if (img == null) {
 				love_ui_label("no sprite -- drawing the fixture");

@@ -9,9 +9,9 @@
 #  opt/examples/fh/game, which switches the same editor on and off with F1 and
 #  keeps playing the level it edits.
 #
-#  What is left here is the demo scene, because a starting crate and a coin
-#  belong to the example rather than to the editor: a game embedding the editor
-#  has its own level and would not thank anyone for these.
+#  What is left here is the demo scene, because a starting crate, a coin and a
+#  painted ledge belong to the example rather than to the editor: a game
+#  embedding the editor has its own level and would not thank anyone for these.
 # ============================================================================
 
 include "packages/editor/editor.fh"
@@ -46,8 +46,25 @@ fn love_load() {
 		coin.body.type = "dynamic";
 		coin.fixtures[0].restitution = 0.6;
 
+		# A spritesheet and a few cells painted from it, so the map side of
+		# the editor is on screen rather than only in the README. Press Tiles
+		# and the sheet opens on the right: click a tile, click the scene.
+		let sheet = tiles_add_set(ed, "art/tiles.png");
+		let map = tiles_map(ed);
+		map.tile_w = 32;
+		map.tile_h = 32;
+
+		let layer = tiles_current_layer(ed);
+		layer.solid = true;            # so Play collides with it
+		for (let cx = 16; cx < 24; cx++) {
+			tiles_put(ed, layer, cx, 12, [sheet.id, 0, 0]);
+			tiles_put(ed, layer, cx, 13, [sheet.id, 1, 0]);
+		}
+		ed.brush = [sheet.id, 0, 0];
+
 		ed.selected_id = 2;
-		log_line(ed, doc_count(ed) + " entities (unsaved, " + ed.scene_path + ")");
+		log_line(ed, doc_count(ed) + " entities, " + tiles_count(ed) +
+			" tiles (unsaved, " + ed.scene_path + ")");
 	}
 	return ed;
 }

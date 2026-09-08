@@ -13,7 +13,8 @@
 #  Two packages do the work:
 #
 #      packages/editor   the editor itself, switched on and off from here
-#      packages/scene    the read side of a level, for building the world
+#      packages/scene    the read side of a level, for building the world --
+#                        entities, and the tile map painted under them
 #
 #  What this file is, is the wiring: forward the input callbacks, keep a Box2D
 #  world in step with the document, and draw it.
@@ -72,11 +73,72 @@ fn build_world(g) {
 		append(g.bodies, [scene.id(e), body]);
 	}
 
+	# The map's collision. A layer marked solid in the editor comes back as
+	# rectangles with each row of touching cells already merged, so this is a
+	# handful of static bodies rather than one per tile -- and nothing catches
+	# on the seam between two of them.
+	let solid = scene.solid_tile_rects();
+	for (let i = 0; i < len(solid); i++) {
+		let r = solid[i];
+		let body = love_physics_newBody(g.world,
+			r[0] + r[2] * 0.5, r[1] + r[3] * 0.5, "static");
+		love_physics_newFixture(body, love_physics_newRectangleShape(r[2], r[3]), 1);
+	}
+
 	g.scene = scene;
 	g.built_at = editor_revision(g.ed);
-	println("world rebuilt: " + len(g.bodies) + " bodies at revision " + g.built_at);
+	println("world rebuilt: " + len(g.bodies) + " bodies, " + len(solid) +
+		" tile shapes, at revision " + g.built_at);
 	return 0;
 }
+
+# The tile map, drawn under everything else. A quad is made once per tile of a
+# sheet and kept: it is built against the texture's size, so it is the same
+# object for every cell that uses that tile. A map of any size wants a
+# love_graphics_newBatch() instead, but the shape of the work is this.
+fn quad_for(g, path, rect) {
+	let key = path + "|" + rect[0] + "," + rect[1] + "," + rect[2] + "," + rect[3];
+	if (contains_key(g.quads, key)) { return g.quads[key]; }
+
+	let img = sprite_for(g, path);
+	if (img == null) { return null; }
+
+	let quad = love_graphics_newQuad(rect[0], rect[1], rect[2], rect[3],
+		love_image_getWidth(img), love_image_getHeight(img));
+	g.quads[key] = quad;
+	return quad;
+}
+
+fn tile_quad_for(g, ts, tx, ty) {
+	return quad_for(g, ts.path, g.scene.tile_source(ts, tx, ty));
+}
+
+fn draw_tiles(g) {
+	let size = g.scene.tile_size();
+	let layers = g.scene.tile_layers();
+
+	love_graphics_setColor(255, 255, 255, 255);
+	for (let i = 0; i < len(layers); i++) {
+		let layer = layers[i];
+		if (!layer.visible) { continue; }
+
+		let cells = g.scene.tile_cells(layer);
+		for (let c = 0; c < len(cells); c++) {
+			let cell = cells[c];
+			let ts = g.scene.tileset(cell[2]);
+			if (ts == null) { continue; }
+
+			let img = sprite_for(g, ts.path);
+			let quad = tile_quad_for(g, ts, cell[3], cell[4]);
+			if (img == null || quad == null) { continue; }
+
+			love_graphics_draw(img, quad, cell[0] * size[0], cell[1] * size[1], 0,
+				size[0] * 1.0 / ts.tile_w, size[1] * 1.0 / ts.tile_h);
+		}
+	}
+	return 0;
+}
+
 
 fn sprite_for(g, path) {
 	if (path == null) { return null; }
@@ -95,6 +157,7 @@ fn sprite_for(g, path) {
 fn love_load() {
 	let g = {};
 	g.images = {};
+	g.quads = {};     # one per tile of a sheet, see tile_quad_for()
 
 	# The editor is not standalone here: Esc switches it off rather than
 	# quitting, and it starts switched off so the game is what you see first.
@@ -115,6 +178,20 @@ fn love_load() {
 		coin.body.type = "dynamic";
 		coin.fixtures[0].restitution = 0.6;
 		coin.groups = ["pickups"];
+
+		# A ledge painted out of a spritesheet, so the level has a map in it
+		# as well as entities -- press F1 and the Tiles tool paints more.
+		let sheet = tiles_add_set(g.ed, "art/tiles.png");
+		let map = tiles_map(g.ed);
+		map.tile_w = 32;
+		map.tile_h = 32;
+
+		let layer = tiles_current_layer(g.ed);
+		layer.solid = true;
+		for (let cx = 12; cx < 20; cx++) {
+			tiles_put(g.ed, layer, cx, 10, [sheet.id, 0, 0]);
+		}
+		g.ed.brush = [sheet.id, 0, 0];
 
 		doc_save(g.ed, LEVEL);
 	}
@@ -161,14 +238,29 @@ fn draw_entity(g, e, body) {
 		return 0;
 	}
 
+	# The artwork may be one tile of a sheet rather than a whole file, which
+	# is what the editor's "Brush -> selected sprite" leaves behind: then the
+	# crop's size is what gets scaled onto the entity, not the image's.
+	let crop = g.scene.sprite_quad(e);
 	let iw = love_image_getWidth(img);
 	let ih = love_image_getHeight(img);
+	if (crop != null) {
+		iw = crop[2];
+		ih = crop[3];
+		love_graphics_draw(img, quad_for(g, g.scene.sprite_path(e), crop),
+			pos[0], pos[1], angle, size[0] / iw, size[1] / ih, iw * 0.5, ih * 0.5);
+		return 0;
+	}
+
 	love_graphics_draw(img, pos[0], pos[1], angle,
 		size[0] / iw, size[1] / ih, iw * 0.5, ih * 0.5);
 	return 0;
 }
 
 fn love_draw(g) {
+	# the map first: it is the ground the rest stands on
+	draw_tiles(g);
+
 	for (let i = 0; i < len(g.bodies); i++) {
 		let id = g.bodies[i][0];
 		let e = g.scene.get(id);

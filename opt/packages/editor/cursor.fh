@@ -185,6 +185,31 @@ fn cursor_update(app, inside) {
 		return 0;
 	}
 
+	# Over the palette the pointer is picking a tile, not aiming at the scene
+	# behind it -- and the palette is inside the viewport, so nothing else
+	# says so.
+	if (app.tool == "tile") {
+		if (tiles_palette_hover(app)) {
+			app.cursor_kind = "arrow";
+			app.cursor_label = "pick a tile";
+			return 0;
+		}
+		app.cursor_kind = "cross";
+		let layer = tiles_current_layer(app);
+		if (layer != null && !layer.visible) {
+			app.cursor_label = layer.name + " is hidden";
+		} else if (love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift")) {
+			app.cursor_label = "erase";
+		} else if (app.brush == null) {
+			app.cursor_label = "no tile picked";
+		} else if (layer != null) {
+			app.cursor_label = "paint " + layer.name;
+		} else {
+			app.cursor_label = "paint";
+		}
+		return 0;
+	}
+
 	if (app.tool != "select") {
 		app.cursor_kind = "cross";
 		app.cursor_label = "place " + app.tool;

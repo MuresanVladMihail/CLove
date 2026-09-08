@@ -37,8 +37,11 @@ fn panels_dock(app, name, x, y, w, h) {
 
 fn panels_primitives_menu(app) {
 	# opened and begun inside the same window, see the note above
+	# The label names the primitive this menu would drop, and only that: with
+	# the Tiles tool up it used to read "Primitive: tile", which is neither
+	# what the menu holds nor what the tool does.
 	let label = "Primitives";
-	if (app.tool != "select") {
+	if (app.tool == "rect" || app.tool == "circle" || app.tool == "polygon") {
 		label = "Primitive: " + app.tool;
 	}
 	if (love_ui_button(label, ALIGN_CENTER)) {
@@ -150,13 +153,17 @@ fn panels_toolbar(app) {
 		# wide, one menu button TB_MENU, and TB_GAP separates groups. The rows
 		# only diverge past the last gap, where row 2 keeps the toggles.
 		#
-		#   | one    | menu          | pair          | pair          | rest
-		#   | Play   | scene.json    | Save   Load   | Undo   Redo   | 3 undo
-		#   | Select | Primitives    | Dup    Delete | Frame  Reset  | toggles
+		#   | pair            | menu          | pair          | pair          | rest
+		#   | Play            | scene.json    | Save   Load   | Undo   Redo   | 3 undo
+		#   | Select   Tiles  | Primitives    | Dup    Delete | Frame  Reset  | toggles
+		#
+		# Row 1's first group is one button and a blank, so that the tool pair
+		# below it can be two: what keeps the groups lined up is the widths,
+		# not how many of the cells hold something.
 
 		# --- row 1: run, level, file, history ---
-		love_ui_layout_row(11,
-			[TB_BTN, TB_GAP, TB_MENU, TB_GAP, TB_BTN, TB_BTN, TB_GAP,
+		love_ui_layout_row(12,
+			[TB_BTN, TB_BTN, TB_GAP, TB_MENU, TB_GAP, TB_BTN, TB_BTN, TB_GAP,
 			 TB_BTN, TB_BTN, TB_GAP, -1], 0);
 
 		if (app.mode == "edit") {
@@ -168,6 +175,7 @@ fn panels_toolbar(app) {
 			tip(app, "Throw the simulation away and go back to the level as " +
 				"you left it.");
 		}
+		love_ui_label("");   # under it, the Tiles tool
 		love_ui_label("");
 
 		scenes_menu(app);
@@ -202,8 +210,8 @@ fn panels_toolbar(app) {
 		love_ui_label(state + len(app.undo) + " undo");
 
 		# --- row 2: tools, editing, view, toggles ---
-		love_ui_layout_row(12,
-			[TB_BTN, TB_GAP, TB_MENU, TB_GAP, TB_BTN, TB_BTN, TB_GAP,
+		love_ui_layout_row(13,
+			[TB_BTN, TB_BTN, TB_GAP, TB_MENU, TB_GAP, TB_BTN, TB_BTN, TB_GAP,
 			 TB_BTN, TB_BTN, TB_GAP, TB_BTN, -1], 0);
 
 		let select_label = "  Select";
@@ -214,6 +222,24 @@ fn panels_toolbar(app) {
 		}
 		tip(app, "Pick and move things. Shift+click adds to the selection, " +
 			"dragging from empty space rubber bands over one.");
+
+		# Pressing it while it is already the tool hides the palette rather
+		# than doing nothing: the sheet covers a good part of the viewport, and
+		# wanting it out of the way for a moment is not wanting another tool.
+		let tile_label = "  Tiles";
+		if (app.tool == "tile") { tile_label = "> Tiles"; }
+		if (love_ui_button(tile_label, ALIGN_CENTER)) {
+			if (app.tool == "tile") {
+				app.pal_open = !app.pal_open;
+			} else {
+				app.tool = "tile";
+				app.pal_open = true;
+				log_line(app, "tool: tile -- click paints, Shift erases");
+			}
+		}
+		tip(app, "Paint the map: pick a tile from the sheet on the right, " +
+			"click to lay it down, Shift+click to rub it out. Press it again " +
+			"to put the palette away.");
 		love_ui_label("");
 
 		panels_primitives_menu(app);
@@ -336,6 +362,25 @@ fn panels_hierarchy(app) {
 				"-- click back on the first point or press Return to close it, " +
 				"Escape to throw it away. Afterwards its vertices are handles: " +
 				"drag one to move it, Shift+click to remove it.");
+			love_ui_text("Tiles: Inspector > Tilemap > Add sheet picks a " +
+				"spritesheet and says how big one tile of it is. The Tiles " +
+				"button opens the palette over the viewport: click a tile " +
+				"there, then click or drag in the scene to paint it, and " +
+				"Shift to rub it out. Pressing Tiles again puts the palette " +
+				"away.");
+			love_ui_text("Tile collision: a cell collides when its layer is " +
+				"marked solid -- a ground layer, whatever is painted in it -- " +
+				"or when the tile itself is. Shift+click a tile on the sheet " +
+				"to mark it (again to unmark it): it then collides wherever " +
+				"it is painted, which is the stone block in a layer of grass " +
+				"that is not solid. Play merges every colliding cell into " +
+				"static shapes a row at a time, and Show fixtures outlines " +
+				"them before you press it.");
+			love_ui_text("Brush -> selected sprite gives the entities you have " +
+				"selected the brush's tile as their artwork -- the same sheet, " +
+				"cropped to that one tile. Brush -> new entity makes a dynamic " +
+				"one wearing it: a cell can never be dynamic, so a crate that " +
+				"is meant to be pushed around is an entity, not a tile.");
 			love_ui_text("Pan: drag with the right or middle button, space + left, " +
 				"or the arrow keys while the cursor is over the viewport.");
 			love_ui_text("Wheel zooms around the cursor. F frames the whole scene.");
@@ -427,10 +472,22 @@ fn panels_statusbar(app) {
 		love_ui_label("mode: " + app.mode);
 		love_ui_label("world: " + tointeger(app.wx) + ", " + tointeger(app.wy));
 
-		let name = "none";
-		let e = doc_selected(app);
-		if (e != null) { name = e.name + " (#" + e.id + ")"; }
-		love_ui_label("selected: " + name);
+		# With the Tiles tool up, what is selected matters much less than
+		# where the brush is pointing and which layer takes it.
+		if (app.tool == "tile") {
+			let layer = tiles_current_layer(app);
+			let where = "cell: none";
+			if (layer != null) {
+				let c = tiles_cell_of(app, app.wx, app.wy);
+				where = layer.name + " " + c[0] + "," + c[1];
+			}
+			love_ui_label(where);
+		} else {
+			let name = "none";
+			let e = doc_selected(app);
+			if (e != null) { name = e.name + " (#" + e.id + ")"; }
+			love_ui_label("selected: " + name);
+		}
 		love_ui_label("zoom: " + app.cam.zoom + "x");
 		love_ui_label("meter: " + app.doc_data.meter);
 

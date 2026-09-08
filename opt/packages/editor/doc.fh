@@ -8,10 +8,19 @@
 #
 #  Saved document (scene.json):
 #
-#    { "version": 1,
+#    { "version": 2,
 #      "meter": 30,               # pixels per Box2D metre this map was authored at
 #      "gravity": [0, 900],       # pixels per second squared
 #      "next_id": 4,
+#      # the spritesheets the map is painted from, and the map itself. A cell
+#      # is [tileset id, column, row]; tiles.fh has the why of all three.
+#      "tilesets": [ { "id": 1, "name": "terrain.png", "path": "art/terrain.png",
+#                      "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0,
+#                      # the tiles that collide wherever they are painted
+#                      "solid": { "0,3": true } } ],
+#      "tilemap": { "tile_w": 32, "tile_h": 32,
+#                   "layers": [ { "id": 1, "name": "Ground", "visible": true,
+#                                 "solid": true, "cells": { "3,-1": [1, 4, 2] } } ] },
 #      "joints": [ { "id": 5, "type": "distance", "a": 2, "b": 3,
 #                    "anchor": [300, 200], "collide": false } ],
 #      "entities": [
@@ -20,6 +29,8 @@
 #          "links":     { "exit": 7 },      # named references to other entities
 #          "transform": { "x": 290, "y": 600, "angle": 0, "sx": 1, "sy": 1 },
 #          "color":     [92, 128, 84],
+#          # a whole file, or one tile of a sheet: "quad" is the source
+#          # rect in the image, [x, y, w, h], and is absent for the whole of it
 #          "sprite":    { "path": "art/crate.svg" },   # or null
 #          "body":      { "type": "static", "fixed_rotation": false,
 #                         "gravity_scale": 1 },
@@ -28,11 +39,12 @@
 #                           "restitution": 0.1, "sensor": false,
 #                           "category": 1, "mask": 65535, "group": 0 } ] } ] }
 #
-#  Only authored data goes in the file. A sprite is stored as a path and
-#  nothing else -- love_graphics_newImage() loads .svg and .png through the
-#  same call and love_image_isVector() tells them apart at runtime. Anything
-#  derived from an asset (a collision outline traced from an SVG) is recomputed
-#  on load rather than saved.
+#  Only authored data goes in the file. A sprite is stored as a path and, when
+#  it is one tile of a sheet, the rectangle it was cut from -- nothing else:
+#  love_graphics_newImage() loads .svg and .png through the same call and
+#  love_image_isVector() tells them apart at runtime. Anything derived from an
+#  asset (a collision outline traced from an SVG, a sheet's column count, the
+#  quads that cut it up) is recomputed on load rather than saved.
 #
 #  Reading a scene back from a game is opt/packages/scene.
 # ============================================================================
@@ -104,6 +116,12 @@ fn doc_empty(app) {
 		"gravity": [LEVEL_GRAVITY[0], LEVEL_GRAVITY[1]],
 		"next_id": 1,
 		"entities": [],
+		# The spritesheets this level draws tiles from, and the map painted
+		# out of them. Empty ones cost a level two lines of JSON and mean a
+		# document is the same shape whether or not anyone paints -- so
+		# nothing downstream has to ask whether the fields are there.
+		"tilesets": [],
+		"tilemap": tilemap_empty(),
 		# Joints reference entities by id and live at the top level rather than
 		# on either entity: a joint belongs to neither of the two things it
 		# holds together, and hanging it off one of them would make deleting
@@ -601,6 +619,40 @@ fn doc_migrate(app, parsed) {
 	}
 	if (!contains_key(parsed, "entities")) { parsed.entities = []; }
 	if (!contains_key(parsed, "joints")) { parsed.joints = []; }
+
+	# Version 1 predates tiles entirely, and a hand-written level may carry
+	# half of it -- so every field is filled in on its own rather than the lot
+	# behind one version test.
+	if (!contains_key(parsed, "tilesets")) { parsed.tilesets = []; }
+	if (!contains_key(parsed, "tilemap")) { parsed.tilemap = tilemap_empty(); }
+	# A cell size is divided by to find the cell under a point, so a
+	# hand-edited zero would be an infinity rather than an error message.
+	if (!contains_key(parsed.tilemap, "tile_w") || parsed.tilemap.tile_w < TILE_MIN) {
+		parsed.tilemap.tile_w = TILE_DEFAULT;
+	}
+	if (!contains_key(parsed.tilemap, "tile_h") || parsed.tilemap.tile_h < TILE_MIN) {
+		parsed.tilemap.tile_h = TILE_DEFAULT;
+	}
+	if (!contains_key(parsed.tilemap, "layers") || len(parsed.tilemap.layers) == 0) {
+		parsed.tilemap.layers = [ tiles_new_layer(1, "Ground") ];
+	}
+	for (let i = 0; i < len(parsed.tilemap.layers); i++) {
+		let layer = parsed.tilemap.layers[i];
+		if (!contains_key(layer, "id")) { layer.id = i + 1; }
+		if (!contains_key(layer, "name")) { layer.name = "Layer " + (i + 1); }
+		if (!contains_key(layer, "visible")) { layer.visible = true; }
+		if (!contains_key(layer, "solid")) { layer.solid = false; }
+		if (!contains_key(layer, "cells")) { layer.cells = {}; }
+	}
+	for (let i = 0; i < len(parsed.tilesets); i++) {
+		let ts = parsed.tilesets[i];
+		if (!contains_key(ts, "name")) { ts.name = path_name(ts.path); }
+		if (!contains_key(ts, "margin")) { ts.margin = 0; }
+		if (!contains_key(ts, "spacing")) { ts.spacing = 0; }
+		if (!contains_key(ts, "solid")) { ts.solid = {}; }
+		if (!contains_key(ts, "tile_w") || ts.tile_w < TILE_MIN) { ts.tile_w = TILE_DEFAULT; }
+		if (!contains_key(ts, "tile_h") || ts.tile_h < TILE_MIN) { ts.tile_h = TILE_DEFAULT; }
+	}
 	for (let i = 0; i < len(parsed.entities); i++) {
 		if (!contains_key(parsed.entities[i], "groups")) { parsed.entities[i].groups = []; }
 		if (!contains_key(parsed.entities[i], "props")) { parsed.entities[i].props = {}; }
@@ -619,6 +671,15 @@ fn doc_migrate(app, parsed) {
 			if (parsed.entities[i].id > highest) { highest = parsed.entities[i].id; }
 		}
 		parsed.next_id = highest + 1;
+	}
+
+	# It is this editor's document now, whatever it was on disk: saving it
+	# would write the fields filled in above, and a file that claims version 1
+	# while carrying version 2 data is the one thing a version field is for.
+	if (parsed.version < DOC_VERSION) {
+		log_line(app, "migrated a version " + parsed.version + " level to " +
+			DOC_VERSION);
+		parsed.version = DOC_VERSION;
 	}
 	return parsed;
 }
@@ -642,6 +703,7 @@ fn doc_load(app, path) {
 	app.redo = [];
 	app.dirty = false;
 	doc_touch(app);
-	log_line(app, "loaded " + path + " (" + len(parsed.entities) + " entities)");
+	log_line(app, "loaded " + path + " (" + len(parsed.entities) + " entities, " +
+		tiles_count(app) + " tiles)");
 	return true;
 }
