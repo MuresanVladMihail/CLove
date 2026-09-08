@@ -365,17 +365,26 @@ fn panels_hierarchy(app) {
 			love_ui_text("Tiles: Inspector > Tilemap > Add sheet picks a " +
 				"spritesheet and says how big one tile of it is. The Tiles " +
 				"button opens the palette over the viewport: click a tile " +
-				"there, then click or drag in the scene to paint it, and " +
-				"Shift to rub it out. Pressing Tiles again puts the palette " +
-				"away.");
+				"there -- or drag a block of them -- and it becomes the " +
+				"brush. Pressing Tiles again puts the palette away.");
+			love_ui_text("Brush stamps where you click and drags a stroke; " +
+				"Rect fills the rectangle you drag out, tiling a block brush " +
+				"across it; Fill replaces the run of identical tiles you " +
+				"click on and never spreads into empty space. The erase " +
+				"switch turns any of them into its opposite, and holding " +
+				"Shift does the same for one click.");
 			love_ui_text("Tile collision: a cell collides when its layer is " +
 				"marked solid -- a ground layer, whatever is painted in it -- " +
 				"or when the tile itself is. Shift+click a tile on the sheet " +
 				"to mark it (again to unmark it): it then collides wherever " +
 				"it is painted, which is the stone block in a layer of grass " +
-				"that is not solid. Play merges every colliding cell into " +
-				"static shapes a row at a time, and Show fixtures outlines " +
-				"them before you press it.");
+				"that is not solid. A solid tile also says what it collides " +
+				"as -- friction, bounce, sensor, the filter, and a name a " +
+				"contact callback is handed, since a merged run has no " +
+				"entity behind it. Cells only merge when they collide alike, " +
+				"so a patch of ice keeps its own friction. Play builds the " +
+				"static shapes; Show fixtures outlines them before you press " +
+				"it.");
 			love_ui_text("Brush -> selected sprite gives the entities you have " +
 				"selected the brush's tile as their artwork -- the same sheet, " +
 				"cropped to that one tile. Brush -> new entity makes a dynamic " +

@@ -365,12 +365,43 @@ fn Scene(source) {
 		        ts.tile_w, ts.tile_h];
 	};
 
-	# Whether a tile of a sheet collides wherever it is painted. The flag is a
-	# property of the picture rather than of any one cell: stone is stone in
-	# every level. A sheet written before the flag existed reads as none.
+	# What one tile of a sheet is, or null when nobody has said anything about
+	# it: { "solid", "friction", "restitution", "sensor", "category", "mask",
+	# "group", "name" }. A property of the picture rather than of any one cell
+	# -- stone is stone in every level it is painted into.
+	scene.tile_props = fn(ts, tx, ty) {
+		if (ts == null || !contains_key(ts, "tiles")) { return null; }
+		let key = "" + tx + "," + ty;
+		if (!contains_key(ts.tiles, key)) { return null; }
+		return ts.tiles[key];
+	};
+
+	# The defaults a cell collides as when it is solid only because its layer
+	# is, and what fills in a field a hand-written entry left out.
+	scene.tile_defaults = fn() {
+		return { "solid": true, "friction": 0.4, "restitution": 0,
+		         "sensor": false, "category": 1, "mask": 65535, "group": 0,
+		         "name": "" };
+	};
+
 	scene.tile_is_solid = fn(ts, tx, ty) {
-		if (ts == null || !contains_key(ts, "solid")) { return false; }
-		return contains_key(ts.solid, "" + tx + "," + ty);
+		let t = scene.tile_props(ts, tx, ty);
+		return t != null && t.solid;
+	};
+
+	# What a cell collides as: its tile's settings where there are any, the
+	# defaults where there are not, with every missing field filled in.
+	scene.tile_physics = fn(cell) {
+		let out = scene.tile_defaults();
+		let t = scene.tile_props(scene.tileset(cell[2]), cell[3], cell[4]);
+		if (t == null) { return out; }
+
+		let k = next_key(out, null);
+		while (k != null) {
+			if (contains_key(t, k)) { out[k] = t[k]; }
+			k = next_key(out, k);
+		}
+		return out;
 	};
 
 	# Back first: the layers are in draw order, the way the entities are.
@@ -472,9 +503,16 @@ fn Scene(source) {
 		return scene.tile_is_solid(scene.tileset(cell[2]), cell[3], cell[4]);
 	};
 
-	# The collision the map stands for, as [x, y, w, h] in world units, with
-	# each row of touching cells merged into one rectangle. Hand them to
-	# love_physics_newRectangleShape() on static bodies.
+	# The collision the map stands for, one entry per merged run:
+	#
+	#   { "x": 0, "y": 320, "w": 160, "h": 32,
+	#     "friction": 0.4, "restitution": 0, "sensor": false,
+	#     "category": 1, "mask": 65535, "group": 0, "name": "" }
+	#
+	# in world units, ready for love_physics_newRectangleShape() on a static
+	# body. Each row of touching cells is merged into one rectangle -- but only
+	# across cells that collide *alike*, or a patch of ice would quietly take
+	# the friction of the stone beside it.
 	#
 	# The merge is here rather than shared with the editor because this package
 	# deliberately depends on nothing: a game reads a level with scene.fh alone.
@@ -486,19 +524,25 @@ fn Scene(source) {
 		for (let i = 0; i < len(layers); i++) {
 			let layer = layers[i];
 
-			# gather each row's columns, sort them, then merge the runs
-			let rows = {};
+			# group by row and by physics, sort each group, then merge its runs
+			let groups = {};
 			let cells = scene.tile_cells(layer);
 			for (let c = 0; c < len(cells); c++) {
 				if (!scene.tile_cell_is_solid(layer, cells[c])) { continue; }
-				let row = "" + cells[c][1];
-				if (!contains_key(rows, row)) { rows[row] = []; }
-				append(rows[row], cells[c][0]);
+				let phys = scene.tile_physics(cells[c]);
+				let key = cells[c][1] + "|" + phys.friction + "|" +
+					phys.restitution + "|" + phys.sensor + "|" + phys.category +
+					"|" + phys.mask + "|" + phys.group + "|" + phys.name;
+				if (!contains_key(groups, key)) {
+					groups[key] = { "row": cells[c][1], "phys": phys, "cols": [] };
+				}
+				append(groups[key].cols, cells[c][0]);
 			}
 
-			let row = next_key(rows, null);
-			while (row != null) {
-				let cols = rows[row];
+			let g = next_key(groups, null);
+			while (g != null) {
+				let group = groups[g];
+				let cols = group.cols;
 				for (let a = 1; a < len(cols); a++) {
 					let v = cols[a];
 					let k = a - 1;
@@ -520,20 +564,29 @@ fn Scene(source) {
 					} else if (cols[a] == prev + 1) {
 						prev = cols[a];
 					} else if (cols[a] != prev) {
-						append(out, [start * size[0], tonumber(row) * size[1],
-						             (prev - start + 1) * size[0], size[1]]);
+						append(out, scene.tile_run(group, start, prev, size));
 						start = cols[a];
 						prev = cols[a];
 					}
 				}
 				if (open) {
-					append(out, [start * size[0], tonumber(row) * size[1],
-					             (prev - start + 1) * size[0], size[1]]);
+					append(out, scene.tile_run(group, start, prev, size));
 				}
-				row = next_key(rows, row);
+				g = next_key(groups, g);
 			}
 		}
 		return out;
+	};
+
+	# One merged run, as the map the caller gets. Split out because the loop
+	# above finishes a run in two places and they must not drift apart.
+	scene.tile_run = fn(group, start, last, size) {
+		let phys = group.phys;
+		return { "x": start * size[0], "y": group.row * size[1],
+		         "w": (last - start + 1) * size[0], "h": size[1],
+		         "friction": phys.friction, "restitution": phys.restitution,
+		         "sensor": phys.sensor, "category": phys.category,
+		         "mask": phys.mask, "group": phys.group, "name": phys.name };
 	};
 
 	# --- spatial queries ----------------------------------------------

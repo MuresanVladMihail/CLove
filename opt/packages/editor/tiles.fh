@@ -134,9 +134,9 @@ fn tiles_add_set(app, path) {
 	           "tile_w": tiles_map(app).tile_w,
 	           "tile_h": tiles_map(app).tile_h,
 	           "margin": 0, "spacing": 0,
-	           # which tiles of this sheet collide wherever they are painted,
-	           # keyed the same way a cell is -- see tileset_is_solid()
-	           "solid": {} };
+	           # what individual tiles of this sheet are, keyed the same way a
+	           # cell is: "4,2" -> { "solid": true, ... }. See tile_settings().
+	           "tiles": {} };
 	append(tiles_sets(app), ts);
 	app.tile_set = ts.id;
 	app.brush = null;
@@ -397,22 +397,49 @@ fn tileset_src(ts, tx, ty) {
 #  meant to be pushed around is an entity, not a tile. tiles_entity_from_brush()
 #  is the short way there: it makes one out of the tile you have picked.
 
-fn tileset_is_solid(ts, tx, ty) {
-	if (ts == null || !contains_key(ts, "solid")) { return false; }
-	return contains_key(ts.solid, tile_key(tx, ty));
+# What one tile of a sheet is: solid or not, and if it is, what it collides
+# as. Absent for the great majority of tiles -- only the ones someone has said
+# something about are in the map at all.
+fn tile_settings_new() {
+	return { "solid": true,
+	         "friction": TILE_FRICTION,
+	         "restitution": TILE_RESTITUTION,
+	         "sensor": false,
+	         # Box2D's filter, the same two bit fields an entity's fixture has
+	         "category": 1, "mask": 65535, "group": 0,
+	         # What a contact callback is handed for this tile. A merged run
+	         # has no entity behind it, so without this a game can tell that it
+	         # hit the map and nothing else -- with it, it can tell ice from
+	         # lava. Empty means "nothing in particular".
+	         "name": "" };
 }
 
+fn tile_settings(ts, tx, ty) {
+	if (ts == null || !contains_key(ts, "tiles")) { return null; }
+	let key = tile_key(tx, ty);
+	if (!contains_key(ts.tiles, key)) { return null; }
+	return ts.tiles[key];
+}
+
+fn tileset_is_solid(ts, tx, ty) {
+	let t = tile_settings(ts, tx, ty);
+	return t != null && t.solid;
+}
+
+# Marking a tile solid gives it a settings entry; unmarking takes the entry
+# away rather than leaving a `false` behind, so a sheet nobody has said
+# anything about stays empty in the file.
 fn tiles_toggle_tile_solid(app, ts, tx, ty) {
 	if (ts == null) { return 0; }
-	if (!contains_key(ts, "solid")) { ts.solid = {}; }
+	if (!contains_key(ts, "tiles")) { ts.tiles = {}; }
 
 	doc_begin_edit(app);
 	let key = tile_key(tx, ty);
-	if (contains_key(ts.solid, key)) {
-		delete(ts.solid, key);
+	if (contains_key(ts.tiles, key)) {
+		delete(ts.tiles, key);
 		log_line(app, ts.name + " " + key + ": no longer solid");
 	} else {
-		ts.solid[key] = true;
+		ts.tiles[key] = tile_settings_new();
 		log_line(app, ts.name + " " + key + ": solid");
 	}
 	return 0;
@@ -421,6 +448,14 @@ fn tiles_toggle_tile_solid(app, ts, tx, ty) {
 fn tiles_cell_is_solid(app, layer, cell) {
 	if (layer.solid) { return true; }
 	return tileset_is_solid(tiles_find_set(app, cell[0]), cell[1], cell[2]);
+}
+
+# What a cell collides as: the tile's own settings when it has them, and the
+# defaults when it is solid only because its layer is.
+fn tiles_cell_physics(app, layer, cell) {
+	let t = tile_settings(tiles_find_set(app, cell[0]), cell[1], cell[2]);
+	if (t != null) { return t; }
+	return tile_settings_new();
 }
 
 
@@ -449,6 +484,68 @@ fn tileset_quad(app, ts, tx, ty) {
 #  Painting
 # ============================================================================
 
+# --- the brush --------------------------------------------------------------
+#
+#  A brush is [sheet id, column, row] and, when a block of the sheet was
+#  dragged out rather than one tile clicked, how many tiles across and down it
+#  covers. The two extra numbers are optional so that everything which only
+#  ever wanted one tile still reads the first three and is right.
+
+# v modulo n, for the floats a cell coordinate is made of, and right for a
+# negative v -- cell -1 of a two-tile block is its second tile, not its first.
+fn tile_wrap(v, n) {
+	if (n <= 0) { return 0; }
+	return math_floor(v - math_floor(v / n) * n + 0.5);
+}
+
+fn brush_cols(brush) {
+	if (brush == null || len(brush) < 5) { return 1; }
+	return brush[3];
+}
+
+fn brush_rows(brush) {
+	if (brush == null || len(brush) < 5) { return 1; }
+	return brush[4];
+}
+
+# Is this cell inside the block a real tile of the sheet? A block dragged to
+# the edge of a sheet can cover columns that are not there.
+fn brush_tile_exists(app, brush, dx, dy) {
+	let ts = tiles_find_set(app, brush[0]);
+	if (ts == null) { return false; }
+	return brush[1] + dx < tileset_columns(app, ts) &&
+	       brush[2] + dy < tileset_rows(app, ts);
+}
+
+# One stamp of the brush, with its top-left corner in the cell given. A single
+# tile is the ordinary case and comes out of the same loop.
+fn tiles_stamp(app, layer, cx, cy, erase) {
+	let cols = 1;
+	let rows = 1;
+	if (!erase) {
+		if (app.brush == null) { return 0; }
+		cols = brush_cols(app.brush);
+		rows = brush_rows(app.brush);
+	} else if (app.brush != null) {
+		# erasing with a block brush takes the block, so the two are undone
+		# by the same gesture that laid them down
+		cols = brush_cols(app.brush);
+		rows = brush_rows(app.brush);
+	}
+
+	for (let dy = 0; dy < rows; dy++) {
+		for (let dx = 0; dx < cols; dx++) {
+			if (erase) {
+				tiles_erase(app, layer, cx + dx, cy + dy);
+			} else if (brush_tile_exists(app, app.brush, dx, dy)) {
+				tiles_put(app, layer, cx + dx, cy + dy,
+					[app.brush[0], app.brush[1] + dx, app.brush[2] + dy]);
+			}
+		}
+	}
+	return 0;
+}
+
 # A hidden layer is not painted into: a stroke that lands somewhere invisible
 # is worse than one that does nothing. Silently, because this runs per cell of
 # a drag -- the cursor is what says so, in cursor_update().
@@ -457,9 +554,112 @@ fn tiles_paint(app, wx, wy, erase) {
 	if (layer == null || !layer.visible) { return 0; }
 
 	let c = tiles_cell_of(app, wx, wy);
-	if (erase) { return tiles_erase(app, layer, c[0], c[1]); }
-	if (app.brush == null) { return 0; }
-	return tiles_put(app, layer, c[0], c[1], app.brush);
+	return tiles_stamp(app, layer, c[0], c[1], erase);
+}
+
+# Whether a click erases: the switch in the panel, flipped by Shift. Holding a
+# key is the quick way for one cell; the switch is for a hundred.
+fn tiles_erasing(app, shift) {
+	return app.tile_erase != shift;
+}
+
+
+# --- filling ----------------------------------------------------------------
+
+# Every cell of a rectangle, given the two corners a drag ran between. The
+# brush is tiled across it rather than repeated, so a block of four different
+# tiles fills a wall with the pattern it is, not with sixteen copies of its
+# first tile.
+fn tiles_fill_rect(app, from_cell, to_cell, erase) {
+	let layer = tiles_current_layer(app);
+	if (layer == null || !layer.visible) { return 0; }
+
+	let x0 = math_min(from_cell[0], to_cell[0]);
+	let x1 = math_max(from_cell[0], to_cell[0]);
+	let y0 = math_min(from_cell[1], to_cell[1]);
+	let y1 = math_max(from_cell[1], to_cell[1]);
+
+	let cols = brush_cols(app.brush);
+	let rows = brush_rows(app.brush);
+
+	for (let cy = y0; cy <= y1; cy++) {
+		for (let cx = x0; cx <= x1; cx++) {
+			if (erase) {
+				tiles_erase(app, layer, cx, cy);
+				continue;
+			}
+			if (app.brush == null) { continue; }
+
+			# which tile of the block this cell falls on, counted from the
+			# rectangle's corner so the pattern lines up with the rectangle.
+			# Not `%`: a cell coordinate comes out of math_floor() as a float
+			# and FH's modulo is for integers.
+			let dx = tile_wrap(cx - x0, cols);
+			let dy = tile_wrap(cy - y0, rows);
+			if (brush_tile_exists(app, app.brush, dx, dy)) {
+				tiles_put(app, layer, cx, cy,
+					[app.brush[0], app.brush[1] + dx, app.brush[2] + dy]);
+			}
+		}
+	}
+	return 0;
+}
+
+# The run of identical tiles a cell belongs to, four-connected. It only ever
+# walks cells that *hold* something: flooding empty space has no edge to stop
+# at, and a map is unbounded -- filling the sky would be filling forever. To
+# lay tiles into empty space, drag a rectangle.
+let FILL_LIMIT = 20000;
+
+fn tiles_fill_from(app, wx, wy, erase) {
+	let layer = tiles_current_layer(app);
+	if (layer == null || !layer.visible) { return 0; }
+
+	let at = tiles_cell_of(app, wx, wy);
+	let target = tiles_get(layer, at[0], at[1]);
+	if (target == null) {
+		log_line(app, "fill needs a tile to start from -- drag a rectangle instead");
+		return 0;
+	}
+
+	# the frontier, as flat pairs; `seen` keeps a cell from being queued twice
+	let stack = [at[0], at[1]];
+	let seen = { };
+	seen[tile_key(at[0], at[1])] = true;
+	let filled = 0;
+
+	while (len(stack) >= 2 && filled < FILL_LIMIT) {
+		let cy = stack[len(stack) - 1];
+		let cx = stack[len(stack) - 2];
+		stack = drop_last(drop_last(stack));
+
+		let here = tiles_get(layer, cx, cy);
+		if (here == null) { continue; }
+		if (here[0] != target[0] || here[1] != target[1] || here[2] != target[2]) {
+			continue;
+		}
+
+		if (erase) {
+			tiles_erase(app, layer, cx, cy);
+		} else if (app.brush != null) {
+			tiles_put(app, layer, cx, cy,
+				[app.brush[0], app.brush[1], app.brush[2]]);
+		}
+		filled = filled + 1;
+
+		let around = [cx + 1, cy, cx - 1, cy, cx, cy + 1, cx, cy - 1];
+		for (let i = 0; i + 1 < len(around); i = i + 2) {
+			let key = tile_key(around[i], around[i + 1]);
+			if (!contains_key(seen, key)) {
+				seen[key] = true;
+				append(stack, around[i]);
+				append(stack, around[i + 1]);
+			}
+		}
+	}
+
+	log_line(app, "filled " + filled + " cells");
+	return 0;
 }
 
 # Fills the cells the current brush covers along a line, so a fast drag does
@@ -528,9 +728,25 @@ fn tiles_row_runs(cols) {
 	return runs;
 }
 
-# [x, y, w, h] in world units, one per merged run, over every cell that
-# collides -- whether it does because of its layer or because of its tile.
-fn tiles_solid_rects(app) {
+# What a run of cells collides as, as one string: two neighbours merge only
+# when every one of these matches, or the merge would quietly give a patch of
+# ice the friction of the stone beside it.
+fn tiles_physics_key(t) {
+	return "" + t.friction + "|" + t.restitution + "|" + t.sensor + "|" +
+		t.category + "|" + t.mask + "|" + t.group + "|" + t.name;
+}
+
+# One entry per merged run: where it is, and what it collides as.
+#
+#   { "x": 0, "y": 320, "w": 160, "h": 32,
+#     "friction": 0.4, "restitution": 0, "sensor": false,
+#     "category": 1, "mask": 65535, "group": 0, "name": "" }
+#
+# Rows are merged, columns are not: a column of cells is a different shape from
+# a row of them only in how many rectangles it takes, and one pass is enough to
+# turn a floor into a handful of shapes. What it must not do is merge across
+# different physics, which is what the key above is for.
+fn tiles_solid_runs(app) {
 	let m = tiles_map(app);
 	let out = [];
 	let layers = tiles_layers(app);
@@ -538,28 +754,42 @@ fn tiles_solid_rects(app) {
 	for (let i = 0; i < len(layers); i++) {
 		let layer = layers[i];
 
-		# gather each row's columns, then merge -- the cells map has no order
-		let rows = {};
+		# gather the cells that collide, grouped by row *and* by what they
+		# collide as -- the cells map has no order of its own
+		let groups = {};
 		let k = next_key(layer.cells, null);
 		while (k != null) {
 			let c = tile_key_cell(k);
 			if (c != null && tiles_cell_is_solid(app, layer, layer.cells[k])) {
-				let row = "" + c[1];
-				if (!contains_key(rows, row)) { rows[row] = []; }
-				append(rows[row], c[0]);
+				let phys = tiles_cell_physics(app, layer, layer.cells[k]);
+				let key = c[1] + "|" + tiles_physics_key(phys);
+				if (!contains_key(groups, key)) {
+					groups[key] = { "row": c[1], "phys": phys, "cols": [] };
+				}
+				append(groups[key].cols, c[0]);
 			}
 			k = next_key(layer.cells, k);
 		}
 
-		let row = next_key(rows, null);
-		while (row != null) {
-			let runs = tiles_row_runs(rows[row]);
-			let cy = tonumber(row);
+		let g = next_key(groups, null);
+		while (g != null) {
+			let group = groups[g];
+			let runs = tiles_row_runs(group.cols);
 			for (let r = 0; r < len(runs); r++) {
-				append(out, [runs[r][0] * m.tile_w, cy * m.tile_h,
-				             (runs[r][1] - runs[r][0] + 1) * m.tile_w, m.tile_h]);
+				let phys = group.phys;
+				append(out, { "x": runs[r][0] * m.tile_w,
+				              "y": group.row * m.tile_h,
+				              "w": (runs[r][1] - runs[r][0] + 1) * m.tile_w,
+				              "h": m.tile_h,
+				              "friction": phys.friction,
+				              "restitution": phys.restitution,
+				              "sensor": phys.sensor,
+				              "category": phys.category,
+				              "mask": phys.mask,
+				              "group": phys.group,
+				              "name": phys.name });
 			}
-			row = next_key(rows, row);
+			g = next_key(groups, g);
 		}
 	}
 	return out;
@@ -587,10 +817,112 @@ fn tiles_draw_cell(app, m, cx, cy, cell) {
 	return 0;
 }
 
+# --- batching ---------------------------------------------------------------
+#
+#  A screenful of cells is a screenful of draw calls, and a map is mostly the
+#  same picture frame after frame. So each (layer, sheet) pair is built into a
+#  sprite batch once and drawn as one call afterwards, and the batches are
+#  thrown away when the document moves -- app.revision is the "this is stale
+#  now" that doc_touch() already maintains.
+#
+#  Not while a stroke is being painted, though: the revision moves on every
+#  cell then, and rebuilding a ten-thousand-cell batch per painted cell would
+#  cost far more than the draw calls it saves. During a gesture the cells the
+#  viewport covers are drawn one at a time -- there are only ever a screenful
+#  of those -- and the batch is rebuilt once when the mouse comes up.
+
+fn tiles_batch_for(app, layer, ts) {
+	let key = layer.id + ":" + ts.id;
+	if (contains_key(app.tile_batches, key)) { return app.tile_batches[key]; }
+
+	let img = tileset_image(app, ts);
+	if (img == null) { return null; }
+
+	# how many cells this pair actually holds -- a batch cannot grow past the
+	# size it was made with, and love_graphics_batch_add() refuses past it
+	let cells = [];
+	let k = next_key(layer.cells, null);
+	while (k != null) {
+		if (layer.cells[k][0] == ts.id) {
+			let c = tile_key_cell(k);
+			if (c != null) { append(cells, [c[0], c[1], layer.cells[k]]); }
+		}
+		k = next_key(layer.cells, k);
+	}
+	if (len(cells) == 0) {
+		app.tile_batches[key] = false;    # nothing here, and remember that
+		return null;
+	}
+
+	let m = tiles_map(app);
+	let batch = love_graphics_newSpriteBatch(img, len(cells));
+	for (let i = 0; i < len(cells); i++) {
+		let cell = cells[i][2];
+		love_graphics_batch_add(batch, tileset_quad(app, ts, cell[1], cell[2]),
+			cells[i][0] * m.tile_w, cells[i][1] * m.tile_h, 0,
+			m.tile_w * 1.0 / ts.tile_w, m.tile_h * 1.0 / ts.tile_h);
+	}
+
+	app.tile_batches[key] = batch;
+	return batch;
+}
+
+fn tiles_draw_layer_batched(app, layer) {
+	let sets = tiles_sets(app);
+	for (let i = 0; i < len(sets); i++) {
+		let batch = tiles_batch_for(app, layer, sets[i]);
+		if (batch != null && batch != false) {
+			love_graphics_draw(batch, 0, 0);
+		}
+	}
+	return 0;
+}
+
+fn tiles_draw_layer_cells(app, layer, m, cx0, cy0, cx1, cy1) {
+	# Two ways round the same picture, and the cheaper one wins: walk the
+	# cells the viewport covers, or walk what the layer holds. Zoomed in on a
+	# big map the first is a few hundred lookups; zoomed out over a nearly
+	# empty one it is tens of thousands of misses, and the layer itself is
+	# shorter than that.
+	let span = (cx1 - cx0 + 1) * (cy1 - cy0 + 1);
+
+	if (len(layer.cells) < span) {
+		let k = next_key(layer.cells, null);
+		while (k != null) {
+			let c = tile_key_cell(k);
+			if (c != null && c[0] >= cx0 && c[0] <= cx1 &&
+			    c[1] >= cy0 && c[1] <= cy1) {
+				tiles_draw_cell(app, m, c[0], c[1], layer.cells[k]);
+			}
+			k = next_key(layer.cells, k);
+		}
+		return 0;
+	}
+
+	for (let cy = cy0; cy <= cy1; cy++) {
+		for (let cx = cx0; cx <= cx1; cx++) {
+			let cell = tiles_get(layer, cx, cy);
+			if (cell != null) { tiles_draw_cell(app, m, cx, cy, cell); }
+		}
+	}
+	return 0;
+}
+
 fn tiles_draw_layers(app) {
 	let m = tiles_map(app);
 	let layers = tiles_layers(app);
 	if (len(layers) == 0) { return 0; }
+
+	# a gesture in progress moves the revision on every cell, so the batches
+	# wait for it to finish rather than being rebuilt inside it
+	let settled = app.paint == null && app.tile_rect == null;
+	if (app.tile_batch_rev != app.revision) {
+		if (settled) {
+			app.tile_batches = {};
+			app.tile_batch_rev = app.revision;
+		}
+	}
+	let batched = settled && app.tile_batch_rev == app.revision;
 
 	let tl = cam_to_world(app, app.vp_x, app.vp_y);
 	let br = cam_to_world(app, app.vp_x + app.vp_w, app.vp_y + app.vp_h);
@@ -598,7 +930,6 @@ fn tiles_draw_layers(app) {
 	let cy0 = math_floor(tl[1] / m.tile_h);
 	let cx1 = math_floor(br[0] / m.tile_w);
 	let cy1 = math_floor(br[1] / m.tile_h);
-	let span = (cx1 - cx0 + 1) * (cy1 - cy0 + 1);
 
 	love_graphics_setColor(255, 255, 255, 255);
 
@@ -606,33 +937,15 @@ fn tiles_draw_layers(app) {
 		let layer = layers[i];
 		if (!layer.visible || len(layer.cells) == 0) { continue; }
 
-		# Two ways round the same picture, and the cheaper one wins: walk the
-		# cells the viewport covers, or walk what the layer holds. Zoomed in on
-		# a big map the first is a few hundred lookups; zoomed out over a
-		# nearly empty one it is tens of thousands of misses, and the layer
-		# itself is shorter than that.
-		if (len(layer.cells) < span) {
-			let k = next_key(layer.cells, null);
-			while (k != null) {
-				let c = tile_key_cell(k);
-				if (c != null && c[0] >= cx0 && c[0] <= cx1 &&
-				    c[1] >= cy0 && c[1] <= cy1) {
-					tiles_draw_cell(app, m, c[0], c[1], layer.cells[k]);
-				}
-				k = next_key(layer.cells, k);
-			}
-			continue;
-		}
-
-		for (let cy = cy0; cy <= cy1; cy++) {
-			for (let cx = cx0; cx <= cx1; cx++) {
-				let cell = tiles_get(layer, cx, cy);
-				if (cell != null) { tiles_draw_cell(app, m, cx, cy, cell); }
-			}
+		if (batched) {
+			tiles_draw_layer_batched(app, layer);
+		} else {
+			tiles_draw_layer_cells(app, layer, m, cx0, cy0, cx1, cy1);
 		}
 	}
 	return 0;
 }
+
 
 # What Play would collide with, drawn over the map when the fixture overlay is
 # on -- the same question the fixture outlines answer for entities, and the
@@ -643,20 +956,26 @@ fn tiles_draw_layers(app) {
 # doc_touch() maintains.
 fn tiles_solid_cache(app) {
 	if (app.solid_rev != app.revision) {
-		app.solid_rects = tiles_solid_rects(app);
+		app.solid_runs = tiles_solid_runs(app);
 		app.solid_rev = app.revision;
 	}
-	return app.solid_rects;
+	return app.solid_runs;
 }
 
 fn tiles_draw_solid(app) {
 	if (!app.show_fixtures) { return 0; }
 
-	let rects = tiles_solid_cache(app);
-	love_graphics_setColor(150, 155, 165, 130);
-	for (let i = 0; i < len(rects); i++) {
-		let r = rects[i];
-		love_geometry_rectangle("line", r[0], r[1], r[2], r[3]);
+	let runs = tiles_solid_cache(app);
+	for (let i = 0; i < len(runs); i++) {
+		let r = runs[i];
+		# a sensor reports the touch and lets it through, so it is not the
+		# same thing as a wall and does not look like one
+		if (r.sensor) {
+			love_graphics_setColor(120, 210, 190, 150);
+		} else {
+			love_graphics_setColor(150, 155, 165, 130);
+		}
+		love_geometry_rectangle("line", r.x, r.y, r.w, r.h);
 	}
 	love_graphics_setColor(255, 255, 255, 255);
 	return 0;
@@ -669,18 +988,63 @@ fn tiles_draw_brush(app) {
 	if (!app.hover_viewport) { return 0; }
 	if (tiles_palette_hover(app)) { return 0; }
 
+	let m = tiles_map(app);
 	let c = tiles_cell_of(app, app.wx, app.wy);
-	let r = tiles_cell_rect(app, c[0], c[1]);
-	let erase = love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift");
+	let erase = tiles_erasing(app,
+		love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift"));
+
+	# A rectangle being dragged out is what the release will fill, so it is
+	# the preview: the cell under the cursor says nothing about it.
+	if (app.tile_rect != null) {
+		let from = app.tile_rect;
+		let x0 = math_min(from[0], c[0]);
+		let y0 = math_min(from[1], c[1]);
+		let w = (math_abs(c[0] - from[0]) + 1) * m.tile_w;
+		let h = (math_abs(c[1] - from[1]) + 1) * m.tile_h;
+
+		if (erase) {
+			love_graphics_setColor(255, 120, 120, 60);
+		} else {
+			love_graphics_setColor(120, 220, 255, 60);
+		}
+		love_geometry_rectangle("fill", x0 * m.tile_w, y0 * m.tile_h, w, h);
+		if (erase) {
+			love_graphics_setColor(255, 120, 120, 230);
+		} else {
+			love_graphics_setColor(120, 220, 255, 230);
+		}
+		love_geometry_rectangle("line", x0 * m.tile_w, y0 * m.tile_h, w, h);
+		love_graphics_setColor(255, 255, 255, 255);
+		return 0;
+	}
+
+	let cols = brush_cols(app.brush);
+	let rows = brush_rows(app.brush);
+	if (app.tile_mode == "fill") {
+		# fill replaces a run of identical tiles with one tile, whatever the
+		# block is, so the outline is one cell
+		cols = 1;
+		rows = 1;
+	}
+
+	let r = [c[0] * m.tile_w, c[1] * m.tile_h, cols * m.tile_w, rows * m.tile_h];
 
 	if (!erase && app.brush != null) {
 		let ts = tiles_find_set(app, app.brush[0]);
 		let img = tileset_image(app, ts);
 		if (img != null) {
-			# a ghost of the tile, so the choice is visible where it lands
+			# a ghost of what a click would leave, so the choice is visible
+			# where it lands rather than only on the sheet
 			love_graphics_setColor(255, 255, 255, 130);
-			love_graphics_draw(img, tileset_quad(app, ts, app.brush[1], app.brush[2]),
-				r[0], r[1], 0, r[2] * 1.0 / ts.tile_w, r[3] * 1.0 / ts.tile_h);
+			for (let dy = 0; dy < rows; dy++) {
+				for (let dx = 0; dx < cols; dx++) {
+					if (!brush_tile_exists(app, app.brush, dx, dy)) { continue; }
+					love_graphics_draw(img,
+						tileset_quad(app, ts, app.brush[1] + dx, app.brush[2] + dy),
+						r[0] + dx * m.tile_w, r[1] + dy * m.tile_h, 0,
+						m.tile_w * 1.0 / ts.tile_w, m.tile_h * 1.0 / ts.tile_h);
+				}
+			}
 		}
 	}
 
@@ -825,10 +1189,42 @@ fn tiles_palette_arrows(app) {
 #
 # `shift` is read from the press rather than from what is held now, for the
 # same reason the scene's is: a frame later it may already be up.
+# A block dragged out on the sheet becomes the brush: from the tile the press
+# landed on to the one under the cursor when it came up. A click is that with
+# both ends in the same place, so there is one path, not two.
+fn tiles_palette_finish_drag(app) {
+	if (app.pal_drag == null) { return 0; }
+
+	let ts = tiles_current_set(app);
+	let to = app.pal_drag_to;
+	if (ts == null || to == null) {
+		app.pal_drag = null;
+		return 0;
+	}
+
+	let x0 = math_min(app.pal_drag[0], to[0]);
+	let y0 = math_min(app.pal_drag[1], to[1]);
+	let cols = math_abs(to[0] - app.pal_drag[0]) + 1;
+	let rows = math_abs(to[1] - app.pal_drag[1]) + 1;
+	app.brush = [ts.id, x0, y0, cols, rows];
+	app.pal_drag = null;
+
+	let what = "brush: " + ts.name + " " + x0 + "," + y0;
+	if (cols > 1 || rows > 1) { what = what + " (" + cols + "x" + rows + ")"; }
+	log_line(app, what);
+	return 0;
+}
+
 fn tiles_palette_input(app, pressed, px, py, shift) {
 	let r = tiles_palette_rect(app);
 	if (r == null) { return false; }
 	if (!point_in(app.mx, app.my, r[0], r[1], r[2], r[3])) { return false; }
+
+	# while a block is being dragged out, remember how far it has got
+	if (app.pal_drag != null) {
+		let over = tiles_palette_cell_at(app, tiles_current_set(app), app.mx, app.my);
+		if (over != null) { app.pal_drag_to = over; }
+	}
 
 	# the wheel scrolls the sheet instead of zooming the camera
 	if (app.wheel != 0) {
@@ -860,8 +1256,12 @@ fn tiles_palette_input(app, pressed, px, py, shift) {
 			tiles_toggle_tile_solid(app, ts, cell[0], cell[1]);
 			return true;
 		}
-		app.brush = [ts.id, cell[0], cell[1]];
-		log_line(app, "brush: " + ts.name + " " + cell[0] + "," + cell[1]);
+
+		# the brush follows the press at once, so a click is a brush even if
+		# the release lands somewhere the palette never sees
+		app.brush = [ts.id, cell[0], cell[1], 1, 1];
+		app.pal_drag = [cell[0], cell[1]];
+		app.pal_drag_to = [cell[0], cell[1]];
 	}
 	return true;
 }
@@ -973,9 +1373,24 @@ fn tiles_palette_draw(app) {
 	}
 	if (app.brush != null && app.brush[0] == ts.id) {
 		let src = tileset_src(ts, app.brush[1], app.brush[2]);
+		let bw = (brush_cols(app.brush) * (ts.tile_w + ts.spacing) - ts.spacing) * scale;
+		let bh = (brush_rows(app.brush) * (ts.tile_h + ts.spacing) - ts.spacing) * scale;
 		love_graphics_setColor(255, 214, 90, 255);
 		love_geometry_rectangle("line", ox + src[0] * scale, oy + src[1] * scale,
-			src[2] * scale, src[3] * scale);
+			bw, bh);
+	}
+
+	# the block being dragged out, while the button is down
+	if (app.pal_drag != null && app.pal_drag_to != null) {
+		let x0 = math_min(app.pal_drag[0], app.pal_drag_to[0]);
+		let y0 = math_min(app.pal_drag[1], app.pal_drag_to[1]);
+		let cols_d = math_abs(app.pal_drag_to[0] - app.pal_drag[0]) + 1;
+		let rows_d = math_abs(app.pal_drag_to[1] - app.pal_drag[1]) + 1;
+		let corner = tileset_src(ts, x0, y0);
+		love_graphics_setColor(120, 220, 255, 255);
+		love_geometry_rectangle("line", ox + corner[0] * scale, oy + corner[1] * scale,
+			(cols_d * (ts.tile_w + ts.spacing) - ts.spacing) * scale,
+			(rows_d * (ts.tile_h + ts.spacing) - ts.spacing) * scale);
 	}
 
 	love_graphics_setScissor();
@@ -988,11 +1403,14 @@ fn tiles_palette_draw(app) {
 	let footer = cols + "x" + rows + " tiles";
 	if (app.brush != null && app.brush[0] == ts.id) {
 		footer = footer + "   brush " + app.brush[1] + "," + app.brush[2];
+		if (brush_cols(app.brush) > 1 || brush_rows(app.brush) > 1) {
+			footer = footer + " " + brush_cols(app.brush) + "x" + brush_rows(app.brush);
+		}
 		if (tileset_is_solid(ts, app.brush[1], app.brush[2])) {
 			footer = footer + " solid";
 		}
 	} else {
-		footer = footer + "   click a tile, Shift for solid";
+		footer = footer + "   click or drag a block, Shift for solid";
 	}
 	love_graphics_print(footer, r[0] + PAL_PAD, r[1] + r[3] - PAL_FOOTER + 2);
 	love_graphics_setColor(255, 255, 255, 255);
@@ -1139,22 +1557,84 @@ fn tiles_sheet_section(app) {
 			" tiles of " + love_image_getWidth(img) + "x" + love_image_getHeight(img));
 	}
 
+	if (app.brush == null || app.brush[0] != ts.id) {
+		love_ui_label("pick a tile to say whether it is solid");
+		return 0;
+	}
+	return tiles_tile_section(app, ts, app.brush[1], app.brush[2]);
+}
+
+# What one tile is: solid or not, and what it collides as when it is. The
+# fields are the fixture's, because that is what a run of these cells becomes
+# -- so a patch of ice is friction 0.05 here rather than a special case
+# somewhere in a game.
+fn tiles_tile_section(app, ts, tx, ty) {
 	# The brush's own flag: this tile collides wherever it is painted, in any
 	# layer. Off by default, and off again on a second click -- a level full of
 	# solid grass is a level nobody can walk through.
-	if (app.brush != null && app.brush[0] == ts.id) {
-		let solid = tileset_is_solid(ts, app.brush[1], app.brush[2]);
-		if (love_ui_checkbox("tile " + app.brush[1] + "," + app.brush[2] +
-		                     " is solid", solid, TILE_CHECK_BASE + 2)) {
-			tiles_toggle_tile_solid(app, ts, app.brush[1], app.brush[2]);
-		}
-		tip(app, "Collision for this tile wherever it is painted, whatever " +
-			"layer it lands in -- Shift+click on the sheet does the same. A " +
-			"layer marked solid collides anyway; this is for the stone block " +
-			"in a layer of grass that is not.");
-	} else {
-		love_ui_label("pick a tile to say whether it is solid");
+	let solid = tileset_is_solid(ts, tx, ty);
+	if (love_ui_checkbox("tile " + tx + "," + ty + " is solid", solid,
+	                     TILE_CHECK_BASE + 2)) {
+		tiles_toggle_tile_solid(app, ts, tx, ty);
+		return 0;                # the settings below belong to the old answer
 	}
+	tip(app, "Collision for this tile wherever it is painted, whatever layer " +
+		"it lands in -- Shift+click on the sheet does the same. A layer marked " +
+		"solid collides anyway; this is for the stone block in a layer of " +
+		"grass that is not.");
+
+	let t = tile_settings(ts, tx, ty);
+	if (t == null) { return 0; }
+
+	love_ui_layout_row(3, [64, 56, -1], 0);
+	love_ui_label("Friction:");
+	let friction = round_to(math_max(0, love_ui_number(t.friction, 0.01,
+		ID_NUM_TILE_FRICTION)), 3);
+	love_ui_label("");
+	love_ui_label("Bounce:");
+	let bounce = round_to(math_max(0, love_ui_number(t.restitution, 0.01,
+		ID_NUM_TILE_BOUNCE)), 3);
+	love_ui_label("");
+	if (friction != t.friction || bounce != t.restitution) {
+		doc_begin_edit(app);
+		t.friction = friction;
+		t.restitution = bounce;
+	}
+	tip(app, "What a run of these cells rubs and bounces like. Two cells only " +
+		"merge into one shape when they collide alike, so a patch of ice keeps " +
+		"its own friction rather than taking the floor's.");
+
+	love_ui_layout_row(1, [-1], 0);
+	if (love_ui_checkbox("sensor", t.sensor, TILE_CHECK_BASE + 3)) {
+		doc_begin_edit(app);
+		t.sensor = !t.sensor;
+	}
+	tip(app, "Reports the touch and lets it through -- water, a trigger, the " +
+		"bottom of a pit. Outlined in green rather than grey by Show fixtures.");
+
+	love_ui_layout_row(2, [64, -1], 0);
+	love_ui_label("Name:");
+	let box = love_ui_textbox(TILE_NAME_BOX, t.name);
+	if (box[0] != 0 && box[1] != t.name) {
+		doc_begin_edit(app);
+		t.name = box[1];
+	}
+	tip(app, "What a contact callback is handed when something hits this tile. " +
+		"A merged run has no entity behind it, so without a name a game can " +
+		"only tell that it hit the map -- with one it can tell ice from lava. " +
+		"An entity's user data is its id, a number; this is a string.");
+
+	# Box2D's filter, the same two bit fields an entity's fixture has
+	let category = inspector_bit_row(app, "layer:", t.category, ID_TILE_CATEGORY);
+	let mask = inspector_bit_row(app, "hits:", t.mask, ID_TILE_MASK);
+	if (category != t.category || mask != t.mask) {
+		doc_begin_edit(app);
+		t.category = category;
+		t.mask = mask;
+	}
+	tip(app, "layer is what these cells are, hits is what they are willing to " +
+		"touch -- two fixtures collide only when each one's layer is in the " +
+		"other's mask.");
 	return 0;
 }
 
@@ -1196,6 +1676,19 @@ fn tiles_layer_section(app) {
 	tip(app, "This list is the draw order, front last -- the same rule the " +
 		"hierarchy follows for entities.");
 
+	# Renaming the current one. The box is seeded from the layer, so it has to
+	# be handed back to microui when the current layer changes -- editor_update
+	# does that, the same way it does for the entity fields.
+	if (current != null) {
+		love_ui_layout_row(2, [64, -1], 0);
+		love_ui_label("Name:");
+		let box = love_ui_textbox(LAYER_NAME_BOX, current.name);
+		if (box[0] != 0 && len(box[1]) > 0 && box[1] != current.name) {
+			doc_begin_edit(app);
+			current.name = box[1];
+		}
+	}
+
 	love_ui_layout_row(2, [-90, -1], 0);
 	let cells = 0;
 	if (current != null) { cells = len(current.cells); }
@@ -1203,6 +1696,41 @@ fn tiles_layer_section(app) {
 	if (ui_button_enabled("Clear", cells > 0, ALIGN_CENTER)) {
 		tiles_clear_layer(app, current);
 	}
+	return 0;
+}
+
+# --- what a click does ------------------------------------------------------
+#
+#  Three ways to lay tiles down and one switch that turns any of them into the
+#  opposite. Shift still erases whatever the switch says, so the quick way and
+#  the sustained way are both there: holding a key is right for one cell and
+#  wrong for a hundred.
+
+fn tiles_mode_button(app, mode, label) {
+	let caption = "  " + label;
+	if (app.tile_mode == mode) { caption = "> " + label; }
+	if (love_ui_button(caption, ALIGN_CENTER)) { app.tile_mode = mode; }
+	return 0;
+}
+
+fn tiles_mode_section(app) {
+	love_ui_layout_row(3, [72, 72, -1], 0);
+	tiles_mode_button(app, "brush", "Brush");
+	tiles_mode_button(app, "rect", "Rect");
+	tiles_mode_button(app, "fill", "Fill");
+
+	# its own row: a checkbox is a box and a word, and the three buttons above
+	# had already taken the width
+	love_ui_layout_row(1, [-1], 0);
+	if (love_ui_checkbox("erase (or hold Shift)", app.tile_erase,
+	                     TILE_CHECK_BASE + 4)) {
+		app.tile_erase = !app.tile_erase;
+	}
+	tip(app, "Brush paints the cell under the cursor, and drags a stroke. " +
+		"Rect fills the rectangle you drag out. Fill replaces the run of " +
+		"identical tiles you click on, and never spreads into empty space. " +
+		"Erase turns whichever of them into its opposite -- so does holding " +
+		"Shift, which is quicker for one cell and worse for a hundred.");
 	return 0;
 }
 
@@ -1232,6 +1760,7 @@ fn tiles_panel(app) {
 		app.pal_open = true;
 		log_line(app, "tool: tile -- click paints, Shift erases");
 	}
+	if (app.tool == "tile") { tiles_mode_section(app); }
 	tip(app, "The Tiles tool: the palette opens over the viewport, a click " +
 		"paints the cell under the cursor and Shift+click rubs it out.");
 

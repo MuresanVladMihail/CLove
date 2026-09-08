@@ -16,8 +16,12 @@
 #      # is [tileset id, column, row]; tiles.fh has the why of all three.
 #      "tilesets": [ { "id": 1, "name": "terrain.png", "path": "art/terrain.png",
 #                      "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0,
-#                      # the tiles that collide wherever they are painted
-#                      "solid": { "0,3": true } } ],
+#                      # what individual tiles of the sheet are: the ones that
+#                      # collide wherever they are painted, and what as
+#                      "tiles": { "0,3": { "solid": true, "friction": 0.4,
+#                                          "restitution": 0, "sensor": false,
+#                                          "category": 1, "mask": 65535,
+#                                          "group": 0, "name": "ice" } } } ],
 #      "tilemap": { "tile_w": 32, "tile_h": 32,
 #                   "layers": [ { "id": 1, "name": "Ground", "visible": true,
 #                                 "solid": true, "cells": { "3,-1": [1, 4, 2] } } ] },
@@ -649,7 +653,32 @@ fn doc_migrate(app, parsed) {
 		if (!contains_key(ts, "name")) { ts.name = path_name(ts.path); }
 		if (!contains_key(ts, "margin")) { ts.margin = 0; }
 		if (!contains_key(ts, "spacing")) { ts.spacing = 0; }
-		if (!contains_key(ts, "solid")) { ts.solid = {}; }
+		# The flag used to be a bare set of tile keys; it is a settings map
+		# now, and one carries into the other rather than being dropped.
+		if (contains_key(ts, "solid")) {
+			if (!contains_key(ts, "tiles")) { ts.tiles = {}; }
+			let k = next_key(ts.solid, null);
+			while (k != null) {
+				if (!contains_key(ts.tiles, k)) { ts.tiles[k] = tile_settings_new(); }
+				k = next_key(ts.solid, k);
+			}
+			delete(ts, "solid");
+		}
+		if (!contains_key(ts, "tiles")) { ts.tiles = {}; }
+
+		# and a settings entry written by hand may be missing any of its
+		# fields; the defaults are what a tile collides as
+		let tk = next_key(ts.tiles, null);
+		while (tk != null) {
+			let t = ts.tiles[tk];
+			let filled = tile_settings_new();
+			let fk = next_key(filled, null);
+			while (fk != null) {
+				if (!contains_key(t, fk)) { t[fk] = filled[fk]; }
+				fk = next_key(filled, fk);
+			}
+			tk = next_key(ts.tiles, tk);
+		}
 		if (!contains_key(ts, "tile_w") || ts.tile_w < TILE_MIN) { ts.tile_w = TILE_DEFAULT; }
 		if (!contains_key(ts, "tile_h") || ts.tile_h < TILE_MIN) { ts.tile_h = TILE_DEFAULT; }
 	}

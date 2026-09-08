@@ -63,10 +63,22 @@ appears.
 A map is painted, not placed. **Inspector > Tilemap** adds a spritesheet and
 says how big one tile of it is — plus the margin around the sheet and the
 spacing between two tiles, for one that came out of a packer. The **Tiles**
-button opens that sheet as a palette over the viewport: click a tile there,
-then click or drag in the scene to lay it down, `Shift` to rub it out. Pressing
-Tiles again puts the palette away; it narrows with the viewport and gives up
-when there is no room left for it.
+button opens that sheet as a palette over the viewport. Click a tile there, or
+*drag a block* of them, and it becomes the brush; pressing Tiles again puts the
+palette away. It narrows with the viewport and gives up when there is no room
+left for it.
+
+Three ways to lay tiles down, chosen in the Tilemap section:
+
+| Mode | What a click does |
+| --- | --- |
+| **Brush** | Stamps the brush where you click, and drags a stroke — the cells between two mouse positions are filled in, so a fast drag leaves no gaps. |
+| **Rect** | Drag out a rectangle; the cells land when the button comes up, with a block brush tiled across it. |
+| **Fill** | Replaces the run of identical tiles you clicked on. It never spreads into empty space — a map is unbounded, and filling the sky would be filling forever; use Rect for that. |
+
+**erase** turns whichever of them into its opposite, and holding `Shift` does
+the same for one click: a key is the quick way for a cell and the wrong way for
+a hundred.
 
 Layers are drawn back to front, the way the hierarchy's z-order works for
 entities. A cell collides when **either** its layer or its tile says so:
@@ -77,6 +89,14 @@ entities. A cell collides when **either** its layer or its tile says so:
   settings; a marked tile carries a blue corner in the palette. This is the
   stone block in a layer of grass that is not solid, and it is a toggle —
   clicking again takes it off.
+
+A solid tile also says *what* it collides as: **friction**, **bounce**,
+**sensor**, the collision **filter** (the same layer/hits bit fields an
+entity's fixture has), and a **name** — what a contact callback is handed when
+something hits it, since a merged run has no entity behind it. An entity's user
+data is its id, a number; a tile's is that string, so a game can tell ice from
+lava. Cells only merge into one shape when they collide *alike*, so a patch of
+ice keeps its own friction instead of taking the floor's.
 
 Play then merges every colliding cell into static bodies, a row of touching
 cells at a time. Switch **Show fixtures** on and the merged rectangles are
@@ -98,7 +118,10 @@ The document grows two fields for all this:
 ```json
 "tilesets": [ { "id": 1, "name": "terrain.png", "path": "art/terrain.png",
                 "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0,
-                "solid": { "0,3": true } } ],
+                "tiles": { "0,3": { "solid": true, "friction": 0.05,
+                                    "restitution": 0, "sensor": false,
+                                    "category": 1, "mask": 65535, "group": 0,
+                                    "name": "ice" } } } ],
 "tilemap":  { "tile_w": 32, "tile_h": 32,
               "layers": [ { "id": 1, "name": "Ground", "visible": true,
                             "solid": true, "cells": { "3,-1": [1, 4, 2] } } ] }
@@ -106,9 +129,18 @@ The document grows two fields for all this:
 
 A cell is `[tileset id, column, row]` — where the tile *is in the sheet*, not
 an index into it, so cropping the sheet or swapping it for one a tile wider
-does not repaint the level behind your back. Reading it back from a game is
-`opt/packages/scene`; `opt/examples/fh/game` draws a map and collides with it
-in about forty lines.
+does not repaint the level behind your back. What a tile *is* lives on the
+sheet rather than in every cell that uses it: stone is stone in every level,
+and only the tiles somebody has said something about are in the file at all.
+
+Layers can be renamed, reordered (`Down` / `Up`, back to front), hidden and
+cleared. The map is drawn through one sprite batch per (layer, sheet), rebuilt
+when the document settles — while a stroke is being painted the visible cells
+are drawn one at a time instead, because rebuilding a ten-thousand-cell batch
+per painted cell would cost more than it saves.
+
+Reading it back from a game is `opt/packages/scene`; `opt/examples/fh/game`
+draws a map and collides with it in about sixty lines.
 
 ## Layout
 

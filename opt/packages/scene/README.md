@@ -130,7 +130,9 @@ spritesheets it was painted from and the cells painted out of them.
 | `tile_at(layer, cx, cy)` | What is painted in one cell, or `null`. |
 | `tile_cell_at(x, y)` / `tile_rect(cx, cy)` | World point → cell, and cell → the rectangle it covers. |
 | `tile_bounds()` | `[min_x, min_y, max_x, max_y]` over every cell, or `null`. |
-| `tile_is_solid(ts, tx, ty)` | Does that tile of that sheet collide wherever it is painted? |
+| `tile_props(ts, tx, ty)` | What one tile of a sheet is, or `null` when nobody has said. |
+| `tile_is_solid(ts, tx, ty)` | Does that tile collide wherever it is painted? |
+| `tile_physics(cell)` | What a cell collides as, with every field filled in. |
 | `tile_cell_is_solid(layer, cell)` | Does this cell collide — because of its layer or its tile? |
 | `solid_tile_rects()` | All of that collision, merged. |
 
@@ -142,28 +144,58 @@ a tile wider and every index means a different picture.
 ```
 let size = scene.tile_size();
 let cells = scene.tile_cells(scene.tile_layers()[0]);
+
+# one batch per (layer, sheet), built once: the cells only change when the
+# editor changes them, and a screenful drawn one at a time is a screenful of
+# draw calls every frame for a picture that did not move
+let batch = love_graphics_newSpriteBatch(sheet_image, len(cells));
 for (let i = 0; i < len(cells); i++) {
     let c = cells[i];
     let ts = scene.tileset(c[2]);
     let src = scene.tile_source(ts, c[3], c[4]);
-    # one quad per tile, built once -- and a sprite batch for a big map
-    love_graphics_draw(sheet_image, quad_for(src),
+    love_graphics_batch_add(batch, quad_for(src),
         c[0] * size[0], c[1] * size[1], 0,
         size[0] / ts.tile_w, size[1] / ts.tile_h);
 }
+# ...and then, every frame:
+love_graphics_draw(batch, 0, 0);
 ```
+
+A batch cannot grow past the size it was made with, so count the cells that use
+that sheet before making it.
 
 A cell collides when its **layer** is marked solid (a ground layer, whatever is
 painted in it) or when the **tile** it holds is (`tile_is_solid()` — stone is
 stone in every level it lands in). Both are authored in the editor, and
 `tile_cell_is_solid()` is the two questions asked as one.
 
-`solid_tile_rects()` hands back `[x, y, w, h]` in world units with each row of
-touching cells already merged into one rectangle, ready for
-`love_physics_newRectangleShape()` on a static body. That is one shape per run
-rather than one per tile — Box2D would otherwise spend its time on contacts
-between neighbours that can never move, and a moving box catches on the seam
-between two of them. `opt/examples/fh/game` builds exactly this.
+A solid tile also carries what it collides *as* — `tile_props()` / the
+filled-in `tile_physics()`:
+
+```
+{ "solid": true, "friction": 0.05, "restitution": 0, "sensor": false,
+  "category": 1, "mask": 65535, "group": 0, "name": "ice" }
+```
+
+`solid_tile_rects()` hands back one entry per merged run, in world units, ready
+for `love_physics_newRectangleShape()` on a static body:
+
+```
+{ "x": 0, "y": 320, "w": 160, "h": 32,
+  "friction": 0.4, "restitution": 0, "sensor": false,
+  "category": 1, "mask": 65535, "group": 0, "name": "" }
+```
+
+Each row of touching cells is merged into one rectangle — but only across cells
+that collide *alike*, or a patch of ice would quietly take the friction of the
+stone beside it. That is one shape per run rather than one per tile: Box2D
+would otherwise spend its time on contacts between neighbours that can never
+move, and a moving box catches on the seam between two of them.
+
+`name` is what to put in the fixture's user data. A merged run has no entity
+behind it, so a contact callback would otherwise learn only that it hit the
+map; with a name it can tell ice from lava. An entity's user data is its id, a
+number — a tile's is a string. `opt/examples/fh/game` builds exactly this.
 
 A level written before tile maps existed (document version 1) reads as a map
 with no sheets and no cells rather than as an error.

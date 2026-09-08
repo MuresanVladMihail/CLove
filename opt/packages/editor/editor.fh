@@ -510,6 +510,13 @@ fn viewport_input(app, dt) {
 		}
 	}
 
+	# A block dragged out on the sheet is finished wherever the button comes
+	# up, which is easily outside the palette -- so this is asked before the
+	# palette gets its say, not inside it.
+	if (app.pal_drag != null && (released || !down)) {
+		tiles_palette_finish_drag(app);
+	}
+
 	# The palette floats over the viewport rather than beside it, so it gets
 	# the press before the scene does -- and the wheel too, which scrolls the
 	# sheet there instead of zooming the camera.
@@ -519,6 +526,7 @@ fn viewport_input(app, dt) {
 			# that happens over the palette rather than over the scene
 			if (released) {
 				app.paint = null;
+				app.tile_rect = null;
 				app.dragging = false;
 				app.gizmo = null;
 			}
@@ -554,10 +562,22 @@ fn viewport_input(app, dt) {
 		} else if (app.tool == "tile") {
 			# Shift is read from the press, not from what is held now: by the
 			# time the event is handled a frame later it may already be up,
-			# and half an erase stroke would paint.
-			app.paint = { "erase": add };
-			app.paint_from = [pwx, pwy];
-			tiles_paint(app, pwx, pwy, add);
+			# and half an erase stroke would paint. It flips the Erase switch
+			# rather than being the only way to erase.
+			let erase = tiles_erasing(app, add);
+
+			if (app.tile_mode == "rect") {
+				# nothing lands until the button comes up: what is being
+				# dragged out is a rectangle, and half of one is not an edit
+				app.tile_rect = tiles_cell_of(app, pwx, pwy);
+				app.paint = { "erase": erase };
+			} else if (app.tile_mode == "fill") {
+				tiles_fill_from(app, pwx, pwy, erase);
+			} else {
+				app.paint = { "erase": erase };
+				app.paint_from = [pwx, pwy];
+				tiles_paint(app, pwx, pwy, erase);
+			}
 		} else if (app.tool == "select") {
 			# A vertex of the selected polygon wins over everything: it is the
 			# smallest target on screen and it sits on top of the shape it
@@ -615,7 +635,10 @@ fn viewport_input(app, dt) {
 
 	# Dragging the brush paints a stroke: the cells between where the mouse was
 	# last frame and where it is now, so a fast drag does not leave gaps.
-	if (app.paint != null && down) {
+	if (app.paint != null && down && app.tile_rect != null) {
+		# a rectangle is only previewed while it is dragged; the cells are
+		# laid down when the button comes up
+	} else if (app.paint != null && down) {
 		# The stroke is only laid down over the scene, but where it has got to
 		# is remembered either way: a drag that leaves the viewport and comes
 		# back used to paint the line between the two, straight through
@@ -638,6 +661,15 @@ fn viewport_input(app, dt) {
 	}
 
 	if (released) {
+		# the rectangle is filled where it was let go, not where it started
+		if (app.tile_rect != null) {
+			let erase = false;
+			if (app.paint != null) { erase = app.paint.erase; }
+			tiles_fill_rect(app, app.tile_rect,
+				tiles_cell_of(app, app.wx, app.wy), erase);
+			app.tile_rect = null;
+		}
+
 		if (app.marquee != null) { marquee_finish(app); }
 
 		# the box follows the points once a vertex has been let go, so the
@@ -790,7 +822,16 @@ fn editor_new(opts) {
 	app.paint_from = null;    # where the last painted cell was, for the line
 	app.pal_open   = true;    # the palette, while the Tiles tool is up
 	app.pal_scroll = 0;       # how far down the sheet it is scrolled
-	app.solid_rects = [];     # what the map collides as, kept between frames
+	app.pal_drag   = null;    # the first tile of a block being dragged out
+	app.pal_drag_to = null;   # and how far it has got
+	app.tile_mode  = "brush"; # "brush", "rect" or "fill"
+	app.tile_erase = false;   # the switch Shift flips
+	app.tile_rect  = null;    # the corner a rectangle is being dragged from
+	app.last_tile_layer = -2; # so the layer's name box can be re-seeded
+	app.last_brush = "";      # and the tile's, which belongs to the brush
+	app.solid_runs = [];      # what the map collides as, kept between frames
+	app.tile_batches = {};    # one sprite batch per (layer, sheet)
+	app.tile_batch_rev = -1;  # the revision they were built from
 	app.solid_rev  = -1;      # the revision that was worked out at
 
 	prefs_defaults(app);      # grid, snap, what is drawn, and the dock sizes
@@ -897,6 +938,27 @@ fn editor_update(app, dt) {
 
 	editor_layout(app);
 	shortcuts(app);
+
+	# The layer's name box is seeded from the layer, so it has to be handed
+	# back to microui when a different layer becomes the current one -- the
+	# same rule the entity fields follow just below.
+	let layer = tiles_current_layer(app);
+	let layer_id = -1;
+	if (layer != null) { layer_id = layer.id; }
+	if (layer_id != app.last_tile_layer) {
+		love_ui_clear_textbox(LAYER_NAME_BOX);
+		app.last_tile_layer = layer_id;
+	}
+
+	# and the same for the tile's name, which belongs to the brush
+	let brush_key = "none";
+	if (app.brush != null) {
+		brush_key = app.brush[0] + ":" + app.brush[1] + "," + app.brush[2];
+	}
+	if (brush_key != app.last_brush) {
+		love_ui_clear_textbox(TILE_NAME_BOX);
+		app.last_brush = brush_key;
+	}
 
 	if (app.selected_id != app.last_selected) {
 		# hand the text boxes back to microui so they re-seed from the new entity
