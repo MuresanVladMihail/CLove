@@ -15,7 +15,9 @@
 #      # the spritesheets the map is painted from, and the map itself. A cell
 #      # is [tileset id, column, row]; tiles.fh has the why of all three.
 #      "tilesets": [ { "id": 1, "name": "terrain.png", "path": "art/terrain.png",
-#                      "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0 } ],
+#                      "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0,
+#                      # the tiles that collide wherever they are painted
+#                      "solid": { "0,3": true } } ],
 #      "tilemap": { "tile_w": 32, "tile_h": 32,
 #                   "layers": [ { "id": 1, "name": "Ground", "visible": true,
 #                                 "solid": true, "cells": { "3,-1": [1, 4, 2] } } ] },
@@ -647,6 +649,7 @@ fn doc_migrate(app, parsed) {
 		if (!contains_key(ts, "name")) { ts.name = path_name(ts.path); }
 		if (!contains_key(ts, "margin")) { ts.margin = 0; }
 		if (!contains_key(ts, "spacing")) { ts.spacing = 0; }
+		if (!contains_key(ts, "solid")) { ts.solid = {}; }
 		if (!contains_key(ts, "tile_w") || ts.tile_w < TILE_MIN) { ts.tile_w = TILE_DEFAULT; }
 		if (!contains_key(ts, "tile_h") || ts.tile_h < TILE_MIN) { ts.tile_h = TILE_DEFAULT; }
 	}

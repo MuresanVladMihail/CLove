@@ -367,11 +367,20 @@ fn panels_hierarchy(app) {
 				"button opens the palette over the viewport: click a tile " +
 				"there, then click or drag in the scene to paint it, and " +
 				"Shift to rub it out. Pressing Tiles again puts the palette " +
-				"away. A layer marked solid becomes static collision when " +
-				"Play runs, a row of touching cells at a time.");
+				"away.");
+			love_ui_text("Tile collision: a cell collides when its layer is " +
+				"marked solid -- a ground layer, whatever is painted in it -- " +
+				"or when the tile itself is. Shift+click a tile on the sheet " +
+				"to mark it (again to unmark it): it then collides wherever " +
+				"it is painted, which is the stone block in a layer of grass " +
+				"that is not solid. Play merges every colliding cell into " +
+				"static shapes a row at a time, and Show fixtures outlines " +
+				"them before you press it.");
 			love_ui_text("Brush -> selected sprite gives the entities you have " +
 				"selected the brush's tile as their artwork -- the same sheet, " +
-				"cropped to that one tile.");
+				"cropped to that one tile. Brush -> new entity makes a dynamic " +
+				"one wearing it: a cell can never be dynamic, so a crate that " +
+				"is meant to be pushed around is an entity, not a tile.");
 			love_ui_text("Pan: drag with the right or middle button, space + left, " +
 				"or the arrow keys while the cursor is over the viewport.");
 			love_ui_text("Wheel zooms around the cursor. F frames the whole scene.");

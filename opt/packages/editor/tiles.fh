@@ -133,7 +133,10 @@ fn tiles_add_set(app, path) {
 	           "path": path,
 	           "tile_w": tiles_map(app).tile_w,
 	           "tile_h": tiles_map(app).tile_h,
-	           "margin": 0, "spacing": 0 };
+	           "margin": 0, "spacing": 0,
+	           # which tiles of this sheet collide wherever they are painted,
+	           # keyed the same way a cell is -- see tileset_is_solid()
+	           "solid": {} };
 	append(tiles_sets(app), ts);
 	app.tile_set = ts.id;
 	app.brush = null;
@@ -377,6 +380,50 @@ fn tileset_src(ts, tx, ty) {
 	        ts.tile_w, ts.tile_h];
 }
 
+# --- which tiles collide ----------------------------------------------------
+#
+#  A cell collides when the *layer* it is in is marked solid, or when the tile
+#  it holds is. The two answer different questions and a level wants both: a
+#  ground layer is solid whatever is painted in it, while a stone block is
+#  solid wherever it lands -- including in a layer full of grass that is not.
+#
+#  The flag is on the sheet rather than on each cell, because it is a property
+#  of the picture: stone is stone in every level it is painted into, and
+#  saying so once beats saying it in ten thousand cells. It is keyed by the
+#  tile's column and row, in the same "x,y" text a cell coordinate uses.
+#
+#  What a tile cannot be is *dynamic*. A cell has no body of its own -- the
+#  solid ones are merged into static shapes on Play -- so a crate that is
+#  meant to be pushed around is an entity, not a tile. tiles_entity_from_brush()
+#  is the short way there: it makes one out of the tile you have picked.
+
+fn tileset_is_solid(ts, tx, ty) {
+	if (ts == null || !contains_key(ts, "solid")) { return false; }
+	return contains_key(ts.solid, tile_key(tx, ty));
+}
+
+fn tiles_toggle_tile_solid(app, ts, tx, ty) {
+	if (ts == null) { return 0; }
+	if (!contains_key(ts, "solid")) { ts.solid = {}; }
+
+	doc_begin_edit(app);
+	let key = tile_key(tx, ty);
+	if (contains_key(ts.solid, key)) {
+		delete(ts.solid, key);
+		log_line(app, ts.name + " " + key + ": no longer solid");
+	} else {
+		ts.solid[key] = true;
+		log_line(app, ts.name + " " + key + ": solid");
+	}
+	return 0;
+}
+
+fn tiles_cell_is_solid(app, layer, cell) {
+	if (layer.solid) { return true; }
+	return tileset_is_solid(tiles_find_set(app, cell[0]), cell[1], cell[2]);
+}
+
+
 # Quads are cached because a screenful of tiles asks for the same few hundred
 # of them every frame, and love_graphics_newQuad() allocates. The key carries
 # everything the quad is made of, so changing a sheet's tile size or margin
@@ -481,7 +528,8 @@ fn tiles_row_runs(cols) {
 	return runs;
 }
 
-# [x, y, w, h] in world units, one per merged run, over every solid layer.
+# [x, y, w, h] in world units, one per merged run, over every cell that
+# collides -- whether it does because of its layer or because of its tile.
 fn tiles_solid_rects(app) {
 	let m = tiles_map(app);
 	let out = [];
@@ -489,14 +537,13 @@ fn tiles_solid_rects(app) {
 
 	for (let i = 0; i < len(layers); i++) {
 		let layer = layers[i];
-		if (!layer.solid) { continue; }
 
 		# gather each row's columns, then merge -- the cells map has no order
 		let rows = {};
 		let k = next_key(layer.cells, null);
 		while (k != null) {
 			let c = tile_key_cell(k);
-			if (c != null) {
+			if (c != null && tiles_cell_is_solid(app, layer, layer.cells[k])) {
 				let row = "" + c[1];
 				if (!contains_key(rows, row)) { rows[row] = []; }
 				append(rows[row], c[0]);
@@ -584,6 +631,34 @@ fn tiles_draw_layers(app) {
 			}
 		}
 	}
+	return 0;
+}
+
+# What Play would collide with, drawn over the map when the fixture overlay is
+# on -- the same question the fixture outlines answer for entities, and the
+# only way to see that a tile marked solid actually made it into a run.
+#
+# The merge walks every painted cell, so what it found is kept until the
+# document moves: app.revision is exactly the "this is stale now" that
+# doc_touch() maintains.
+fn tiles_solid_cache(app) {
+	if (app.solid_rev != app.revision) {
+		app.solid_rects = tiles_solid_rects(app);
+		app.solid_rev = app.revision;
+	}
+	return app.solid_rects;
+}
+
+fn tiles_draw_solid(app) {
+	if (!app.show_fixtures) { return 0; }
+
+	let rects = tiles_solid_cache(app);
+	love_graphics_setColor(150, 155, 165, 130);
+	for (let i = 0; i < len(rects); i++) {
+		let r = rects[i];
+		love_geometry_rectangle("line", r[0], r[1], r[2], r[3]);
+	}
+	love_graphics_setColor(255, 255, 255, 255);
 	return 0;
 }
 
@@ -747,7 +822,10 @@ fn tiles_palette_arrows(app) {
 
 # Answers true when the palette took the press, so the viewport leaves it
 # alone -- a click on the sheet must not also paint the scene behind it.
-fn tiles_palette_input(app, pressed, px, py) {
+#
+# `shift` is read from the press rather than from what is held now, for the
+# same reason the scene's is: a frame later it may already be up.
+fn tiles_palette_input(app, pressed, px, py, shift) {
 	let r = tiles_palette_rect(app);
 	if (r == null) { return false; }
 	if (!point_in(app.mx, app.my, r[0], r[1], r[2], r[3])) { return false; }
@@ -775,6 +853,13 @@ fn tiles_palette_input(app, pressed, px, py) {
 	let ts = tiles_current_set(app);
 	let cell = tiles_palette_cell_at(app, ts, px, py);
 	if (cell != null) {
+		# Shift on the sheet is the same gesture as Shift on the scene, one
+		# level up: there it rubs a cell out, here it says this tile is not
+		# something to walk into -- or that it is.
+		if (shift) {
+			tiles_toggle_tile_solid(app, ts, cell[0], cell[1]);
+			return true;
+		}
 		app.brush = [ts.id, cell[0], cell[1]];
 		log_line(app, "brush: " + ts.name + " " + cell[0] + "," + cell[1]);
 	}
@@ -864,6 +949,20 @@ fn tiles_palette_draw(app) {
 			ox + (ts.margin + cols * (ts.tile_w + ts.spacing)) * scale, y]);
 	}
 
+	# The tiles that collide wherever they are painted, marked with a corner
+	# rather than a full outline: the brush and the hover want the outline,
+	# and three rectangles around one tile say nothing.
+	let solid_size = math_max(3, math_floor(ts.tile_w * scale * 0.22));
+	for (let ty = 0; ty < rows; ty++) {
+		for (let tx = 0; tx < cols; tx++) {
+			if (!tileset_is_solid(ts, tx, ty)) { continue; }
+			let mark = tileset_src(ts, tx, ty);
+			love_graphics_setColor(120, 190, 255, 230);
+			love_geometry_rectangle("fill", ox + mark[0] * scale, oy + mark[1] * scale,
+				solid_size, solid_size);
+		}
+	}
+
 	# what the mouse is over, and what the brush is set to
 	let hover = tiles_palette_cell_at(app, ts, app.mx, app.my);
 	if (hover != null) {
@@ -889,8 +988,11 @@ fn tiles_palette_draw(app) {
 	let footer = cols + "x" + rows + " tiles";
 	if (app.brush != null && app.brush[0] == ts.id) {
 		footer = footer + "   brush " + app.brush[1] + "," + app.brush[2];
+		if (tileset_is_solid(ts, app.brush[1], app.brush[2])) {
+			footer = footer + " solid";
+		}
 	} else {
-		footer = footer + "   click a tile";
+		footer = footer + "   click a tile, Shift for solid";
 	}
 	love_graphics_print(footer, r[0] + PAL_PAD, r[1] + r[3] - PAL_FOOTER + 2);
 	love_graphics_setColor(255, 255, 255, 255);
@@ -933,6 +1035,38 @@ fn tiles_apply_to_selection(app) {
 	love_ui_clear_textbox(SPRITE_BOX);
 	log_line(app, "sprite: " + ts.name + " " + app.brush[1] + "," + app.brush[2] +
 		" on " + len(sel));
+	return 0;
+}
+
+# A tile is static geometry: the solid ones are merged into static shapes when
+# Play starts, and a merged shape has nowhere to keep a body of its own. So a
+# crate that is meant to be pushed around cannot be a cell however it is
+# flagged -- it is an entity that happens to wear the same tile.
+#
+# This makes that entity: a dynamic body one cell big, in the middle of the
+# view, carrying the brush's tile as its artwork. Everything else about it is
+# the inspector's business afterwards.
+fn tiles_entity_from_brush(app) {
+	if (app.brush == null) { return 0; }
+	let ts = tiles_find_set(app, app.brush[0]);
+	if (ts == null) { return 0; }
+
+	let m = tiles_map(app);
+	let cx = app.cam.x + (app.vp_w * 0.5) / app.cam.zoom;
+	let cy = app.cam.y + (app.vp_h * 0.5) / app.cam.zoom;
+
+	doc_begin_edit(app);
+	let e = doc_add(app, ts.name + " " + app.brush[1] + "," + app.brush[2], "rect",
+		snap_value(app, cx - m.tile_w * 0.5), snap_value(app, cy - m.tile_h * 0.5),
+		m.tile_w, m.tile_h, 255, 255, 255);
+
+	let src = tileset_src(ts, app.brush[1], app.brush[2]);
+	e.sprite = { "path": ts.path, "quad": [src[0], src[1], src[2], src[3]] };
+	e.body.type = "dynamic";
+
+	doc_select_only(app, e.id);
+	app.tool = "select";      # it is an entity now; the next click should pick it
+	log_line(app, "entity from tile: " + e.name);
 	return 0;
 }
 
@@ -1003,6 +1137,23 @@ fn tiles_sheet_section(app) {
 	} else {
 		love_ui_label(tileset_columns(app, ts) + "x" + tileset_rows(app, ts) +
 			" tiles of " + love_image_getWidth(img) + "x" + love_image_getHeight(img));
+	}
+
+	# The brush's own flag: this tile collides wherever it is painted, in any
+	# layer. Off by default, and off again on a second click -- a level full of
+	# solid grass is a level nobody can walk through.
+	if (app.brush != null && app.brush[0] == ts.id) {
+		let solid = tileset_is_solid(ts, app.brush[1], app.brush[2]);
+		if (love_ui_checkbox("tile " + app.brush[1] + "," + app.brush[2] +
+		                     " is solid", solid, TILE_CHECK_BASE + 2)) {
+			tiles_toggle_tile_solid(app, ts, app.brush[1], app.brush[2]);
+		}
+		tip(app, "Collision for this tile wherever it is painted, whatever " +
+			"layer it lands in -- Shift+click on the sheet does the same. A " +
+			"layer marked solid collides anyway; this is for the stone block " +
+			"in a layer of grass that is not.");
+	} else {
+		love_ui_label("pick a tile to say whether it is solid");
 	}
 	return 0;
 }
@@ -1096,5 +1247,13 @@ fn tiles_panel(app) {
 	tip(app, "Give everything selected the brush's tile as its sprite -- the " +
 		"same sheet, cropped to that one tile. Entities take a tile the same " +
 		"way the map does.");
+
+	if (ui_button_enabled("Brush -> new entity", app.brush != null, ALIGN_CENTER)) {
+		tiles_entity_from_brush(app);
+	}
+	tip(app, "A dynamic body one cell big, in the middle of the view, wearing " +
+		"the brush's tile -- for the crate that is meant to be pushed around. " +
+		"A painted cell can never be that: the solid ones become static shapes " +
+		"when Play starts.");
 	return 0;
 }

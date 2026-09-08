@@ -69,18 +69,36 @@ Tiles again puts the palette away; it narrows with the viewport and gives up
 when there is no room left for it.
 
 Layers are drawn back to front, the way the hierarchy's z-order works for
-entities, and any of them can be marked **solid** — Play then builds static
-bodies from it, one per row of touching cells rather than one per tile.
+entities. A cell collides when **either** its layer or its tile says so:
+
+* **`solid` on a layer** — everything painted in it collides. A ground layer.
+* **`solid` on a tile** — that tile collides wherever it is painted, in any
+  layer. `Shift`+click it on the sheet, or use the checkbox under the sheet's
+  settings; a marked tile carries a blue corner in the palette. This is the
+  stone block in a layer of grass that is not solid, and it is a toggle —
+  clicking again takes it off.
+
+Play then merges every colliding cell into static bodies, a row of touching
+cells at a time. Switch **Show fixtures** on and the merged rectangles are
+outlined in the viewport, so what will collide is visible before you press
+Play.
 
 **Brush -> selected sprite** gives whatever is selected the brush's tile as its
 artwork: the same sheet, cropped to that one tile. A crate and the ground it
 sits on can come out of the same file.
 
+**Brush -> new entity** goes further: a dynamic body one cell big, in the
+middle of the view, wearing that tile. A cell can never be dynamic — the solid
+ones become static shapes when Play starts, and a merged shape has nowhere to
+keep a body — so anything meant to be pushed around is an entity that happens
+to wear the same tile.
+
 The document grows two fields for all this:
 
 ```json
 "tilesets": [ { "id": 1, "name": "terrain.png", "path": "art/terrain.png",
-                "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0 } ],
+                "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0,
+                "solid": { "0,3": true } } ],
 "tilemap":  { "tile_w": 32, "tile_h": 32,
               "layers": [ { "id": 1, "name": "Ground", "visible": true,
                             "solid": true, "cells": { "3,-1": [1, 4, 2] } } ] }

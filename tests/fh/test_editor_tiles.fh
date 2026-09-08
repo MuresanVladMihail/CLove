@@ -107,6 +107,76 @@ fn run() {
     }
     check(widest == 16 * 5, "five touching cells merge into one rectangle");
 
+    # --- collision per tile, not only per layer -------------------------
+    # A layer that is not solid, holding a tile that is: the cell still
+    # collides, which is the stone block in a layer of grass.
+    doc_end_edit(ed);
+
+    # An undo replaces the whole document, so anything held from before it is
+    # a detached copy: take the sheet from the live document again.
+    ts = tiles_current_set(ed);
+
+    let decor = tiles_add_layer(ed);
+    check(!decor.solid, "a new layer is not solid");
+
+    ed.brush = [ts.id, 3, 3];
+    tiles_paint(ed, 8 + 16 * 20, 8 + 16 * 20, false);   # cell 20,20
+    let before = len(tiles_solid_rects(ed));
+
+    check(!tileset_is_solid(ts, 3, 3), "a tile starts solid-less");
+    tiles_toggle_tile_solid(ed, ts, 3, 3);
+    check(tileset_is_solid(ts, 3, 3), "and the flag goes on the sheet");
+    check(len(tiles_solid_rects(ed)) == before + 1,
+          "so the cell painted with it collides, in a layer that does not");
+
+    # and off again: the flag is a toggle, not a one-way door
+    doc_end_edit(ed);
+    tiles_toggle_tile_solid(ed, ts, 3, 3);
+    check(!tileset_is_solid(ts, 3, 3), "the flag comes off");
+    check(len(tiles_solid_rects(ed)) == before, "and the collision with it");
+
+    # the two reasons add up rather than replacing each other
+    tiles_toggle_tile_solid(ed, ts, 3, 3);
+    decor.solid = true;
+    check(len(tiles_solid_rects(ed)) == before + 1,
+          "a solid layer holding a solid tile is not counted twice");
+    decor.solid = false;
+
+    # the scene package reads the same answer
+    let live = Scene(editor_document(ed));
+    check(live.tile_is_solid(live.tileset(ts.id), 3, 3), "the flag reaches a game");
+    check(len(live.solid_tile_rects()) == len(tiles_solid_rects(ed)),
+          "and it collides the same way there");
+
+    # tidy up: the decor layer has done its work
+    doc_end_edit(ed);
+    tiles_toggle_tile_solid(ed, ts, 3, 3);
+    tiles_delete_layer(ed, decor.id);
+    layer = tiles_current_layer(ed);
+    check(len(tiles_solid_rects(ed)) == 3, "back to the three the map had");
+
+    # --- a tile that has to move is an entity ---------------------------
+    # A cell cannot be dynamic: the solid ones become static shapes. The way
+    # out is an entity wearing the same tile.
+    doc_end_edit(ed);
+    ed.brush = [ts.id, 1, 2];
+    let count_before = doc_count(ed);
+    tiles_entity_from_brush(ed);
+    check(doc_count(ed) == count_before + 1, "it makes an entity");
+
+    let made = doc_selected(ed);
+    check(made != null, "and selects it");
+    check(made.body.type == "dynamic", "a dynamic one -- that was the point");
+    check(made.sprite.path == "assets/sheet.png", "wearing the sheet");
+    check(made.sprite.quad[0] == 16 && made.sprite.quad[1] == 32,
+          "cropped to the tile the brush was holding");
+    check(made.fixtures[0].w == tiles_map(ed).tile_w, "and one cell big");
+    check(ed.tool == "select", "and the tool follows it, since it is an entity now");
+
+    doc_end_edit(ed);
+    doc_delete_selected(ed);
+    ed.tool = "tile";
+
     # and Play actually builds them: the map is collision, not decoration
     doc_end_edit(ed);
     sim_play(ed);

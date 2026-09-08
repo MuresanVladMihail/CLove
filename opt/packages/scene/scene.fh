@@ -365,6 +365,14 @@ fn Scene(source) {
 		        ts.tile_w, ts.tile_h];
 	};
 
+	# Whether a tile of a sheet collides wherever it is painted. The flag is a
+	# property of the picture rather than of any one cell: stone is stone in
+	# every level. A sheet written before the flag existed reads as none.
+	scene.tile_is_solid = fn(ts, tx, ty) {
+		if (ts == null || !contains_key(ts, "solid")) { return false; }
+		return contains_key(ts.solid, "" + tx + "," + ty);
+	};
+
 	# Back first: the layers are in draw order, the way the entities are.
 	scene.tile_layers = fn() {
 		let m = scene.tilemap();
@@ -455,9 +463,18 @@ fn Scene(source) {
 		return b;
 	};
 
-	# The collision the layers marked solid stand for, as [x, y, w, h] in world
-	# units, with each row of touching cells merged into one rectangle. Hand
-	# them to love_physics_newRectangleShape() on static bodies.
+	# Does this cell collide? Either because the layer it is in is solid --
+	# a ground layer, whatever is painted in it -- or because the tile itself
+	# is marked, which is how a stone block collides in a layer of grass that
+	# does not.
+	scene.tile_cell_is_solid = fn(layer, cell) {
+		if (contains_key(layer, "solid") && layer.solid) { return true; }
+		return scene.tile_is_solid(scene.tileset(cell[2]), cell[3], cell[4]);
+	};
+
+	# The collision the map stands for, as [x, y, w, h] in world units, with
+	# each row of touching cells merged into one rectangle. Hand them to
+	# love_physics_newRectangleShape() on static bodies.
 	#
 	# The merge is here rather than shared with the editor because this package
 	# deliberately depends on nothing: a game reads a level with scene.fh alone.
@@ -468,13 +485,12 @@ fn Scene(source) {
 
 		for (let i = 0; i < len(layers); i++) {
 			let layer = layers[i];
-			let solid = contains_key(layer, "solid") && layer.solid;
-			if (!solid) { continue; }
 
 			# gather each row's columns, sort them, then merge the runs
 			let rows = {};
 			let cells = scene.tile_cells(layer);
 			for (let c = 0; c < len(cells); c++) {
+				if (!scene.tile_cell_is_solid(layer, cells[c])) { continue; }
 				let row = "" + cells[c][1];
 				if (!contains_key(rows, row)) { rows[row] = []; }
 				append(rows[row], cells[c][0]);

@@ -130,7 +130,9 @@ spritesheets it was painted from and the cells painted out of them.
 | `tile_at(layer, cx, cy)` | What is painted in one cell, or `null`. |
 | `tile_cell_at(x, y)` / `tile_rect(cx, cy)` | World point → cell, and cell → the rectangle it covers. |
 | `tile_bounds()` | `[min_x, min_y, max_x, max_y]` over every cell, or `null`. |
-| `solid_tile_rects()` | The collision the solid layers stand for. |
+| `tile_is_solid(ts, tx, ty)` | Does that tile of that sheet collide wherever it is painted? |
+| `tile_cell_is_solid(layer, cell)` | Does this cell collide — because of its layer or its tile? |
+| `solid_tile_rects()` | All of that collision, merged. |
 
 A cell names a **column and a row in the sheet**, not an index into it: an
 index has to be read back through the sheet's column count, which is a property
@@ -151,6 +153,11 @@ for (let i = 0; i < len(cells); i++) {
 }
 ```
 
+A cell collides when its **layer** is marked solid (a ground layer, whatever is
+painted in it) or when the **tile** it holds is (`tile_is_solid()` — stone is
+stone in every level it lands in). Both are authored in the editor, and
+`tile_cell_is_solid()` is the two questions asked as one.
+
 `solid_tile_rects()` hands back `[x, y, w, h]` in world units with each row of
 touching cells already merged into one rectangle, ready for
 `love_physics_newRectangleShape()` on a static body. That is one shape per run
@@ -160,6 +167,11 @@ between two of them. `opt/examples/fh/game` builds exactly this.
 
 A level written before tile maps existed (document version 1) reads as a map
 with no sheets and no cells rather than as an error.
+
+Tiles are static geometry: the merged rectangles have nowhere to keep a body of
+their own. Anything that has to move is an entity — the editor's
+**Brush -> new entity** makes one wearing a tile, and `sprite_quad()` is how it
+comes back.
 
 ## Spatial queries
 

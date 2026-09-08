@@ -514,7 +514,7 @@ fn viewport_input(app, dt) {
 	# the press before the scene does -- and the wheel too, which scrolls the
 	# sheet there instead of zooming the camera.
 	if (app.tool == "tile" && !app.confirm && app.browser == null) {
-		if (tiles_palette_input(app, pressed && press_inside, px, py)) {
+		if (tiles_palette_input(app, pressed && press_inside, px, py, add)) {
 			# the gesture still ends where the button comes up, even when
 			# that happens over the palette rather than over the scene
 			if (released) {
@@ -790,6 +790,8 @@ fn editor_new(opts) {
 	app.paint_from = null;    # where the last painted cell was, for the line
 	app.pal_open   = true;    # the palette, while the Tiles tool is up
 	app.pal_scroll = 0;       # how far down the sheet it is scrolled
+	app.solid_rects = [];     # what the map collides as, kept between frames
+	app.solid_rev  = -1;      # the revision that was worked out at
 
 	prefs_defaults(app);      # grid, snap, what is drawn, and the dock sizes
 	editor_layout(app);

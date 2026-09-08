@@ -323,6 +323,9 @@ fn view_draw(app) {
 	let entities = doc_entities(app);
 	for (let i = 0; i < len(entities); i++) { view_draw_entity(app, entities[i]); }
 
+	# the map's collision, on the same switch the entities' fixtures are on
+	tiles_draw_solid(app);
+
 	# and the brush over both, since it is about the click that has not
 	# happened yet
 	if (app.mode == "edit") { tiles_draw_brush(app); }
