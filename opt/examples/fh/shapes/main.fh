@@ -80,8 +80,9 @@ fn love_draw(app) {
 	draw_points(app.t);
 	draw_polygons();
 
+	let fps = love_timer_getFPS();
 	love_graphics_setColor(230, 230, 240);
-	love_graphics_print(love_timer_getFPS() + " fps -- escape to quit", 10, 10);
+	love_graphics_print("${fps} fps -- escape to quit", 10, 10);
 	return 0;
 }
 

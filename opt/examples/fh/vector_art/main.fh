@@ -89,9 +89,9 @@ fn love_draw(app) {
 
 	love_graphics_print("pinned at scale 1 - blurs when magnified", 40, 20);
 	love_graphics_print("vector - re-rasterized, stays sharp", 420, 20);
-	love_graphics_print("drawn at x" + scale, 40, 45);
-	love_graphics_print("texture rasterized at x" +
-		love_image_getVectorScale(app.badge), 420, 45);
+	let rasterized = love_image_getVectorScale(app.badge);
+	love_graphics_print("drawn at x${scale}", 40, 45);
+	love_graphics_print("texture rasterized at x${rasterized}", 420, 45);
 	love_graphics_print("SPACE: pause   LEFT/RIGHT: zoom   ESC: quit", 40, 65);
 	return 0;
 }

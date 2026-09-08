@@ -72,10 +72,12 @@ fn love_draw(app) {
 	let state = "textured";
 	if (!app.textured) { state = "vertex colours only"; }
 
+	let fps = love_timer_getFPS();
+
 	love_graphics_setColor(200, 205, 215);
-	love_graphics_print("mesh: " + state, 10, 10);
+	love_graphics_print("mesh: ${state}", 10, 10);
 	love_graphics_print("T texture   Y untexture   V new vertices   escape quit", 10, 30);
-	love_graphics_print(love_timer_getFPS() + " fps", 10, 50);
+	love_graphics_print("${fps} fps", 10, 50);
 	return 0;
 }
 

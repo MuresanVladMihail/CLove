@@ -59,23 +59,28 @@ fn draw_readout(app) {
 	love_graphics_setColor(10, 12, 18, 220);
 	love_geometry_rectangle("fill", 10, 10, 780, 128);
 
+	let mode = app.loader.mode;
+	let loaded = len(app.loader.images);
+	let pending = love_asset_pending();
+	let fps = love_timer_getFPS();
+
 	love_graphics_setColor(235, 235, 245);
-	love_graphics_print("mode: " + app.loader.mode +
-		"    loaded " + len(app.loader.images) + " of " + TILES +
-		"    still loading " + love_asset_pending(), 22, 22);
+	love_graphics_print("mode: ${mode}    loaded ${loaded} of ${TILES}" +
+		"    still loading ${pending}", 22, 22);
 
 	love_graphics_setColor(200, 205, 218);
-	let worst = "worst frame since the last reset: " +
-		tointeger(app.graph.worst * 1000) + " ms";
+	let worst_ms = tointeger(app.graph.worst * 1000);
+	let worst = "worst frame since the last reset: ${worst_ms} ms";
 	if (app.loader.wall > 0.0) {
-		worst = "took " + tointeger(app.loader.wall * 1000) + " ms      " + worst;
+		let took = tointeger(app.loader.wall * 1000);
+		worst = "took ${took} ms      " + worst;
 	}
 	love_graphics_print(worst, 22, 48);
 
 	love_graphics_setColor(150, 155, 170);
 	love_graphics_print(app.loader.note, 22, 74);
 	love_graphics_print("1 blocking    2 async    r unload    escape quit    " +
-		love_timer_getFPS() + " fps", 22, 100);
+		"${fps} fps", 22, 100);
 	return 0;
 }
 

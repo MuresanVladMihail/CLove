@@ -40,8 +40,9 @@ fn readout_info(browser, x, y) {
 		return 0;
 	}
 
+	let size = info[1];
 	readout_row("type", info[0], x, y + 26);
-	readout_row("size", info[1] + " bytes", x, y + 48);
+	readout_row("size", "${size} bytes", x, y + 48);
 	readout_row("modified", "" + info[2], x, y + 70);
 	return 0;
 }

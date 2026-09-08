@@ -4,48 +4,65 @@
 # wrapped with the shape and size it was built from. Everything here is in
 # pixels: love.physics converts to and from Box2D's metres with
 # love_physics_setMeter(), 30 pixels to the metre by default.
+#
+# The wrappers share their methods through a **prototype** rather than closing
+# over each instance: a batch drops eight bodies at a time and the count only
+# goes up, so one closure per method per body is a cost with nothing to show
+# for it. setproto() hands every instance the same map of methods, and `b:draw()`
+# passes the instance as the method's first argument.
 
 let GRAVITY = 900;
 
-fn Body(body, kind, w, h) {
-	let self = { "body": body, "kind": kind, "w": w, "h": h };
+fn BodyProto() {
+	return {
+		"is_static": fn(self) { return love_body_getType(self.body) == "static"; },
 
-	self.is_static = fn() { return love_body_getType(self.body) == "static"; };
+		"colour": fn(self) {
+			if (self:is_static()) { return [70, 76, 92]; }
+			if (self.kind == "ball") { return [232, 168, 96]; }
+			return [120, 190, 220];
+		},
 
-	self.colour = fn() {
-		if (self.is_static()) { return [70, 76, 92]; }
-		if (self.kind == "ball") { return [232, 168, 96]; }
-		return [120, 190, 220];
-	};
+		"draw": fn(self, background) {
+			let c = self:colour();
+			love_graphics_setColor(c[0], c[1], c[2]);
 
-	self.draw = fn(background) {
-		let c = self.colour();
-		love_graphics_setColor(c[0], c[1], c[2]);
+			let x = love_body_getX(self.body);
+			let y = love_body_getY(self.body);
+			let angle = love_body_getAngle(self.body);
 
-		let x = love_body_getX(self.body);
-		let y = love_body_getY(self.body);
-		let angle = love_body_getAngle(self.body);
+			if (self.kind == "ball") {
+				love_geometry_circle("fill", x, y, self.w, 24);
+				# a spoke, so the rotation is visible
+				love_graphics_setColor(background[0], background[1], background[2]);
+				love_geometry_line([x, y,
+					x + math_cos(angle) * self.w, y + math_sin(angle) * self.w]);
+				return 0;
+			}
 
-		if (self.kind == "ball") {
-			love_geometry_circle("fill", x, y, self.w, 24);
-			# a spoke, so the rotation is visible
-			love_graphics_setColor(background[0], background[1], background[2]);
-			love_geometry_line([x, y,
-				x + math_cos(angle) * self.w, y + math_sin(angle) * self.w]);
+			# Rotation goes to the shape, not through the matrix stack:
+			# love_graphics_rotate() is an absolute setter that rebuilds the
+			# current matrix, so a translate() before it is thrown away (see
+			# "Two transform gotchas" in SKILLS.md). The rectangle takes an
+			# angle and an origin of its own, which is what you want here.
+			love_geometry_rectangle("fill", x, y, self.w, self.h, angle,
+				1, 1, self.w * 0.5, self.h * 0.5);
 			return 0;
 		}
-
-		# Rotation goes to the shape, not through the matrix stack:
-		# love_graphics_rotate() is an absolute setter that rebuilds the
-		# current matrix, so a translate() before it is thrown away (see "Two
-		# transform gotchas" in SKILLS.md). The rectangle takes an angle and an
-		# origin of its own, which is what you want here anyway.
-		love_geometry_rectangle("fill", x, y, self.w, self.h, angle,
-			1, 1, self.w * 0.5, self.h * 0.5);
-		return 0;
 	};
+}
 
-	return self;
+# Built once, on first use: a map holding functions cannot be a global `let`,
+# whose initializer has to be a constant.
+let BODY_PROTO = { "map": null };
+
+fn body_proto() {
+	if (BODY_PROTO.map == null) { BODY_PROTO.map = BodyProto(); }
+	return BODY_PROTO.map;
+}
+
+fn Body(body, kind, w, h) {
+	return setproto({ "body": body, "kind": kind, "w": w, "h": h }, body_proto());
 }
 
 fn World(width, height) {
@@ -153,7 +170,9 @@ fn World(width, height) {
 	};
 
 	self.draw = fn(background) {
-		for (let i = 0; i < len(self.bodies); i++) { self.bodies[i].draw(background); }
+		for (let i = 0; i < len(self.bodies); i++) {
+			self.bodies[i]:draw(background);
+		}
 		return 0;
 	};
 

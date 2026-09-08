@@ -55,16 +55,16 @@ fn love_draw(app) {
 	if (love_keyboard_isDown("space")) {
 		scatter(app.image, COUNT, 200, 100);
 		love_graphics_setColor(255, 180, 120);
-		love_graphics_print("drawing all " + COUNT + " sprites every frame", 10, 30);
+		love_graphics_print("drawing all ${COUNT} sprites every frame", 10, 30);
 	} else {
 		love_graphics_draw(app.canvas, 200, 100);
 		love_graphics_setColor(150, 230, 180);
 		love_graphics_print("one canvas, drawn once at load", 10, 30);
 	}
 
+	let fps = love_timer_getFPS();
 	love_graphics_setColor(235, 235, 245);
-	love_graphics_print(love_timer_getFPS() +
-		" fps -- hold SPACE to compare, escape to quit", 10, 10);
+	love_graphics_print("${fps} fps -- hold SPACE to compare, escape to quit", 10, 10);
 	return 0;
 }
 

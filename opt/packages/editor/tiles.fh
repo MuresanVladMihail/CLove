@@ -414,11 +414,11 @@ fn tile_settings_new() {
 	         "name": "" };
 }
 
+# Optional chaining, `?.["key"]`, is the same lookup as `["key"]` but answers
+# null instead of erroring when what it is indexing is null or has no such key
+# -- which is exactly the three guards this used to spell out.
 fn tile_settings(ts, tx, ty) {
-	if (ts == null || !contains_key(ts, "tiles")) { return null; }
-	let key = tile_key(tx, ty);
-	if (!contains_key(ts.tiles, key)) { return null; }
-	return ts.tiles[key];
+	return ts?.["tiles"]?.[tile_key(tx, ty)];
 }
 
 fn tileset_is_solid(ts, tx, ty) {

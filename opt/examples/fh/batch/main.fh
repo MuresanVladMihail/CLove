@@ -50,14 +50,18 @@ fn draw_readout(app) {
 	love_graphics_setColor(235, 235, 245);
 	love_graphics_print(app.confetti.name(), 22, 22);
 
+	let sprites = app.confetti.drawn_count();
+	let fps = love_timer_getFPS();
+	let once = app.confetti.samples[MODE_ONCE];
+	let refilled = app.confetti.samples[MODE_REFILL];
+	let unbatched = app.confetti.samples[MODE_UNBATCHED];
+
 	love_graphics_setColor(200, 205, 218);
-	love_graphics_print(app.confetti.drawn_count() + " sprites    " +
-		love_timer_getFPS() + " fps", 22, 46);
+	love_graphics_print("${sprites} sprites    ${fps} fps", 22, 46);
 
 	love_graphics_setColor(150, 155, 170);
-	love_graphics_print("last seen:  batched-once " + app.confetti.samples[MODE_ONCE] +
-		"    refilled " + app.confetti.samples[MODE_REFILL] +
-		"    unbatched " + app.confetti.samples[MODE_UNBATCHED], 22, 74);
+	love_graphics_print("last seen:  batched-once ${once}    refilled ${refilled}" +
+		"    unbatched ${unbatched}", 22, 74);
 	love_graphics_print("1/2/3 mode    +/- count    escape quit", 22, 98);
 	return 0;
 }

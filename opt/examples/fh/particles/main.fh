@@ -47,10 +47,12 @@ fn love_draw(app) {
 	love_graphics_setBackgroundColor(12, 12, 20);
 	app.emitters.draw();
 
+	let particles = app.emitters.count();
+	let fps = love_timer_getFPS();
+
 	love_graphics_setColor(220, 225, 235);
 	love_graphics_print(app.emitters.current().name, 10, 10);
-	love_graphics_print(app.emitters.count() + " particles, " +
-		love_timer_getFPS() + " fps", 10, 30);
+	love_graphics_print("${particles} particles, ${fps} fps", 10, 30);
 
 	love_graphics_setColor(150, 155, 170);
 	love_graphics_print("1..5 switch   click move   SPACE burst   escape quit", 10, 560);

@@ -137,10 +137,11 @@ fn Scene(source) {
 	# love_graphics_newImage(): it takes .svg and .png through the same call,
 	# and love_image_isVector() tells them apart afterwards.
 	scene.sprite_path = fn(e) {
-		if (e.sprite == null) { return null; }
-		if (!contains_key(e.sprite, "path")) { return null; }
-		if (len(e.sprite.path) == 0) { return null; }
-		return e.sprite.path;
+		# `?.["key"]` is the ordinary lookup, answering null rather than
+		# erroring when what it indexes is null or has no such key
+		let path = e?.["sprite"]?.["path"];
+		if (path == null || len(path) == 0) { return null; }
+		return path;
 	};
 
 	# The rectangle of that image the entity actually draws, [x, y, w, h], when
@@ -149,10 +150,9 @@ fn Scene(source) {
 	# h, image width, image height) and pass that to love_graphics_draw()
 	# before the position.
 	scene.sprite_quad = fn(e) {
-		if (e.sprite == null) { return null; }
-		if (!contains_key(e.sprite, "quad")) { return null; }
-		if (e.sprite.quad == null || len(e.sprite.quad) != 4) { return null; }
-		return e.sprite.quad;
+		let quad = e?.["sprite"]?.["quad"];
+		if (quad == null || len(quad) != 4) { return null; }
+		return quad;
 	};
 
 	scene.groups = fn(e) {
@@ -370,10 +370,7 @@ fn Scene(source) {
 	# "group", "name" }. A property of the picture rather than of any one cell
 	# -- stone is stone in every level it is painted into.
 	scene.tile_props = fn(ts, tx, ty) {
-		if (ts == null || !contains_key(ts, "tiles")) { return null; }
-		let key = "" + tx + "," + ty;
-		if (!contains_key(ts.tiles, key)) { return null; }
-		return ts.tiles[key];
+		return ts?.["tiles"]?.["" + tx + "," + ty];
 	};
 
 	# The defaults a cell collides as when it is solid only because its layer

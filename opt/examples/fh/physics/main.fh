@@ -70,10 +70,13 @@ fn love_keypressed(key) {
 fn love_draw(app) {
 	app.world.draw(BACKGROUND);
 
+	let bodies = app.world.count();
+	let contacts = app.contacts;
+	let fps = love_timer_getFPS();
+
 	love_graphics_setColor(220, 224, 230);
-	love_graphics_print("bodies: " + app.world.count() +
-		"   contacts so far: " + app.contacts +
-		"   fps: " + love_timer_getFPS(), 50, 50);
+	love_graphics_print("bodies: ${bodies}   contacts so far: ${contacts}" +
+		"   fps: ${fps}", 50, 50);
 	love_graphics_print("left mouse: grab or drop    space: more    esc: quit", 50, 70);
 	return 0;
 }

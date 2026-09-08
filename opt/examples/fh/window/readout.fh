@@ -21,10 +21,14 @@ fn readout_frame(w, h) {
 fn readout_table(state) {
 	let desktop = love_window_getDesktopDimension();
 
-	readout_row("size", love_window_getWidth() + " x " + love_window_getHeight(), 70);
+	let w = love_window_getWidth();
+	let h = love_window_getHeight();
+	let displays = love_window_getDisplayCount();
+	let display_name = love_window_getDisplayName(0);
+
+	readout_row("size", "${w} x ${h}", 70);
 	readout_row("desktop", desktop[0] + " x " + desktop[1], 92);
-	readout_row("displays", love_window_getDisplayCount() +
-		"   (" + love_window_getDisplayName(0) + ")", 114);
+	readout_row("displays", "${displays}   (${display_name})", 114);
 	readout_row("title", love_window_getTitle(), 136);
 	readout_row("fullscreen", "" + state.fullscreen, 158);
 	readout_row("borderless", "" + state.borderless, 180);

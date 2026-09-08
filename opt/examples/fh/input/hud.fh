@@ -17,17 +17,22 @@ fn hud_state(state, player) {
 	let mx = love_mouse_getX();
 	let my = love_mouse_getY();
 
+	let left = love_mouse_isDown("l");
+	let right = love_mouse_isDown("r");
+	let middle = love_mouse_isDown("m");
+	let shift = love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift");
+	let trail = player.trail;
+
 	hud_row("last key", state.last_key, 70);
 	hud_row("text input", state.text, 92);
-	hud_row("mouse", mx + ", " + my, 114);
-	hud_row("buttons", "l " + love_mouse_isDown("l") +
-		"  r " + love_mouse_isDown("r") +
-		"  m " + love_mouse_isDown("m"), 136);
+	hud_row("mouse", "${mx}, ${my}", 114);
+	hud_row("buttons", "l ${left}  r ${right}  m ${middle}", 136);
 	hud_row("clicks", "" + state.clicks, 158);
 	hud_row("wheel", "" + state.wheel, 180);
-	hud_row("shift held", "" + (love_keyboard_isDown("lshift") ||
-		love_keyboard_isDown("rshift")), 202);
-	hud_row("trail", "" + player.trail, 224);
+	# A lone ${x} is the value itself, not a string -- these two are bools, and
+	# the row wants text, so they keep the explicit "" +
+	hud_row("shift held", "" + shift, 202);
+	hud_row("trail", "" + trail, 224);
 	return 0;
 }
 

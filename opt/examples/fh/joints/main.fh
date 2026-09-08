@@ -66,8 +66,13 @@ fn draw_hud(app) {
 	love_graphics_setColor(150, 155, 170);
 	love_graphics_print("drag with the mouse    SPACE reverse motors    R reset    " +
 		"J joints    escape quit", 20, 36);
-	love_graphics_print(len(app.scene.joints) + " joints, " +
-		len(app.scene.bodies) + " bodies, " + love_timer_getFPS() + " fps", 20, 660);
+
+	# ${...} interpolates a *variable*, not an expression -- so the counts are
+	# named first, which reads better than a chain of concatenations anyway
+	let joints = len(app.scene.joints);
+	let bodies = len(app.scene.bodies);
+	let fps = love_timer_getFPS();
+	love_graphics_print("${joints} joints, ${bodies} bodies, ${fps} fps", 20, 660);
 	return 0;
 }
 

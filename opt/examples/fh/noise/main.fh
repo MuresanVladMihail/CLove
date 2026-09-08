@@ -69,9 +69,12 @@ fn love_draw(app) {
 	love_graphics_setColor(200, 205, 215);
 	love_graphics_print(app.field.name(), 20, 36);
 
+	let scale = app.field.scale;
+	let speed = app.field.speed;
+
 	love_graphics_setColor(150, 155, 170);
-	love_graphics_print("scale " + app.field.scale, 20, 434);
-	love_graphics_print("speed " + app.field.speed, 200, 434);
+	love_graphics_print("scale ${scale}", 20, 434);
+	love_graphics_print("speed ${speed}", 200, 434);
 	love_graphics_print("1..4 mode   UP/DOWN scale   LEFT/RIGHT speed   escape quit",
 		20, 458);
 

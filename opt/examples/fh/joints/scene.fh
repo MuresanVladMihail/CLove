@@ -47,7 +47,7 @@ fn Scene(gravity_y) {
 	self.grab_at = fn(x, y) {
 		for (let i = 0; i < len(self.bodies); i++) {
 			let b = self.bodies[i];
-			if (!b.is_dynamic() || b.distance2(x, y) >= GRAB_RADIUS2) { continue; }
+			if (!b:is_dynamic() || b:distance2(x, y) >= GRAB_RADIUS2) { continue; }
 
 			self.grab = love_physics_newMouseJoint(b.body, x, y);
 			love_mousejoint_setMaxForce(self.grab, 6000);
@@ -95,7 +95,7 @@ fn Scene(gravity_y) {
 	# --- drawing ----------------------------------------------------------
 
 	self.draw_bodies = fn() {
-		for (let i = 0; i < len(self.bodies); i++) { self.bodies[i].draw(); }
+		for (let i = 0; i < len(self.bodies); i++) { self.bodies[i]:draw(); }
 		return 0;
 	};
 

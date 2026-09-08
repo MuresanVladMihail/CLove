@@ -55,7 +55,7 @@ fn rig_wheel(scene) {
 
 	for (let i = 0; i < len(wheels); i++) {
 		let j = scene.joint(love_physics_newWheelJoint(chassis.body,
-			wheels[i].body, wheels[i].x(), wheels[i].y(), 0, 1));
+			wheels[i].body, wheels[i]:x(), wheels[i]:y(), 0, 1));
 		love_wheeljoint_setSpringFrequency(j, 4.0);
 		love_wheeljoint_setSpringDampingRatio(j, 0.7);
 		love_wheeljoint_setMotorEnabled(j, true);

@@ -207,6 +207,17 @@ version 0.8.0 not yet released
 	`love_mousepressed(x, y, button)` where CLove passes one array, and
 	`key == "escape"` where a key event is `[name, code, isrepeat]`. Escape did
 	not quit and a click raised an error inside the bounding-box query.
+* changed: the examples and the two packages now use the FH syntax the re-sync
+	brought with it, where it earns its place. String interpolation names the
+	value and drops the concatenation (`let fps = love_timer_getFPS();` then
+	`"${fps} fps"`) -- ${...} takes a *variable*, not an expression, and a
+	string that is only "${x}" is the value itself, so a bool still needs the
+	explicit "" +. Optional chaining collapses runs of contains_key guards into
+	one lookup (`ts?.["tiles"]?.[key]` in tiles.fh and scene.fh). And the body
+	wrappers in the physics and joints examples, the two places with many
+	instances, put their methods on a shared prototype through setproto() and
+	call them with `:` instead of allocating a closure per method per body.
+	opt/examples/fh/README.md documents all of it, including the edges.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384
