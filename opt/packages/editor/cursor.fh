@@ -196,16 +196,25 @@ fn cursor_update(app, inside) {
 		}
 		app.cursor_kind = "cross";
 		let layer = tiles_current_layer(app);
+		let erase = tiles_erasing(app,
+			love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift"));
+
+		# what this click would do, in the words the panel uses for it
+		let verb = "paint";
+		if (app.tile_mode == "rect") { verb = "rectangle"; }
+		if (app.tile_mode == "fill") { verb = "fill"; }
+		if (erase) { verb = "erase"; }
+		if (erase && app.tile_mode == "rect") { verb = "erase rectangle"; }
+		if (erase && app.tile_mode == "fill") { verb = "erase run"; }
+
 		if (layer != null && !layer.visible) {
 			app.cursor_label = layer.name + " is hidden";
-		} else if (love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift")) {
-			app.cursor_label = "erase";
-		} else if (app.brush == null) {
+		} else if (app.brush == null && !erase) {
 			app.cursor_label = "no tile picked";
 		} else if (layer != null) {
-			app.cursor_label = "paint " + layer.name;
+			app.cursor_label = verb + " " + layer.name;
 		} else {
-			app.cursor_label = "paint";
+			app.cursor_label = verb;
 		}
 		return 0;
 	}

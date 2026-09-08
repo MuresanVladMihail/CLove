@@ -73,19 +73,32 @@ fn build_world(g) {
 		append(g.bodies, [scene.id(e), body]);
 	}
 
-	# The map's collision. A layer marked solid in the editor comes back as
-	# rectangles with each row of touching cells already merged, so this is a
-	# handful of static bodies rather than one per tile -- and nothing catches
-	# on the seam between two of them.
+	# The map's collision. A cell collides when its layer is marked solid or
+	# when its tile is, and the package hands back runs with each row of
+	# touching cells already merged -- so this is a handful of static bodies
+	# rather than one per tile, and nothing catches on the seam between two of
+	# them. Each run carries what it collides as, because only cells that
+	# collide alike are merged into one.
 	let solid = scene.solid_tile_rects();
 	for (let i = 0; i < len(solid); i++) {
 		let r = solid[i];
 		let body = love_physics_newBody(g.world,
-			r[0] + r[2] * 0.5, r[1] + r[3] * 0.5, "static");
-		love_physics_newFixture(body, love_physics_newRectangleShape(r[2], r[3]), 1);
+			r.x + r.w * 0.5, r.y + r.h * 0.5, "static");
+		let fixture = love_physics_newFixture(body,
+			love_physics_newRectangleShape(r.w, r.h), 1);
+		love_fixture_setFriction(fixture, r.friction);
+		love_fixture_setRestitution(fixture, r.restitution);
+		love_fixture_setSensor(fixture, r.sensor);
+		love_fixture_setFilterData(fixture, r.category, r.mask, r.group);
+
+		# The map has no entity behind it, so a contact callback would read
+		# null and know only that it hit something. The tile's name is what it
+		# reads instead -- a string, where an entity's user data is its id.
+		if (len(r.name) > 0) { love_fixture_setUserData(fixture, r.name); }
 	}
 
 	g.scene = scene;
+	build_tile_batches(g);
 	g.built_at = editor_revision(g.ed);
 	println("world rebuilt: " + len(g.bodies) + " bodies, " + len(solid) +
 		" tile shapes, at revision " + g.built_at);
@@ -94,8 +107,7 @@ fn build_world(g) {
 
 # The tile map, drawn under everything else. A quad is made once per tile of a
 # sheet and kept: it is built against the texture's size, so it is the same
-# object for every cell that uses that tile. A map of any size wants a
-# love_graphics_newBatch() instead, but the shape of the work is this.
+# object for every cell that uses that tile.
 fn quad_for(g, path, rect) {
 	let key = path + "|" + rect[0] + "," + rect[1] + "," + rect[2] + "," + rect[3];
 	if (contains_key(g.quads, key)) { return g.quads[key]; }
@@ -113,28 +125,52 @@ fn tile_quad_for(g, ts, tx, ty) {
 	return quad_for(g, ts.path, g.scene.tile_source(ts, tx, ty));
 }
 
-fn draw_tiles(g) {
+# The map goes into sprite batches, one per (layer, sheet): the cells only
+# change when the editor changes them, and a screenful of them drawn one at a
+# time is a screenful of draw calls every frame for a picture that did not
+# move. Built with the world, and thrown away with it.
+fn build_tile_batches(g) {
 	let size = g.scene.tile_size();
 	let layers = g.scene.tile_layers();
+	g.tile_batches = [];
 
-	love_graphics_setColor(255, 255, 255, 255);
 	for (let i = 0; i < len(layers); i++) {
 		let layer = layers[i];
-		if (!layer.visible) { continue; }
-
 		let cells = g.scene.tile_cells(layer);
-		for (let c = 0; c < len(cells); c++) {
-			let cell = cells[c];
-			let ts = g.scene.tileset(cell[2]);
-			if (ts == null) { continue; }
+		let sheets = g.scene.tilesets();
 
+		for (let t = 0; t < len(sheets); t++) {
+			let ts = sheets[t];
 			let img = sprite_for(g, ts.path);
-			let quad = tile_quad_for(g, ts, cell[3], cell[4]);
-			if (img == null || quad == null) { continue; }
+			if (img == null) { continue; }
 
-			love_graphics_draw(img, quad, cell[0] * size[0], cell[1] * size[1], 0,
-				size[0] * 1.0 / ts.tile_w, size[1] * 1.0 / ts.tile_h);
+			# a batch cannot grow past the size it is made with, so count first
+			let mine = [];
+			for (let c = 0; c < len(cells); c++) {
+				if (cells[c][2] == ts.id) { append(mine, cells[c]); }
+			}
+			if (len(mine) == 0) { continue; }
+
+			let batch = love_graphics_newSpriteBatch(img, len(mine));
+			for (let c = 0; c < len(mine); c++) {
+				let cell = mine[c];
+				love_graphics_batch_add(batch,
+					tile_quad_for(g, ts, cell[3], cell[4]),
+					cell[0] * size[0], cell[1] * size[1], 0,
+					size[0] * 1.0 / ts.tile_w, size[1] * 1.0 / ts.tile_h);
+			}
+			append(g.tile_batches, [layer, batch]);
 		}
+	}
+	return 0;
+}
+
+fn draw_tiles(g) {
+	love_graphics_setColor(255, 255, 255, 255);
+	for (let i = 0; i < len(g.tile_batches); i++) {
+		# the batches are in layer order, back first, the way the entities are
+		if (!g.tile_batches[i][0].visible) { continue; }
+		love_graphics_draw(g.tile_batches[i][1], 0, 0);
 	}
 	return 0;
 }
@@ -158,6 +194,7 @@ fn love_load() {
 	let g = {};
 	g.images = {};
 	g.quads = {};     # one per tile of a sheet, see tile_quad_for()
+	g.tile_batches = [];
 
 	# The editor is not standalone here: Esc switches it off rather than
 	# quitting, and it starts switched off so the game is what you see first.

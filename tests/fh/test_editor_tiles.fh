@@ -91,21 +91,91 @@ fn run() {
         check(tiles_get(layer, cx, 0) != null, "the stroke fills cell " + cx);
     }
 
+    # --- a block of tiles, a rectangle and a fill ------------------------
+    # The brush can be more than one tile: a block dragged out of the sheet
+    # stamps its pattern rather than one tile over and over.
+    doc_end_edit(ed);
+    let block_layer = tiles_add_layer(ed);
+    ed.brush = [ts.id, 0, 0, 2, 2];
+    check(brush_cols(ed.brush) == 2 && brush_rows(ed.brush) == 2,
+          "a block brush is two tiles across and down");
+
+    tiles_paint(ed, 8 + 16 * 30, 8 + 16 * 30, false);   # anchored at 30,30
+    check(tiles_get(block_layer, 30, 30)[1] == 0, "the block's own corner tile");
+    check(tiles_get(block_layer, 31, 30)[1] == 1, "the tile to its right");
+    check(tiles_get(block_layer, 30, 31)[2] == 1, "and the one below it");
+    check(tiles_get(block_layer, 31, 31) != null, "four cells from one stamp");
+
+    # a rectangle fills every cell between two corners, tiling the block
+    doc_end_edit(ed);
+    tiles_fill_rect(ed, [40, 40], [43, 41], false);
+    check(len(block_layer.cells) == 4 + 8, "a 4x2 rectangle laid down eight cells");
+    check(tiles_get(block_layer, 43, 41) != null, "out to its far corner");
+    check(tiles_get(block_layer, 40, 40)[1] == 0, "the pattern starts at the corner");
+    check(tiles_get(block_layer, 41, 40)[1] == 1, "and repeats across it");
+    check(tiles_get(block_layer, 42, 40)[1] == 0, "every two columns");
+
+    # fill replaces the run of identical tiles a click lands in, and stops at
+    # anything else -- it never spreads into empty space
+    doc_end_edit(ed);
+    ed.brush = [ts.id, 2, 0, 1, 1];
+    tiles_fill_rect(ed, [60, 60], [62, 61], false);      # six cells of one tile
+    tiles_put(ed, block_layer, 63, 60, [ts.id, 1, 1]);   # something else beside them
+
+    doc_end_edit(ed);
+    ed.brush = [ts.id, 3, 0, 1, 1];
+    tiles_fill_from(ed, (60.5) * 16, (60.5) * 16, false);
+    check(tiles_get(block_layer, 60, 60)[1] == 3, "the cell clicked on is replaced");
+    check(tiles_get(block_layer, 62, 61)[1] == 3, "and the rest of its run, corner to corner");
+    check(tiles_get(block_layer, 63, 60)[1] == 1,
+          "while a different tile beside it is left alone");
+    check(tiles_get(block_layer, 50, 50) == null, "and empty space stays empty");
+
+    # a fill that starts on nothing does nothing at all: an unbounded map has
+    # no edge for it to stop at
+    doc_end_edit(ed);
+    let before_empty_fill = len(block_layer.cells);
+    check(before_empty_fill == 4 + 8 + 7, "the cells laid down so far");
+    tiles_fill_from(ed, (50.5) * 16, (50.5) * 16, false);
+    check(len(block_layer.cells) == before_empty_fill,
+          "filling from an empty cell paints nothing");
+
+    # erasing takes the block, so a stamp is undone by the gesture that made it
+    doc_end_edit(ed);
+    ed.brush = [ts.id, 0, 0, 2, 2];
+    tiles_paint(ed, 8 + 16 * 30, 8 + 16 * 30, true);
+    check(tiles_get(block_layer, 30, 30) == null, "erase takes the block's corner");
+    check(tiles_get(block_layer, 31, 31) == null, "and the far corner with it");
+
+    # the switch and the modifier say the same thing, and cancel each other
+    check(!tiles_erasing(ed, false), "neither: paint");
+    check(tiles_erasing(ed, true), "Shift alone: erase");
+    ed.tile_erase = true;
+    check(tiles_erasing(ed, false), "the switch alone: erase");
+    check(!tiles_erasing(ed, true), "both: back to painting");
+    ed.tile_erase = false;
+
+    doc_end_edit(ed);
+    tiles_delete_layer(ed, block_layer.id);
+    layer = tiles_current_layer(ed);
+    ed.brush = [ts.id, 1, 2];
+
     # --- what Play collides with --------------------------------------
     # one rectangle per row of touching cells, not one per tile
     doc_end_edit(ed);
-    check(len(tiles_solid_rects(ed)) == 0, "a layer is not solid until it is said to be");
+    check(len(tiles_solid_runs(ed)) == 0, "a layer is not solid until it is said to be");
 
     layer.solid = true;
     tiles_paint(ed, 8 + 16 * 6, 8, false);   # a gap, then one more cell
-    let rects = tiles_solid_rects(ed);
+    let rects = tiles_solid_runs(ed);
     check(len(rects) == 3, "a run, a lone cell and the one at -1,-1 make three");
 
     let widest = 0;
     for (let i = 0; i < len(rects); i++) {
-        if (rects[i][2] > widest) { widest = rects[i][2]; }
+        if (rects[i].w > widest) { widest = rects[i].w; }
     }
     check(widest == 16 * 5, "five touching cells merge into one rectangle");
+    check(rects[0].friction == TILE_FRICTION, "a run collides as its tile says");
 
     # --- collision per tile, not only per layer -------------------------
     # A layer that is not solid, holding a tile that is: the cell still
@@ -121,39 +191,95 @@ fn run() {
 
     ed.brush = [ts.id, 3, 3];
     tiles_paint(ed, 8 + 16 * 20, 8 + 16 * 20, false);   # cell 20,20
-    let before = len(tiles_solid_rects(ed));
+    let before = len(tiles_solid_runs(ed));
 
     check(!tileset_is_solid(ts, 3, 3), "a tile starts solid-less");
     tiles_toggle_tile_solid(ed, ts, 3, 3);
     check(tileset_is_solid(ts, 3, 3), "and the flag goes on the sheet");
-    check(len(tiles_solid_rects(ed)) == before + 1,
+    check(len(tiles_solid_runs(ed)) == before + 1,
           "so the cell painted with it collides, in a layer that does not");
 
     # and off again: the flag is a toggle, not a one-way door
     doc_end_edit(ed);
     tiles_toggle_tile_solid(ed, ts, 3, 3);
     check(!tileset_is_solid(ts, 3, 3), "the flag comes off");
-    check(len(tiles_solid_rects(ed)) == before, "and the collision with it");
+    check(len(tiles_solid_runs(ed)) == before, "and the collision with it");
 
     # the two reasons add up rather than replacing each other
     tiles_toggle_tile_solid(ed, ts, 3, 3);
     decor.solid = true;
-    check(len(tiles_solid_rects(ed)) == before + 1,
+    check(len(tiles_solid_runs(ed)) == before + 1,
           "a solid layer holding a solid tile is not counted twice");
     decor.solid = false;
+
+    # --- what a tile collides as ----------------------------------------
+    # The settings are the fixture's, so a patch of ice is friction here
+    # rather than a special case somewhere in a game.
+    let settings = tile_settings(ts, 3, 3);
+    check(settings != null, "a solid tile has settings");
+    check(settings.friction == TILE_FRICTION, "friction, to start with");
+    check(settings.name == "", "and no name until it is given one");
+
+    settings.friction = 0.05;
+    settings.name = "ice";
+    settings.sensor = false;
+
+    let iced = tiles_solid_runs(ed);
+    let found = null;
+    for (let i = 0; i < len(iced); i++) {
+        if (iced[i].name == "ice") { found = iced[i]; }
+    }
+    check(found != null, "the run carries the tile's name");
+    check(found.friction == 0.05, "and its friction");
+
+    # two cells that collide differently must not merge into one shape
+    doc_end_edit(ed);
+    ed.brush = [ts.id, 3, 3];
+    tiles_paint(ed, 8 + 16 * 21, 8 + 16 * 20, false);   # 21,20, beside the first
+    ed.brush = [ts.id, 2, 2];
+    tiles_toggle_tile_solid(ed, ts, 2, 2);              # solid, but plain
+    tiles_paint(ed, 8 + 16 * 22, 8 + 16 * 20, false);   # 22,20, next to those
+
+    let row = [];
+    let runs = tiles_solid_runs(ed);
+    for (let i = 0; i < len(runs); i++) {
+        if (runs[i].y == 16 * 20) { append(row, runs[i]); }
+    }
+    check(len(row) == 2, "ice and stone in one row are two runs, not one");
+
+    let ice_run = row[0];
+    let stone_run = row[1];
+    if (ice_run.name != "ice") {
+        ice_run = row[1];
+        stone_run = row[0];
+    }
+    check(ice_run.w == 16 * 2, "the two ice cells still merge with each other");
+    check(stone_run.friction == TILE_FRICTION, "and the stone keeps its own");
+
+    # tidy the extra cells away again
+    doc_end_edit(ed);
+    tiles_erase(ed, decor, 21, 20);
+    tiles_erase(ed, decor, 22, 20);
+    tiles_toggle_tile_solid(ed, ts, 2, 2);
+    settings.friction = TILE_FRICTION;
+    settings.name = "";
 
     # the scene package reads the same answer
     let live = Scene(editor_document(ed));
     check(live.tile_is_solid(live.tileset(ts.id), 3, 3), "the flag reaches a game");
-    check(len(live.solid_tile_rects()) == len(tiles_solid_rects(ed)),
+    check(live.tile_props(live.tileset(ts.id), 3, 3).friction == TILE_FRICTION,
+          "and what the tile collides as with it");
+    check(len(live.solid_tile_rects()) == len(tiles_solid_runs(ed)),
           "and it collides the same way there");
+    check(live.solid_tile_rects()[0].friction == TILE_FRICTION,
+          "with the physics on every run");
 
     # tidy up: the decor layer has done its work
     doc_end_edit(ed);
     tiles_toggle_tile_solid(ed, ts, 3, 3);
     tiles_delete_layer(ed, decor.id);
     layer = tiles_current_layer(ed);
-    check(len(tiles_solid_rects(ed)) == 3, "back to the three the map had");
+    check(len(tiles_solid_runs(ed)) == 3, "back to the three the map had");
 
     # --- a tile that has to move is an entity ---------------------------
     # A cell cannot be dynamic: the solid ones become static shapes. The way

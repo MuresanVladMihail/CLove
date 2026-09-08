@@ -103,26 +103,32 @@ fn sim_build(app) {
 	return 0;
 }
 
-# The solid layers of the tile map, as static bodies. tiles_solid_rects() has
-# already merged each row of touching cells into one rectangle, so this is one
-# body per run rather than one per tile: Box2D would otherwise spend its time
-# on contacts between neighbours that can never move, and a moving box would
-# catch on the seam between two of them.
+# The map's collision, as static bodies. tiles_solid_runs() has already merged
+# each row of touching cells into one rectangle, so this is one body per run
+# rather than one per tile: Box2D would otherwise spend its time on contacts
+# between neighbours that can never move, and a moving box would catch on the
+# seam between two of them. Cells only merge when they collide *alike*, so the
+# friction and the filter below are the whole run's.
 #
-# They carry no entity id in their user data -- there is no entity to point at.
-# A contact callback reads null for one and knows it hit the map.
+# The user data is the tile's name rather than an entity id -- there is no
+# entity to point at. A contact callback that reads a string knows it hit the
+# map, and which part of it; one that reads a number is holding an entity.
 fn sim_tile_bodies(app) {
-	let rects = tiles_solid_rects(app);
-	for (let i = 0; i < len(rects); i++) {
-		let r = rects[i];
+	let runs = tiles_solid_runs(app);
+	for (let i = 0; i < len(runs); i++) {
+		let r = runs[i];
 		let body = love_physics_newBody(app.world,
-			r[0] + r[2] * 0.5, r[1] + r[3] * 0.5, "static");
-		let shape = love_physics_newRectangleShape(r[2], r[3]);
+			r.x + r.w * 0.5, r.y + r.h * 0.5, "static");
+		let shape = love_physics_newRectangleShape(r.w, r.h);
 		let fixture = love_physics_newFixture(body, shape, 1);
-		love_fixture_setFriction(fixture, 0.4);
+		love_fixture_setFriction(fixture, r.friction);
+		love_fixture_setRestitution(fixture, r.restitution);
+		love_fixture_setSensor(fixture, r.sensor);
+		love_fixture_setFilterData(fixture, r.category, r.mask, r.group);
+		if (len(r.name) > 0) { love_fixture_setUserData(fixture, r.name); }
 	}
-	if (len(rects) > 0) {
-		log_line(app, "tiles: " + len(rects) + " static shapes");
+	if (len(runs) > 0) {
+		log_line(app, "tiles: " + len(runs) + " static shapes");
 	}
 	return 0;
 }

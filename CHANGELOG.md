@@ -148,12 +148,26 @@ version 0.8.0 not yet released
 	A single tile can be marked solid too (Shift+click it on the sheet, or the
 	checkbox under the sheet's settings), which collides wherever that tile is
 	painted whatever layer it lands in -- the stone block in a layer of grass
-	that is not solid. Show fixtures outlines the merged rectangles, so what
-	will collide is visible before Play. "Brush -> selected sprite" gives the
-	same tile to an entity, and "Brush -> new entity" makes a dynamic one
+	that is not solid. Such a tile also says what it collides *as*: friction,
+	bounce, sensor, the collision filter, and a name, which is what a contact
+	callback is handed for it (a merged run has no entity behind it, so without
+	one a game learns only that it hit the map). Cells merge into a shape only
+	when they collide alike, so a patch of ice keeps its own friction rather
+	than taking the floor's. Show fixtures outlines the merged rectangles, so
+	what will collide is visible before Play. "Brush -> selected sprite" gives
+	the same tile to an entity, and "Brush -> new entity" makes a dynamic one
 	wearing it: a cell can never be dynamic -- the solid ones become static
 	shapes -- so anything meant to be pushed around is an entity that happens
 	to wear a tile.
+	The brush can be a block of tiles dragged out of the sheet rather than one,
+	and there are three ways to lay it down: Brush stamps and drags a stroke,
+	Rect fills the rectangle you drag out (tiling a block across it), and Fill
+	replaces the run of identical tiles clicked on -- never spreading into
+	empty space, which on an unbounded map has no edge to stop at. An erase
+	switch turns any of them into its opposite, Shift still does it for one
+	click, and layers can be renamed. The map is drawn through one sprite batch
+	per (layer, sheet), rebuilt when the document settles rather than inside a
+	stroke; opt/examples/fh/game does the same on its side.
 * changed: the scene document is version 2. It carries "tilesets" and
 	"tilemap"; a cell is [tileset id, column, row] -- where the tile is in the
 	sheet rather than an index into it, so cropping the sheet or swapping it
@@ -162,9 +176,10 @@ version 0.8.0 not yet released
 * added: the read side of all of it in opt/packages/scene -- scene.tilesets(),
 	tileset(), tilemap(), tile_size(), tile_layers(), tile_layer(),
 	tile_cells(), tile_at(), tile_cell_at(), tile_rect(), tile_source(),
-	tile_bounds(), tile_count(), tile_is_solid(), tile_cell_is_solid() and
-	solid_tile_rects(), which hands back the same merged rectangles the editor
-	collides with. Plus scene.sprite_quad()
+	tile_bounds(), tile_count(), tile_props(), tile_is_solid(), tile_physics(),
+	tile_cell_is_solid() and solid_tile_rects(), which hands back the same
+	merged runs the editor collides with -- each one carrying the friction,
+	bounce, sensor flag, filter and name its cells were authored with. Plus scene.sprite_quad()
 	for an entity whose artwork is one tile of a sheet.
 * added: an entity's sprite may be a crop of its image -- "quad": [x, y, w, h]
 	beside the path -- which is what lets one spritesheet dress a whole level.
