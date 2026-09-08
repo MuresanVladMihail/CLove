@@ -1,0 +1,38 @@
+# The textures this demo loads.
+#
+# It needs files big enough that one decode is longer than a frame, and a
+# repository is no place for 20 MB of them -- so it draws its own on the first
+# run and leaves them next to main.fh (they are gitignored).
+
+let TILES = 8;
+let TILE_SIZE = 1536;
+
+fn tile_path(i) { return "generated_" + i + ".png"; }
+
+fn generate_tile(index) {
+	let n = TILE_SIZE;
+	printf("generating %s (%dx%d), first run only...\n", tile_path(index), n, n);
+
+	let data = love_graphics_newImageData(n, n);
+	let shift = index * 32;
+	for (let y = 0; y < n; y++) {
+		for (let x = 0; x < n; x++) {
+			# bands rather than noise, so the PNG compresses: the point of the
+			# file is its pixel count, not its size on disk
+			love_image_setPixel(data, x, y,
+				(tointeger(x / 6) + shift) % 256,
+				(tointeger(y / 6) + shift) % 256,
+				tointeger((x + y) / 8) % 256,
+				255);
+		}
+	}
+	love_image_save(data, tile_path(index));
+	return 0;
+}
+
+fn generate_tiles() {
+	for (let i = 0; i < TILES; i++) {
+		if (!love_filesystem_exists(tile_path(i))) { generate_tile(i); }
+	}
+	return 0;
+}

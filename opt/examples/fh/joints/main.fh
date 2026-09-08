@@ -17,253 +17,68 @@
 #   escape  quit
 #
 #   cd opt/examples/fh/joints && ../../../../build/clove
+#
+#   body.fh   a body and the shape it is drawn as
+#   scene.fh  the world: bodies, joints, labels, and dragging
+#   rigs.fh   one rig per joint kind
+#
+# The input callbacks are handed no state, so the scene lives here for them to
+# reach -- the same reason every other example keeps one.
 
-let S = {"world": null, "bodies": [], "joints": [], "labels": [],
-         "grab": null, "drawJoints": true, "dir": 1.0};
+include "rigs.fh"
 
-fn box(x, y, w, h, kind, density) {
-    let b = love_physics_newBody(S.world, x, y, kind);
-    let shape = love_physics_newRectangleShape(w, h);
-    let f = love_physics_newFixture(b, shape, density);
-    love_fixture_setRestitution(f, 0.1);
-    love_fixture_setFriction(f, 0.4);
-    append(S.bodies, [b, "rect", w, h]);
-    return b;
-}
-
-fn ball(x, y, r, kind, density) {
-    let b = love_physics_newBody(S.world, x, y, kind);
-    let shape = love_physics_newCircleShape(r);
-    let f = love_physics_newFixture(b, shape, density);
-    love_fixture_setRestitution(f, 0.35);
-    append(S.bodies, [b, "circle", r, r]);
-    return b;
-}
-
-fn label(text, x, y) { append(S.labels, [text, x, y]); }
-
-fn build() {
-    S.world = love_physics_newWorld(0, 700);
-    S.bodies = [];
-    S.joints = [];
-    S.labels = [];
-
-    # ground and walls
-    box(600, 690, 1200, 40, "static", 0);
-    box(10, 350, 40, 700, "static", 0);
-    box(1190, 350, 40, 700, "static", 0);
-
-    # --- revolute: a hinged wheel driven by a motor, with limits off -------
-    let hub = box(150, 150, 16, 16, "static", 0);
-    let arm = box(150, 150, 150, 14, "dynamic", 2);
-    let rev = love_physics_newRevoluteJoint(hub, arm, 150, 150);
-    love_revolutejoint_setMotorEnabled(rev, true);
-    love_revolutejoint_setMotorSpeed(rev, 3.0);
-    love_revolutejoint_setMaxMotorTorque(rev, 8000);
-    append(S.joints, rev);
-    label("revolute + motor", 80, 80);
-
-    # --- prismatic: a platform that slides along one axis -----------------
-    let rail = box(430, 150, 16, 16, "static", 0);
-    let lift = box(430, 150, 120, 18, "dynamic", 3);
-    let pri = love_physics_newPrismaticJoint(rail, lift, 430, 150, 0, 1);
-    love_prismaticjoint_setLimitsEnabled(pri, true);
-    love_prismaticjoint_setLimits(pri, -60, 60);
-    love_prismaticjoint_setMotorEnabled(pri, true);
-    love_prismaticjoint_setMotorSpeed(pri, 80);
-    love_prismaticjoint_setMaxMotorForce(pri, 9000);
-    append(S.joints, pri);
-    label("prismatic + limits + motor", 350, 80);
-
-    # --- wheel: a hinge with a spring along an axis -- car suspension ------
-    # Its own bumpy floor, so the springs have something to work against.
-    box(730, 250, 300, 16, "static", 0);
-    box(680, 238, 30, 12, "static", 0);
-    let chassis = box(730, 140, 170, 24, "dynamic", 2);
-    let w1 = ball(680, 180, 22, "dynamic", 3);
-    let w2 = ball(780, 180, 22, "dynamic", 3);
-    let j1 = love_physics_newWheelJoint(chassis, w1, 680, 180, 0, 1);
-    let j2 = love_physics_newWheelJoint(chassis, w2, 780, 180, 0, 1);
-    for (let i = 0; i < 2; i++) {
-        let j = j1;
-        if (i == 1) { j = j2; }
-        love_wheeljoint_setSpringFrequency(j, 4.0);
-        love_wheeljoint_setSpringDampingRatio(j, 0.7);
-        love_wheeljoint_setMotorEnabled(j, true);
-        love_wheeljoint_setMotorSpeed(j, -6.0);
-        love_wheeljoint_setMaxMotorTorque(j, 4000);
-        append(S.joints, j);
-    }
-    label("wheel: hinge on a spring", 660, 80);
-
-    # --- distance: a soft spring between two bodies -----------------------
-    let anchor = box(1000, 120, 16, 16, "static", 0);
-    let bob = ball(1000, 260, 20, "dynamic", 2);
-    let dj = love_physics_newDistanceJoint(anchor, bob, 1000, 120, 1000, 260);
-    love_distancejoint_setFrequency(dj, 2.0);
-    love_distancejoint_setDampingRatio(dj, 0.2);
-    append(S.joints, dj);
-    label("distance: a spring", 940, 80);
-
-    # --- rope: a hard maximum, no spring ----------------------------------
-    let hook = box(160, 380, 16, 16, "static", 0);
-    let weight = box(230, 430, 40, 40, "dynamic", 4);
-    let rj = love_physics_newRopeJoint(hook, weight, 160, 380, 230, 430, 140);
-    append(S.joints, rj);
-    label("rope: a hard maximum, swinging", 90, 340);
-
-    # --- weld: two bodies glued rigidly -----------------------------------
-    box(435, 520, 260, 16, "static", 0);
-    box(360, 505, 16, 16, "static", 0);   # one leg lands on this, the other does not
-    let left = box(400, 420, 70, 24, "dynamic", 2);
-    let right = box(470, 420, 70, 24, "dynamic", 2);
-    let wj = love_physics_newWeldJoint(left, right, 435, 420);
-    love_weldjoint_setFrequency(wj, 0.0);      # 0 = perfectly rigid
-    append(S.joints, wj);
-    label("weld: rigidly glued, so it tips as one", 350, 380);
-
-    # --- friction: the same push, with and without drag -------------------
-    box(830, 600, 380, 16, "static", 0);
-    box(830, 660, 380, 16, "static", 0);
-    let muddy = box(680, 580, 44, 30, "dynamic", 2);
-    let icy = box(680, 640, 44, 30, "dynamic", 2);
-    # Anchored to a static peg beside it rather than to the distant ground,
-    # so the joint's own line stays inside this demo's area.
-    let peg = box(660, 580, 10, 10, "static", 0);
-    let fj = love_physics_newFrictionJoint(peg, muddy, 680, 580);
-    love_frictionjoint_setMaxForce(fj, 900);
-    love_frictionjoint_setMaxTorque(fj, 400);
-    append(S.joints, fj);
-    love_body_applyLinearImpulse(icy, 420, 0);
-    love_body_applyLinearImpulse(muddy, 420, 0);
-    label("friction: the top box drags, the bottom one slides", 620, 545);
-
-    # --- motor: drive one body to an offset from another ------------------
-    box(1060, 560, 240, 16, "static", 0);
-    let leader = ball(1000, 500, 18, "dynamic", 2);
-    let follower = ball(1080, 500, 14, "dynamic", 1);
-    let mj = love_physics_newMotorJoint(leader, follower);
-    love_motorjoint_setLinearOffset(mj, 70, -50);
-    love_motorjoint_setMaxForce(mj, 2500);
-    love_motorjoint_setMaxTorque(mj, 800);
-    love_motorjoint_setCorrectionFactor(mj, 0.4);
-    append(S.joints, mj);
-    label("motor: the small ball holds an offset", 960, 430);
-}
+let APP = { "scene": null, "show_joints": true };
 
 fn love_load() {
-    build();
-    return S;
+	APP.scene = build_scene();
+	return APP;
+}
+
+fn love_update(dt, app) {
+	app.scene.drag_to(love_mouse_getX(), love_mouse_getY());
+	app.scene.update(dt);
+	return 0;
 }
 
 fn love_keypressed(key) {
-    let k = key[0];
-    if (k == "escape") { love_event_quit(); }
-    elif (k == "r") { build(); }
-    elif (k == "j") { S.drawJoints = !S.drawJoints; }
-    elif (k == "space") {
-        S.dir = 0.0 - S.dir;
-        for (let i = 0; i < len(S.joints); i++) {
-            let j = S.joints[i];
-            let t = love_joint_getType(j);
-            if (t == "revolute") { love_revolutejoint_setMotorSpeed(j, 3.0 * S.dir); }
-            elif (t == "prismatic") { love_prismaticjoint_setMotorSpeed(j, 80.0 * S.dir); }
-            elif (t == "wheel") { love_wheeljoint_setMotorSpeed(j, -6.0 * S.dir); }
-        }
-    }
+	let k = key[0];
+	if (k == "escape") { love_event_quit(); }
+	elif (k == "r") { APP.scene = build_scene(); }
+	elif (k == "j") { APP.show_joints = !APP.show_joints; }
+	elif (k == "space") { APP.scene.reverse_motors(); }
+	return 0;
 }
 
 fn love_mousepressed(m) {
-    let mx = love_mouse_getX();
-    let my = love_mouse_getY();
-    for (let i = 3; i < len(S.bodies); i++) {
-        let b = S.bodies[i][0];
-        if (love_body_getType(b) != "dynamic") { continue; }
-        let bx = love_body_getX(b);
-        let by = love_body_getY(b);
-        let dx = bx - mx;
-        let dy = by - my;
-        if (dx * dx + dy * dy < 2500) {
-            S.grab = love_physics_newMouseJoint(b, mx, my);
-            love_mousejoint_setMaxForce(S.grab, 6000);
-            return 0;
-        }
-    }
+	APP.scene.grab_at(love_mouse_getX(), love_mouse_getY());
+	return 0;
 }
 
 fn love_mousereleased(m) {
-    if (S.grab != null) {
-        love_joint_destroy(S.grab);
-        S.grab = null;
-    }
+	APP.scene.release();
+	return 0;
 }
 
-fn love_update(dt, self) {
-    if (S.grab != null) {
-        love_mousejoint_setTarget(S.grab, love_mouse_getX(), love_mouse_getY());
-    }
-    love_world_update(S.world, dt);
+fn draw_hud(app) {
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print("love.physics -- every joint kind CLove has", 20, 16);
+
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print("drag with the mouse    SPACE reverse motors    R reset    " +
+		"J joints    escape quit", 20, 36);
+	love_graphics_print(len(app.scene.joints) + " joints, " +
+		len(app.scene.bodies) + " bodies, " + love_timer_getFPS() + " fps", 20, 660);
+	return 0;
 }
 
-fn draw_body(entry) {
-    let b = entry[0];
-    let x = love_body_getX(b);
-    let y = love_body_getY(b);
-    let a = love_body_getAngle(b);
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(20, 22, 30);
 
-    if (love_body_getType(b) == "static") { love_graphics_setColor(70, 78, 96); }
-    else { love_graphics_setColor(150, 200, 240); }
-
-    if (entry[1] == "circle") {
-        love_geometry_circle("line", x, y, entry[2]);
-        # a spoke, so rotation is visible
-        love_geometry_polygon("line", [x, y, x + math_cos(a) * entry[2], y + math_sin(a) * entry[2]]);
-    } else {
-        # The corners are computed here rather than drawn through a pushed
-        # transform: a rotated rectangle is four points, and doing it by hand
-        # keeps the matrix stack out of the draw loop entirely.
-        let hw = entry[2] / 2.0;
-        let hh = entry[3] / 2.0;
-        let c = math_cos(a);
-        let sn = math_sin(a);
-        let cx = [0.0 - hw, hw, hw, 0.0 - hw, 0.0 - hw];
-        let cy = [0.0 - hh, 0.0 - hh, hh, hh, 0.0 - hh];
-        let pts = [];
-        for (let i = 0; i < 5; i++) {
-            append(pts, x + cx[i] * c - cy[i] * sn);
-            append(pts, y + cx[i] * sn + cy[i] * c);
-        }
-        love_geometry_polygon("line", pts);
-    }
-}
-
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(20, 22, 30);
-
-    for (let i = 0; i < len(S.bodies); i++) { draw_body(S.bodies[i]); }
-
-    if (S.drawJoints) {
-        love_graphics_setColor(255, 190, 90);
-        for (let i = 0; i < len(S.joints); i++) {
-            let p = love_joint_getAnchors(S.joints[i]);
-            love_geometry_polygon("line", [p[0], p[1], p[2], p[3]]);
-            love_geometry_circle("fill", p[0], p[1], 3);
-            love_geometry_circle("fill", p[2], p[3], 3);
-        }
-    }
-
-    love_graphics_setColor(200, 205, 218);
-    for (let i = 0; i < len(S.labels); i++) {
-        love_graphics_print(S.labels[i][0], S.labels[i][1], S.labels[i][2]);
-    }
-
-    love_graphics_setColor(235, 235, 245);
-    love_graphics_print("love.physics -- every joint kind CLove has", 20, 16);
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print("drag with the mouse    SPACE reverse motors    R reset    J joints    escape quit",
-                        20, 36);
-    love_graphics_print("" + len(S.joints) + " joints, " + len(S.bodies) + " bodies, "
-                        + love_timer_getFPS() + " fps", 20, 660);
+	app.scene.draw_bodies();
+	if (app.show_joints) { app.scene.draw_joints(); }
+	app.scene.draw_labels();
+	draw_hud(app);
+	return 0;
 }
 
 fn main() {}

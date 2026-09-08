@@ -10,167 +10,76 @@
 #   UP/DOWN  scale      LEFT/RIGHT  speed      escape  quit
 #
 #   cd opt/examples/fh/noise && ../../../../build/clove
+#
+#   field.fh  the noise field and the canvas it is painted into
+#   shape.fh  the draggable polygon behind love_math_isConvex
 
-let N = {"mode": 0, "t": 0.0, "scale": 0.02, "speed": 0.5, "poly": [], "convex": false};
+include "field.fh"
+include "shape.fh"
+
+let APP = { "field": null, "shape": null };
 
 fn love_load() {
-    let self = {};
-    # A canvas is the right home for a field that only changes when a
-    # parameter does -- redrawing 120x90 cells every frame is wasteful.
-    self.canvas = love_graphics_newCanvas(480, 360);
-    N.dirty = true;
-
-    # A polygon the mouse can drag, to show love_math_isConvex.
-    N.poly = [560, 420,  700, 400,  760, 500,  620, 540];
-    N.convex = love_math_isConvex(N.poly);
-    return self;
-}
-
-# Several octaves of noise summed, each half the amplitude and twice the
-# frequency of the last -- the standard way to get detail out of smooth noise.
-fn fbm(x, y, octaves) {
-    let sum = 0.0;
-    let amp = 1.0;
-    let freq = 1.0;
-    let norm = 0.0;
-    for (let i = 0; i < octaves; i++) {
-        sum = sum + love_math_noise(x * freq, y * freq) * amp;
-        norm = norm + amp;
-        amp = amp * 0.5;
-        freq = freq * 2.0;
-    }
-    return sum / norm;
-}
-
-fn paint(self) {
-    love_graphics_setCanvas(self.canvas);
-    love_graphics_setBackgroundColor(0, 0, 0);
-    love_graphics_clear();
-
-    let cell = 4;
-    for (let y = 0; y < 360; y = y + cell) {
-        for (let x = 0; x < 480; x = x + cell) {
-            let v = 0.0;
-
-            if (N.mode == 1) {
-                v = love_math_noise(x * N.scale, y * N.scale);
-            } elif (N.mode == 2) {
-                v = love_math_noise(x * N.scale, y * N.scale, N.t);
-            } else {
-                v = fbm(x * N.scale, y * N.scale, 5);
-            }
-
-            # noise() is about -1..1; map it to a colour ramp.
-            let g = (v + 1.0) * 0.5;
-            love_graphics_setColor(40 + g * 90, 70 + g * 150, 110 + g * 145);
-            love_geometry_rectangle("fill", x, y, cell, cell);
-        }
-    }
-
-    love_graphics_setColor(255, 255, 255);
-    love_graphics_setCanvas();
-    N.dirty = false;
+	APP.field = NoiseField();
+	APP.shape = ConvexShape([560, 420,  700, 400,  760, 500,  620, 540]);
+	return APP;
 }
 
 fn love_keypressed(key) {
-    let k = key[0];
-    if (k == "escape") { love_event_quit(); }
-    for (let i = 0; i < 4; i++) {
-        if (k == "" + (i + 1)) { N.mode = i; N.dirty = true; }
-    }
+	let k = key[0];
+	if (k == "escape") { love_event_quit(); }
+
+	for (let mode = 0; mode < len(MODE_NAMES); mode++) {
+		if (k == "" + (mode + 1)) { APP.field.set_mode(mode); }
+	}
+	return 0;
 }
 
 fn love_mousepressed(m) {
-    # Drag a polygon vertex and watch isConvex follow.
-    let mx = love_mouse_getX();
-    let my = love_mouse_getY();
-    for (let i = 0; i + 1 < len(N.poly); i = i + 2) {
-        let dx = N.poly[i] - mx;
-        let dy = N.poly[i + 1] - my;
-        if (dx * dx + dy * dy < 400) { N.drag = i; return 0; }
-    }
-    N.drag = -1;
+	APP.shape.grab_at(m[0], m[1]);
+	return 0;
 }
 
-fn love_mousereleased(m) { N.drag = -1; }
-
-fn love_update(dt, self) {
-    N.t = N.t + dt * N.speed;
-
-    if (love_keyboard_isDown("up"))    { N.scale = N.scale * (1.0 + dt); N.dirty = true; }
-    if (love_keyboard_isDown("down"))  { N.scale = N.scale / (1.0 + dt); N.dirty = true; }
-    if (love_keyboard_isDown("right")) { N.speed = N.speed + dt; }
-    if (love_keyboard_isDown("left"))  { N.speed = N.speed - dt; }
-
-    if (contains_key(N, "drag") && N.drag >= 0 && love_mouse_isDown("l")) {
-        N.poly[N.drag] = love_mouse_getX();
-        N.poly[N.drag + 1] = love_mouse_getY();
-        N.convex = love_math_isConvex(N.poly);
-    }
-
-    # Mode 2 is animated, so it repaints every frame; the others only when a
-    # parameter changed.
-    if (N.mode == 2 || N.dirty) { paint(self); }
+fn love_mousereleased(m) {
+	APP.shape.release();
+	return 0;
 }
 
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(22, 24, 32);
+fn love_update(dt, app) {
+	# Held keys, so the scale and the speed slide rather than step.
+	if (love_keyboard_isDown("up")) { app.field.zoom(1.0 + dt); }
+	if (love_keyboard_isDown("down")) { app.field.zoom(1.0 / (1.0 + dt)); }
+	if (love_keyboard_isDown("right")) { app.field.speed = app.field.speed + dt; }
+	if (love_keyboard_isDown("left")) { app.field.speed = app.field.speed - dt; }
 
-    love_graphics_setColor(255, 255, 255);
-    if (N.mode == 0) {
-        # 1D noise as a curve, sampled straight rather than through a canvas.
-        love_graphics_setColor(60, 64, 78);
-        love_geometry_rectangle("line", 20, 60, 480, 360);
-        love_graphics_setColor(120, 200, 255);
-        let pts = [];
-        for (let i = 0; i <= 120; i++) {
-            let x = 20 + i * 4;
-            # Step size matters: simplex noise is smooth only if consecutive
-            # samples are close together. A step near 1 looks like static.
-            let v = love_math_noise(i * N.scale * 2.0 + N.t);
-            append(pts, x);
-            append(pts, 240 + v * 150);
-        }
-        love_geometry_polygon("line", pts);
-    } else {
-        love_graphics_draw(self.canvas, 20, 60);
-    }
+	if (love_mouse_isDown("l")) {
+		app.shape.drag_to(love_mouse_getX(), love_mouse_getY());
+	}
 
-    let names = ["1  1D noise, scrolling with time",
-                 "2  2D noise as a height field",
-                 "3  2D noise animated on a third axis",
-                 "4  five octaves summed (fbm)"];
+	app.field.update(dt);
+	return 0;
+}
 
-    love_graphics_setColor(235, 235, 245);
-    love_graphics_print("love.math -- simplex noise", 20, 16);
-    love_graphics_setColor(200, 205, 215);
-    love_graphics_print(names[N.mode], 20, 36);
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(22, 24, 32);
+	app.field.draw(20, 60);
 
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print("scale " + N.scale, 20, 434);
-    love_graphics_print("speed " + N.speed, 200, 434);
-    love_graphics_print("1..4 mode   UP/DOWN scale   LEFT/RIGHT speed   escape quit", 20, 458);
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print("love.math -- simplex noise", 20, 16);
+	love_graphics_setColor(200, 205, 215);
+	love_graphics_print(app.field.name(), 20, 36);
 
-    # --- love_math_isConvex ------------------------------------------------
-    love_graphics_setColor(235, 235, 245);
-    love_graphics_print("love_math_isConvex -- drag a corner", 540, 380);
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print("scale " + app.field.scale, 20, 434);
+	love_graphics_print("speed " + app.field.speed, 200, 434);
+	love_graphics_print("1..4 mode   UP/DOWN scale   LEFT/RIGHT speed   escape quit",
+		20, 458);
 
-    if (N.convex) { love_graphics_setColor(120, 220, 160); }
-    else { love_graphics_setColor(240, 130, 120); }
-
-    let closed = [];
-    for (let i = 0; i < len(N.poly); i++) { append(closed, N.poly[i]); }
-    append(closed, N.poly[0]);
-    append(closed, N.poly[1]);
-    love_geometry_polygon("line", closed);
-
-    for (let i = 0; i + 1 < len(N.poly); i = i + 2) {
-        love_geometry_circle("fill", N.poly[i], N.poly[i + 1], 5);
-    }
-
-    let word = "convex";
-    if (!N.convex) { word = "concave -- Box2D would need it split"; }
-    love_graphics_print(word, 540, 560);
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print("love_math_isConvex -- drag a corner", 540, 380);
+	app.shape.draw();
+	love_graphics_print(app.shape.verdict(), 540, 560);
+	return 0;
 }
 
 fn main() {}

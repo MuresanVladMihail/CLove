@@ -1,0 +1,64 @@
+# What this program believes about the window, and the calls that change it.
+#
+# The values are kept here as well as asked of the engine because an *event*
+# only tells you about a change: the starting values come from the poll, and
+# love_focus / love_mousefocus keep them current afterwards.
+
+let MIN_SIZE = [400, 300];
+let MAX_SIZE = [4000, 3000];
+
+fn WindowState(title) {
+	let self = { "fullscreen": false, "borderless": false, "vsync": true,
+	             "resizes": 0, "focus": love_window_hasFocus(),
+	             "mouse_focus": love_window_hasMouseFocus(), "title": title };
+
+	love_window_setTitle(self.title);
+
+	# Borderless has no setter of its own: it is one flag of setMode, so the
+	# current size and the rest of the flags have to be passed with it.
+	self.apply_mode = fn() {
+		let size = love_window_getDimensions();
+		love_window_setMode(size[0], size[1], self.fullscreen, self.vsync,
+			MIN_SIZE[0], MIN_SIZE[1], MAX_SIZE[0], MAX_SIZE[1], !self.borderless);
+		return 0;
+	};
+
+	self.toggle_fullscreen = fn() {
+		self.fullscreen = !self.fullscreen;
+		love_window_setFullscreen(self.fullscreen, "desktop");
+		return "fullscreen: " + self.fullscreen;
+	};
+
+	self.toggle_borderless = fn() {
+		self.borderless = !self.borderless;
+		self.apply_mode();
+		return "borderless: " + self.borderless;
+	};
+
+	self.toggle_vsync = fn() {
+		self.vsync = !self.vsync;
+		love_window_setVsync(self.vsync);
+		return "vsync: " + self.vsync;
+	};
+
+	self.retitle = fn() {
+		self.title = "CLove -- " + tointeger(love_timer_getTime() * 10);
+		love_window_setTitle(self.title);
+		return "title: " + self.title;
+	};
+
+	self.resize = fn(w, h) {
+		love_window_setMode(w, h, false, self.vsync);
+		return w + "x" + h;
+	};
+
+	self.centre = fn() {
+		let desktop = love_window_getDesktopDimension();
+		let size = love_window_getDimensions();
+		love_window_setPosition(tointeger((desktop[0] - size[0]) / 2),
+			tointeger((desktop[1] - size[1]) / 2));
+		return "centred on a " + desktop[0] + "x" + desktop[1] + " desktop";
+	};
+
+	return self;
+}

@@ -1,0 +1,121 @@
+# Drawing a scene: the map underneath, the entities on top.
+#
+# The map goes into sprite batches, one per (layer, sheet). The cells only
+# change when the editor changes them, and a screenful of them drawn one at a
+# time is a screenful of draw calls every frame for a picture that did not
+# move. Built with the world, and thrown away with it.
+#
+# It is handed the Assets it draws through rather than including assets.fh
+# itself: `include` is textual and has no guard, so a file included twice
+# declares its functions twice -- main.fh includes each of these once.
+
+fn Renderer(assets) {
+	let self = { "assets": assets, "batches": [] };
+
+	self.build_tiles = fn(scene) {
+		self.batches = [];
+		let size = scene.tile_size();
+		let layers = scene.tile_layers();
+		let sheets = scene.tilesets();
+
+		for (let i = 0; i < len(layers); i++) {
+			let cells = scene.tile_cells(layers[i]);
+
+			for (let s = 0; s < len(sheets); s++) {
+				let sheet = sheets[s];
+				let img = assets.image(sheet.path);
+				if (img == null) { continue; }
+
+				# a batch cannot grow past the size it is made with, so the
+				# cells that use this sheet are counted before it is made
+				let mine = [];
+				for (let c = 0; c < len(cells); c++) {
+					if (cells[c][2] == sheet.id) { append(mine, cells[c]); }
+				}
+				if (len(mine) == 0) { continue; }
+
+				let batch = love_graphics_newSpriteBatch(img, len(mine));
+				for (let c = 0; c < len(mine); c++) {
+					let cell = mine[c];
+					let src = scene.tile_source(sheet, cell[3], cell[4]);
+					love_graphics_batch_add(batch, assets.quad(sheet.path, src),
+						cell[0] * size[0], cell[1] * size[1], 0,
+						size[0] * 1.0 / sheet.tile_w, size[1] * 1.0 / sheet.tile_h);
+				}
+				append(self.batches, [layers[i], batch]);
+			}
+		}
+		return 0;
+	};
+
+	self.draw_tiles = fn() {
+		love_graphics_setColor(255, 255, 255, 255);
+		for (let i = 0; i < len(self.batches); i++) {
+			# the batches are in layer order, back first, the way the entities are
+			if (!self.batches[i][0].visible) { continue; }
+			love_graphics_draw(self.batches[i][1], 0, 0);
+		}
+		return 0;
+	};
+
+	# An entity with no artwork is drawn as its fixture -- which is what the
+	# editor does too, so a level looks the same on both sides.
+	self.draw_shape = fn(scene, e, pos, angle) {
+		let size = scene.size(e);
+		if (scene.fixture(e).shape == "circle") {
+			love_geometry_circle("fill", pos[0], pos[1], size[0] * 0.5, 32);
+			return 0;
+		}
+		love_geometry_rectangle("fill", pos[0], pos[1], size[0], size[1],
+			angle, 1, 1, size[0] * 0.5, size[1] * 0.5);
+		return 0;
+	};
+
+	self.draw_entity = fn(scene, e, body) {
+		let pos = love_body_getPosition(body);
+		let angle = love_body_getAngle(body);
+		let size = scene.size(e);
+		let colour = scene.color(e);
+
+		love_graphics_setColor(colour[0], colour[1], colour[2], 255);
+
+		let path = scene.sprite_path(e);
+		let img = assets.image(path);
+		if (img == null) { return self.draw_shape(scene, e, pos, angle); }
+
+		# The artwork may be one tile of a sheet rather than a whole file,
+		# which is what the editor's "Brush -> selected sprite" leaves behind:
+		# then the crop's size is what gets scaled onto the entity, not the
+		# image's.
+		let crop = scene.sprite_quad(e);
+		let iw = love_image_getWidth(img);
+		let ih = love_image_getHeight(img);
+
+		if (crop == null) {
+			love_graphics_draw(img, pos[0], pos[1], angle,
+				size[0] / iw, size[1] / ih, iw * 0.5, ih * 0.5);
+			return 0;
+		}
+
+		iw = crop[2];
+		ih = crop[3];
+		love_graphics_draw(img, assets.quad(path, crop), pos[0], pos[1], angle,
+			size[0] / iw, size[1] / ih, iw * 0.5, ih * 0.5);
+		return 0;
+	};
+
+	self.draw = fn(scene, world) {
+		# the map first: it is the ground the rest stands on
+		self.draw_tiles();
+
+		for (let i = 0; i < len(world.bodies); i++) {
+			let e = scene.get(world.bodies[i][0]);
+			if (e != null && scene.is_visible(e)) {
+				self.draw_entity(scene, e, world.bodies[i][1]);
+			}
+		}
+		return 0;
+	};
+
+	return self;
+}

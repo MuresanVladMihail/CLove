@@ -1,0 +1,162 @@
+# The world, and the bodies in it.
+#
+# Box2D knows a body's transform but not how you want it drawn, so each body is
+# wrapped with the shape and size it was built from. Everything here is in
+# pixels: love.physics converts to and from Box2D's metres with
+# love_physics_setMeter(), 30 pixels to the metre by default.
+
+let GRAVITY = 900;
+
+fn Body(body, kind, w, h) {
+	let self = { "body": body, "kind": kind, "w": w, "h": h };
+
+	self.is_static = fn() { return love_body_getType(self.body) == "static"; };
+
+	self.colour = fn() {
+		if (self.is_static()) { return [70, 76, 92]; }
+		if (self.kind == "ball") { return [232, 168, 96]; }
+		return [120, 190, 220];
+	};
+
+	self.draw = fn(background) {
+		let c = self.colour();
+		love_graphics_setColor(c[0], c[1], c[2]);
+
+		let x = love_body_getX(self.body);
+		let y = love_body_getY(self.body);
+		let angle = love_body_getAngle(self.body);
+
+		if (self.kind == "ball") {
+			love_geometry_circle("fill", x, y, self.w, 24);
+			# a spoke, so the rotation is visible
+			love_graphics_setColor(background[0], background[1], background[2]);
+			love_geometry_line([x, y,
+				x + math_cos(angle) * self.w, y + math_sin(angle) * self.w]);
+			return 0;
+		}
+
+		# Rotation goes to the shape, not through the matrix stack:
+		# love_graphics_rotate() is an absolute setter that rebuilds the
+		# current matrix, so a translate() before it is thrown away (see "Two
+		# transform gotchas" in SKILLS.md). The rectangle takes an angle and an
+		# origin of its own, which is what you want here anyway.
+		love_geometry_rectangle("fill", x, y, self.w, self.h, angle,
+			1, 1, self.w * 0.5, self.h * 0.5);
+		return 0;
+	};
+
+	return self;
+}
+
+fn World(width, height) {
+	let self = {};
+	self.world = love_physics_newWorld(0, GRAVITY);
+	self.bodies = [];
+	self.width = width;
+	self.height = height;
+	self.grab = null;
+
+	self.add = fn(body, kind, w, h) {
+		let wrapped = Body(body, kind, w, h);
+		append(self.bodies, wrapped);
+		return wrapped;
+	};
+
+	self.wall = fn(x, y, w, h) {
+		let body = love_physics_newBody(self.world, x, y, "static");
+		let fixture = love_physics_newFixture(body,
+			love_physics_newRectangleShape(w, h), 1);
+		love_fixture_setFriction(fixture, 0.6);
+		return self.add(body, "box", w, h);
+	};
+
+	self.box = fn(x, y, size) {
+		let body = love_physics_newBody(self.world, x, y, "dynamic");
+		let fixture = love_physics_newFixture(body,
+			love_physics_newRectangleShape(size, size), 1);
+		love_fixture_setFriction(fixture, 0.4);
+		love_fixture_setRestitution(fixture, 0.15);
+		return self.add(body, "box", size, size);
+	};
+
+	self.ball = fn(x, y, radius) {
+		let body = love_physics_newBody(self.world, x, y, "dynamic");
+		let fixture = love_physics_newFixture(body,
+			love_physics_newCircleShape(radius), 1);
+		love_fixture_setFriction(fixture, 0.3);
+		love_fixture_setRestitution(fixture, 0.45);
+		return self.add(body, "ball", radius, radius);
+	};
+
+	# The room: a floor and two walls, out of the way of where things drop.
+	self.build_room = fn() {
+		self.wall(self.width * 0.5, self.height - 20, self.width, 40);
+		self.wall(20, self.height * 0.5, 40, self.height);
+		self.wall(self.width - 20, self.height * 0.5, 40, self.height);
+		return 0;
+	};
+
+	self.drop_batch = fn(count) {
+		for (let i = 0; i < count; i++) {
+			let x = 120 + math_random(0, 560);
+			let y = 0 - math_random(0, 200);
+			if (math_random(0, 1) > 0.5) {
+				self.box(x, y, 20 + math_random(0, 24));
+			} else {
+				self.ball(x, y, 10 + math_random(0, 14));
+			}
+		}
+		return 0;
+	};
+
+	# --- dragging ---------------------------------------------------------
+	#
+	# The bounding-box query is broad phase: it hands back everything whose box
+	# overlaps, so each candidate is still asked whether the point is really
+	# inside it.
+
+	self.body_at = fn(x, y) {
+		let found = love_world_queryBoundingBox(self.world, x - 2, y - 2, x + 2, y + 2);
+		for (let i = 0; i < len(found); i++) {
+			let fixture = found[i];
+			if (!love_fixture_testPoint(fixture, x, y)) { continue; }
+
+			let body = love_fixture_getBody(fixture);
+			if (love_body_getType(body) == "dynamic") { return body; }
+		}
+		return null;
+	};
+
+	self.grab_at = fn(x, y) {
+		let body = self.body_at(x, y);
+		if (body == null) { return false; }
+		self.grab = love_physics_newMouseJoint(body, x, y);
+		return true;
+	};
+
+	self.drag_to = fn(x, y) {
+		if (self.grab != null) { love_mousejoint_setTarget(self.grab, x, y); }
+		return 0;
+	};
+
+	self.release = fn() {
+		if (self.grab == null) { return 0; }
+		love_joint_destroy(self.grab);
+		self.grab = null;
+		return 0;
+	};
+
+	# A fixed step keeps the simulation stable when a frame runs long.
+	self.update = fn() {
+		love_world_update(self.world, 1.0 / 60.0);
+		return 0;
+	};
+
+	self.draw = fn(background) {
+		for (let i = 0; i < len(self.bodies); i++) { self.bodies[i].draw(background); }
+		return 0;
+	};
+
+	self.count = fn() { return love_world_getBodyCount(self.world); };
+	return self;
+}

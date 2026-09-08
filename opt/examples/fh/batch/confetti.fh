@@ -1,0 +1,96 @@
+# The three ways of drawing the same sprites, behind one object.
+#
+# A batch is meant to be *filled once*: refilling it every frame still beats
+# drawing one at a time by a wide margin, but it puts every sprite back through
+# the script on every frame. The gap between the first two modes is the point
+# of the example.
+
+let MODE_ONCE = 0;        # filled at load, drawn every frame
+let MODE_REFILL = 1;      # refilled every frame
+let MODE_UNBATCHED = 2;   # one draw call per sprite
+
+let MODE_NAMES = ["1  filled once at load, drawn every frame",
+                  "2  refilled every frame (worst case for a batch)",
+                  "3  no batch: one draw call per sprite, at a tenth the count"];
+
+let CAPACITY = 400000;    # a batch cannot hold more than it was made for
+let MIN_COUNT = 1000;
+let SCALE = 0.12;         # small, so the GPU's fill rate stays out of the
+                          # measurement and what is left is the cost of batching
+let UNBATCHED_SHARE = 10; # a tenth as many, or the frame takes seconds
+
+fn Confetti(image_path) {
+	let self = { "mode": MODE_ONCE, "count": 100000, "stale": true,
+	             "samples": [0.0, 0.0, 0.0] };
+
+	self.image = love_graphics_newImage(image_path);
+	self.batch = love_graphics_newSpriteBatch(self.image, CAPACITY);
+	self.w = love_window_getWidth();
+	self.h = love_window_getHeight();
+
+	self.name = fn() { return MODE_NAMES[self.mode]; };
+
+	self.set_mode = fn(mode) {
+		self.mode = mode;
+		if (mode == MODE_ONCE) { self.stale = true; }
+		return 0;
+	};
+
+	self.scale_count = fn(factor) {
+		self.count = tointeger(self.count * factor);
+		if (self.count > CAPACITY) { self.count = CAPACITY; }
+		if (self.count < MIN_COUNT) { self.count = MIN_COUNT; }
+		self.stale = true;
+		return 0;
+	};
+
+	# The batch holds absolute positions, so a resize means refilling it.
+	self.invalidate = fn() {
+		self.stale = true;
+		return 0;
+	};
+
+	self.fill = fn() {
+		love_graphics_batch_clear(self.batch);
+		for (let i = 0; i < self.count; i++) {
+			love_graphics_batch_add(self.batch,
+				math_random(0, self.w), math_random(0, self.h), 0, SCALE, SCALE);
+		}
+		# flush uploads what was added. draw() would do it too, but doing it
+		# here keeps the cost where it belongs when you are measuring.
+		love_graphics_batch_flush(self.batch);
+		self.stale = false;
+		return 0;
+	};
+
+	self.drawn_count = fn() {
+		if (self.mode == MODE_UNBATCHED) { return tointeger(self.count / UNBATCHED_SHARE); }
+		return self.count;
+	};
+
+	self.update = fn() {
+		self.w = love_window_getWidth();
+		self.h = love_window_getHeight();
+
+		if (self.mode == MODE_REFILL || self.stale) { self.fill(); }
+		self.samples[self.mode] = love_timer_getFPS();
+		return 0;
+	};
+
+	self.draw = fn() {
+		love_graphics_setColor(255, 255, 255);
+		if (self.mode != MODE_UNBATCHED) {
+			love_graphics_draw(self.batch);
+			return 0;
+		}
+
+		let n = self.drawn_count();
+		for (let i = 0; i < n; i++) {
+			love_graphics_draw(self.image, math_random(0, self.w),
+				math_random(0, self.h), 0, SCALE, SCALE);
+		}
+		return 0;
+	};
+
+	return self;
+}

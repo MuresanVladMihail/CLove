@@ -8,60 +8,75 @@
 #
 #   cd opt/examples/fh/mesh && ../../../../build/clove
 
+# Two triangles making a quad, with a random colour at every corner. The
+# jitter moves two of them, so "new vertices" is visible as a shape change and
+# not only as a recolour.
 fn quad_vertices(w, h, jitter) {
-    let jx = 0;
-    let jy = 0;
-    if (jitter) { jx = math_random(-40, 40); jy = math_random(-40, 40); }
+	let jx = 0;
+	let jy = 0;
+	if (jitter) {
+		jx = math_random(-40, 40);
+		jy = math_random(-40, 40);
+	}
 
-    return [
-        # x, y            u, v    r, g, b, a
-        [jx,     jy,      0, 0,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
-        [w + jx, 0,       1, 0,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
-        [w,      h + jy,  1, 1,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
-        [0,      h,       0, 1,   math_random(0,255), math_random(0,255), math_random(0,255), 255]
-    ];
+	return [
+		# x, y            u, v    r, g, b, a
+		[jx,     jy,      0, 0,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
+		[w + jx, 0,       1, 0,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
+		[w,      h + jy,  1, 1,   math_random(0,255), math_random(0,255), math_random(0,255), 255],
+		[0,      h,       0, 1,   math_random(0,255), math_random(0,255), math_random(0,255), 255]
+	];
 }
+
+# The input callbacks are handed no state, so the mesh parks here for them.
+let APP = { "state": null };
 
 fn love_load() {
-    let self = {};
-    self.image = love_graphics_newImage("../assets/sprite.png");
-    self.w = love_image_getWidth(self.image) * 6;
-    self.h = love_image_getHeight(self.image) * 6;
+	let app = {};
+	app.image = love_graphics_newImage("../assets/sprite.png");
+	app.w = love_image_getWidth(app.image) * 6;
+	app.h = love_image_getHeight(app.image) * 6;
 
-    # Two triangles making a quad.
-    self.mesh = love_graphics_newMesh(quad_vertices(self.w, self.h, false), [0, 1, 2, 3]);
-    love_mesh_setTexture(self.mesh, self.image);
-    self.textured = true;
-    return self;
+	app.mesh = love_graphics_newMesh(quad_vertices(app.w, app.h, false), [0, 1, 2, 3]);
+	love_mesh_setTexture(app.mesh, app.image);
+	app.textured = true;
+
+	APP.state = app;
+	return app;
 }
 
+# One press, one change: polled, holding V would randomise the vertices sixty
+# times a second and the shape would only ever be a blur.
 fn love_keypressed(key) {
-    if (key[0] == "escape") { love_event_quit(); }
+	let app = APP.state;
+	let k = key[0];
+
+	if (k == "escape") { love_event_quit(); }
+	elif (k == "t") {
+		love_mesh_setTexture(app.mesh, app.image);
+		app.textured = true;
+	} elif (k == "y") {
+		love_mesh_setTexture(app.mesh, null);
+		app.textured = false;
+	} elif (k == "v") {
+		love_mesh_setVertices(app.mesh, quad_vertices(app.w, app.h, true));
+	}
+	return 0;
 }
 
-fn love_update(dt, self) {
-    if (love_keyboard_isDown("t")) {
-        love_mesh_setTexture(self.mesh, self.image);
-        self.textured = true;
-    } elif (love_keyboard_isDown("y")) {
-        love_mesh_setTexture(self.mesh, null);
-        self.textured = false;
-    } elif (love_keyboard_isDown("v")) {
-        love_mesh_setVertices(self.mesh, quad_vertices(self.w, self.h, true));
-    }
-}
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(24, 26, 34);
+	love_graphics_setColor(255, 255, 255);
+	love_graphics_draw(app.mesh, 180, 120);
 
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(24, 26, 34);
-    love_graphics_setColor(255, 255, 255);
-    love_graphics_draw(self.mesh, 180, 120);
+	let state = "textured";
+	if (!app.textured) { state = "vertex colours only"; }
 
-    love_graphics_setColor(200, 205, 215);
-    let state = "textured";
-    if (!self.textured) { state = "vertex colours only"; }
-    love_graphics_print("mesh: " + state, 10, 10);
-    love_graphics_print("T texture   Y untexture   V new vertices   escape quit", 10, 30);
-    love_graphics_print("" + love_timer_getFPS() + " fps", 10, 50);
+	love_graphics_setColor(200, 205, 215);
+	love_graphics_print("mesh: " + state, 10, 10);
+	love_graphics_print("T texture   Y untexture   V new vertices   escape quit", 10, 30);
+	love_graphics_print(love_timer_getFPS() + " fps", 10, 50);
+	return 0;
 }
 
 fn main() {}

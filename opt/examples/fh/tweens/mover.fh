@@ -1,0 +1,77 @@
+# The right half: what a tween is actually for.
+#
+# Three tweens on one clock -- a chained path, a colour and a radius. A tween
+# holds an array as readily as a number, so a point is one tween rather than
+# two and a colour is one rather than four.
+
+fn Mover(box) {
+	let self = { "looping": false };
+
+	# Three legs with different curves, plus a delay before the last one.
+	# love_tween_then() returns the tween, so it reads as one expression.
+	self.path = love_tween_new([565.0, 520.0], [700.0, 400.0], 0.9, "outCubic");
+	love_tween_then(self.path, [790.0, 520.0], 0.7, "inQuad");
+	love_tween_then(self.path, [895.0, 415.0], 0.9, "outBack", 0.25);
+
+	self.tint = love_tween_new([90, 200, 255, 255], [255, 120, 90, 255], 1.4, "inOutSine");
+	love_tween_setLoops(self.tint, -1, true);
+
+	self.pulse = love_tween_new(0.0, 1.0, 0.8, "outElastic");
+	love_tween_setLoops(self.pulse, -1, false);
+
+	self.update = fn(dt) {
+		love_tween_update(self.path, dt);
+		love_tween_update(self.tint, dt);
+		love_tween_update(self.pulse, dt);
+		return 0;
+	};
+
+	self.replay = fn() {
+		love_tween_reset(self.path);
+		return 0;
+	};
+
+	self.toggle_loop = fn() {
+		self.looping = !self.looping;
+		love_tween_reset(self.path);
+		if (self.looping) {
+			love_tween_setLoops(self.path, -1, true);
+		} else {
+			love_tween_setLoops(self.path, 0, false);
+		}
+		return 0;
+	};
+
+	self.mode = fn() {
+		if (self.looping) { return "looping (yoyo)"; }
+		return "once";
+	};
+
+	self.draw = fn() {
+		let p = love_tween_get(self.path);
+		let c = love_tween_get(self.tint);
+		let pulse = love_tween_get(self.pulse);
+
+		love_graphics_setColor(60, 64, 78);
+		love_geometry_rectangle("line", box[0], box[1], box[2], box[3]);
+
+		love_graphics_setColor(c[0], c[1], c[2], c[3]);
+		let r = 14 + pulse * 8;
+		love_geometry_circle("fill", p[0], p[1], r);
+
+		# The ring is a second tween on the same clock -- outElastic on a
+		# radius is the whole of a "pop" effect.
+		love_graphics_setColor(90, 96, 112);
+		love_geometry_circle("line", p[0], p[1], r + 8 + pulse * 14);
+
+		love_graphics_setColor(200, 205, 215);
+		love_graphics_print("a chained tween: outCubic, then inQuad, then " +
+			"outBack after a delay", box[0], box[1] - 30);
+		love_graphics_print("progress " +
+			tointeger(love_tween_getProgress(self.path) * 100) + "%" +
+			"   of " + love_tween_getDuration(self.path) + "s", box[0], box[1] + 210);
+		return 0;
+	};
+
+	return self;
+}

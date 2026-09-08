@@ -1,0 +1,51 @@
+# The readout, and the three bars. The seek bar's rectangle is shared with the
+# click test in main.fh, so the thing you click on and the thing you see are
+# the same numbers.
+
+let SEEK_BAR = [40, 248, 580, 10];
+
+fn panel_row(label, value, y) {
+	love_graphics_print(label, 40, y);
+	love_graphics_print(value, 160, y);
+	return 0;
+}
+
+fn panel_bar(x, y, w, fraction, r, g, b) {
+	love_graphics_setColor(70, 74, 88);
+	love_geometry_rectangle("fill", x, y, w, 10);
+	love_graphics_setColor(r, g, b);
+	love_geometry_rectangle("fill", x, y, w * fraction, 10);
+	return 0;
+}
+
+fn panel_draw(track) {
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print(track.path + "  --  static source", 40, 40);
+
+	panel_row("state", track.state(), 100);
+	panel_row("looping", "" + love_audio_isLooping(track.source), 130);
+	panel_row("volume", "" + love_audio_getVolume(track.source), 160);
+	panel_row("pitch", "" + love_audio_getPitch(track.source), 190);
+	panel_row("position", track.position() + " / " + track.duration(), 220);
+
+	panel_bar(320, 163, 300, track.volume, 120, 220, 160);
+	panel_bar(320, 193, 300, track.pitch / 3.0, 220, 180, 120);
+	panel_bar(SEEK_BAR[0], SEEK_BAR[1], SEEK_BAR[2], track.progress(), 120, 180, 240);
+
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print("SPACE play    S stop    P pause/resume    L loop", 40, 296);
+	love_graphics_print("UP/DOWN volume    LEFT/RIGHT pitch    escape quit", 40, 321);
+	love_graphics_print("click the blue bar to seek", 40, 346);
+	return 0;
+}
+
+# The bar is 10 pixels tall but worth a taller target: a click a few pixels
+# above or below it still means "seek here".
+fn panel_seek_hit(x, y) {
+	return x >= SEEK_BAR[0] && x <= SEEK_BAR[0] + SEEK_BAR[2] &&
+	       y > SEEK_BAR[1] - 6 && y < SEEK_BAR[1] + SEEK_BAR[3] + 6;
+}
+
+fn panel_seek_fraction(x) {
+	return (x - SEEK_BAR[0]) / SEEK_BAR[2];
+}

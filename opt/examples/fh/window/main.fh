@@ -11,143 +11,78 @@
 #   escape  quit
 #
 #   cd opt/examples/fh/window && ../../../../build/clove
+#
+#   window_state.fh  what the window is, and the calls that change it
+#   log.fh           the event feed
+#   readout.fh       the frame and the table
 
-let W = {"log": [], "fullscreen": false, "borderless": false, "vsync": true,
-         "resizes": 0, "focus": true, "mouseFocus": true, "title": "CLove -- love.window"};
+include "log.fh"
+include "window_state.fh"
+include "readout.fh"
 
-# The log keeps the last ten lines. An FH array has no shift, so dropping the
-# oldest means building a new one.
-fn note(text) {
-    append(W.log, text);
-    while (len(W.log) > 10) {
-        let out = [];
-        for (let i = 1; i < len(W.log); i++) { append(out, W.log[i]); }
-        W.log = out;
-    }
-}
-
-fn apply() {
-    let d = love_window_getDimensions();
-    love_window_setMode(d[0], d[1], W.fullscreen, W.vsync,
-                        400, 300,                       # min size
-                        4000, 3000,                     # max size
-                        !W.borderless);
-}
+let APP = { "window": null, "log": null };
 
 fn love_load() {
-    # An event only tells you about a *change*, so the starting values come
-    # from the poll -- which is what love_window_hasFocus/hasMouseFocus are for.
-    W.focus = love_window_hasFocus();
-    W.mouseFocus = love_window_hasMouseFocus();
-
-    love_window_setTitle(W.title);
-    note("started at " + love_window_getWidth() + "x" + love_window_getHeight());
-    return W;
+	APP.window = WindowState("CLove -- love.window");
+	APP.log = EventLog(10);
+	APP.log.add("started at " + love_window_getWidth() + "x" + love_window_getHeight());
+	return APP;
 }
 
 # The engine calls this on every size change -- dragging the corner included.
 fn love_resize(w, h) {
-    W.resizes++;
-    note("resized to " + w + "x" + h);
+	APP.window.resizes++;
+	APP.log.add("resized to " + w + "x" + h);
+	return 0;
 }
 
 # Both of these come off the SDL window event, the way LOVE dispatches
 # love.focus and love.mousefocus -- not from polling every frame.
 fn love_focus(focused) {
-    W.focus = focused;
-    note("love_focus " + focused);
+	APP.window.focus = focused;
+	APP.log.add("love_focus " + focused);
+	return 0;
 }
 
 fn love_mousefocus(focused) {
-    W.mouseFocus = focused;
-    note("love_mousefocus " + focused);
+	APP.window.mouse_focus = focused;
+	APP.log.add("love_mousefocus " + focused);
+	return 0;
 }
 
 fn love_keypressed(key) {
-    let k = key[0];
+	let k = key[0];
+	let window = APP.window;
 
-    if (k == "escape") { love_event_quit(); }
-
-    elif (k == "f") {
-        W.fullscreen = !W.fullscreen;
-        love_window_setFullscreen(W.fullscreen, "desktop");
-        note("fullscreen: " + W.fullscreen);
-    }
-    elif (k == "b") {
-        W.borderless = !W.borderless;
-        apply();
-        note("borderless: " + W.borderless);
-    }
-    elif (k == "v") {
-        W.vsync = !W.vsync;
-        love_window_setVsync(W.vsync);
-        note("vsync: " + W.vsync);
-    }
-    elif (k == "t") {
-        W.title = "CLove -- " + tointeger(love_timer_getTime() * 10);
-        love_window_setTitle(W.title);
-        note("title: " + W.title);
-    }
-    elif (k == "c") {
-        let desk = love_window_getDesktopDimension();
-        let d = love_window_getDimensions();
-        love_window_setPosition(tointeger((desk[0] - d[0]) / 2), tointeger((desk[1] - d[1]) / 2));
-        note("centred on a " + desk[0] + "x" + desk[1] + " desktop");
-    }
-    elif (k == "1") { love_window_setMode(720, 480, false, W.vsync); note("720x480"); }
-    elif (k == "2") { love_window_setMode(960, 600, false, W.vsync); note("960x600"); }
-    elif (k == "3") { love_window_setMode(1280, 720, false, W.vsync); note("1280x720"); }
-
+	if (k == "escape") { love_event_quit(); }
+	elif (k == "f") { APP.log.add(window.toggle_fullscreen()); }
+	elif (k == "b") { APP.log.add(window.toggle_borderless()); }
+	elif (k == "v") { APP.log.add(window.toggle_vsync()); }
+	elif (k == "t") { APP.log.add(window.retitle()); }
+	elif (k == "c") { APP.log.add(window.centre()); }
+	elif (k == "1") { APP.log.add(window.resize(720, 480)); }
+	elif (k == "2") { APP.log.add(window.resize(960, 600)); }
+	elif (k == "3") { APP.log.add(window.resize(1280, 720)); }
+	return 0;
 }
 
-fn love_update(dt, self) {}
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(24, 26, 34);
 
-fn row(label, value, y) {
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print(label, 30, y);
-    love_graphics_setColor(228, 232, 240);
-    love_graphics_print(value, 210, y);
-}
+	let w = love_window_getWidth();
+	let h = love_window_getHeight();
 
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(24, 26, 34);
+	readout_frame(w, h);
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print("love.window", 30, 34);
+	readout_table(app.window);
+	app.log.draw(30, 330, 20);
 
-    let w = love_window_getWidth();
-    let h = love_window_getHeight();
-
-    # A frame that follows the window, so a resize is visible without reading
-    # the numbers.
-    love_graphics_setColor(70, 120, 200);
-    love_geometry_rectangle("line", 10, 10, w - 20, h - 20);
-    love_graphics_setColor(45, 70, 120);
-    love_geometry_rectangle("line", 20, 20, w - 40, h - 40);
-
-    love_graphics_setColor(235, 235, 245);
-    love_graphics_print("love.window", 30, 34);
-
-    row("size", "" + w + " x " + h, 70);
-    row("desktop", "" + love_window_getDesktopDimension()[0] + " x "
-                      + love_window_getDesktopDimension()[1], 92);
-    row("displays", "" + love_window_getDisplayCount() + "   (" + love_window_getDisplayName(0) + ")", 114);
-    row("title", love_window_getTitle(), 136);
-    row("fullscreen", "" + W.fullscreen, 158);
-    row("borderless", "" + W.borderless, 180);
-    row("vsync", "" + W.vsync, 202);
-    row("has focus", "" + W.focus, 224);
-    row("mouse over", "" + W.mouseFocus + "   (" + love_window_hasMouseFocus() + " polled)", 246);
-    row("love_resize calls", "" + W.resizes, 268);
-    row("fps", "" + love_timer_getFPS(), 290);
-
-    love_graphics_setColor(120, 200, 255);
-    love_graphics_print("events", 30, 330);
-    love_graphics_setColor(190, 195, 208);
-    for (let i = 0; i < len(W.log); i++) {
-        love_graphics_print(W.log[i], 30, 354 + i * 20);
-    }
-
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print("F fullscreen   B borderless   V vsync   T retitle   C centre", 30, h - 54);
-    love_graphics_print("1/2/3 resize   drag the corner   escape quit", 30, h - 34);
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print("F fullscreen   B borderless   V vsync   T retitle   C centre",
+		30, h - 54);
+	love_graphics_print("1/2/3 resize   drag the corner   escape quit", 30, h - 34);
+	return 0;
 }
 
 fn main() {}

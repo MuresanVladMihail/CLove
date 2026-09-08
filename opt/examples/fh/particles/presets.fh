@@ -1,0 +1,99 @@
+# One preset per emitter, each a different corner of the API.
+#
+# A particle texture wants to be a plain shape: the system tints every particle
+# through the colour curve, so the sprite carries the falloff and nothing else.
+
+fn preset_spark(img) {
+	let ps = love_graphics_newParticleSystem(img, 2000);
+	love_particleSystem_setParticleLifetime(ps, 0.3, 1.0);
+	love_particleSystem_setEmissionRate(ps, 400);
+	love_particleSystem_setSpeed(ps, 60, 220);
+	love_particleSystem_setSpread(ps, 6.283);
+	love_particleSystem_setLinearAcceleration(ps, 0, 260, 0, 420);
+	love_particleSystem_setSizes(ps, [1.4, 0.9, 0.0]);
+	love_particleSystem_setColors(ps, [1, 0.95, 0.6, 1,  1, 0.45, 0.1, 0.9,
+	                                   0.4, 0.1, 0.1, 0]);
+	love_particleSystem_setSpin(ps, 0.0, 6.0);
+	return ps;
+}
+
+fn preset_smoke(img) {
+	let ps = love_graphics_newParticleSystem(img, 2000);
+	love_particleSystem_setParticleLifetime(ps, 1.5, 3.0);
+	love_particleSystem_setEmissionRate(ps, 90);
+	love_particleSystem_setSpeed(ps, 70, 130);
+	love_particleSystem_setDirection(ps, -1.5708);      # straight up (y grows down)
+	love_particleSystem_setSpread(ps, 0.35);
+	love_particleSystem_setLinearAcceleration(ps, -25, -70, 25, -30);
+	love_particleSystem_setEmissionArea(ps, "uniform", 12, 4);
+	love_particleSystem_setSizes(ps, [0.5, 1.6, 2.8]);
+	love_particleSystem_setColors(ps, [0.8, 0.8, 0.85, 0.5,  0.5, 0.5, 0.55, 0.25,
+	                                   0.3, 0.3, 0.35, 0]);
+	love_particleSystem_setSpin(ps, -0.6, 0.6);
+	love_particleSystem_setSpinVariation(ps, 1.0);
+	return ps;
+}
+
+# "borderellipse" puts every particle on the outline, and
+# directionRelativeToCenter aims it outward -- an explosion.
+fn preset_ring(img) {
+	let ps = love_graphics_newParticleSystem(img, 2000);
+	love_particleSystem_setParticleLifetime(ps, 0.6, 1.1);
+	love_particleSystem_setEmissionRate(ps, 500);
+	love_particleSystem_setEmissionArea(ps, "borderellipse", 60, 60, 0, true);
+	love_particleSystem_setSpeed(ps, 40, 90);
+	love_particleSystem_setSpread(ps, 0.3);
+	love_particleSystem_setLinearDamping(ps, 1.5, 2.5);
+	love_particleSystem_setSizes(ps, [1.2, 0.6, 0.0]);
+	love_particleSystem_setColors(ps, [0.5, 0.9, 1, 1,  0.2, 0.4, 1, 0.8,
+	                                   0.1, 0.1, 0.4, 0]);
+	return ps;
+}
+
+# A filled ellipse plus tangential acceleration, so the cloud swirls.
+fn preset_galaxy(img) {
+	let ps = love_graphics_newParticleSystem(img, 3000);
+	love_particleSystem_setParticleLifetime(ps, 2.0, 4.0);
+	love_particleSystem_setEmissionRate(ps, 600);
+	love_particleSystem_setEmissionArea(ps, "ellipse", 150, 90, 0.4, false);
+	love_particleSystem_setSpeed(ps, 0, 5);
+	love_particleSystem_setTangentialAcceleration(ps, 40, 90);
+	love_particleSystem_setRadialAcceleration(ps, -12, -4);
+	love_particleSystem_setSizes(ps, [0.5, 0.9, 0.0]);
+	love_particleSystem_setColors(ps, [1, 0.9, 0.7, 0.9,  0.9, 0.5, 0.9, 0.6,
+	                                   0.3, 0.2, 0.6, 0]);
+	return ps;
+}
+
+# setRelativeRotation aims each particle along its own velocity, and moveTo
+# (in the emitter's update) interpolates the ones spawned mid-step along the
+# path, so a fast-moving emitter leaves a continuous streak.
+fn preset_trail(img) {
+	let ps = love_graphics_newParticleSystem(img, 1500);
+	love_particleSystem_setParticleLifetime(ps, 0.5, 0.9);
+	love_particleSystem_setEmissionRate(ps, 500);
+	love_particleSystem_setSpeed(ps, 5, 25);
+	love_particleSystem_setSpread(ps, 6.283);
+	love_particleSystem_setRelativeRotation(ps, true);
+	love_particleSystem_setSizes(ps, [1.3, 0.2]);
+	love_particleSystem_setColors(ps, [0.6, 1, 0.7, 1,  0.1, 0.6, 0.3, 0]);
+	return ps;
+}
+
+# Each preset with the label that says what it is showing, and whether it
+# glows: additive blending is what makes overlapping particles brighten
+# instead of merely stacking. Smoke is the exception -- it should occlude.
+fn presets(img) {
+	return [
+		{ "name": "spark -- gravity and a full-circle spread",
+		  "system": preset_spark(img), "additive": true, "follows_mouse": false },
+		{ "name": "smoke -- a slow plume out of a small box",
+		  "system": preset_smoke(img), "additive": false, "follows_mouse": false },
+		{ "name": "ring -- borderellipse + directionRelativeToCenter",
+		  "system": preset_ring(img), "additive": true, "follows_mouse": false },
+		{ "name": "galaxy -- a filled ellipse with tangential acceleration",
+		  "system": preset_galaxy(img), "additive": true, "follows_mouse": false },
+		{ "name": "trail -- relative rotation, following the mouse",
+		  "system": preset_trail(img), "additive": true, "follows_mouse": true }
+	];
+}

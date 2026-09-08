@@ -1,0 +1,88 @@
+# The shaders, each with the name of what it is showing and whether it wants a
+# uniform updated every frame.
+#
+# A CLove shader is written as two GLSL functions and the engine wraps them:
+#
+#   vec4 position(mat4 transform_projection, vec4 vertex_position)  -- vertex
+#   vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen_coords) -- fragment
+#
+# Uniforms are declared with `extern` (LOVE's spelling of `uniform`) and
+# `Texel(sampler, uv)` is the texture lookup.
+
+# A global's initializer has to be a constant expression, so the source is
+# built in a function rather than concatenated at the top level.
+fn vertex_source() {
+	return "vec4 position(mat4 transform_projection, vec4 vertex_position) {" +
+	       "  return transform_projection * vertex_position;" +
+	       "}";
+}
+
+# Two textures blended. `extern Image` is a sampler uniform, filled in with
+# love_shader_send().
+fn effect_mix(other) {
+	let shader = love_graphics_newShader(vertex_source(),
+		"extern Image other;" +
+		"extern float amount;" +
+		"vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
+		"  return mix(Texel(tex, uv), Texel(other, uv), amount) * color;" +
+		"}");
+	love_shader_send(shader, "other", other);
+	love_shader_send(shader, "amount", 0.5);
+	return shader;
+}
+
+# A fragment shader on its own -- no vertex stage needed, the default
+# pass-through one is used.
+fn effect_greyscale() {
+	return love_graphics_newShader(
+		"vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
+		"  vec4 c = Texel(tex, uv) * color;" +
+		"  float g = dot(c.rgb, vec3(0.299, 0.587, 0.114));" +
+		"  return vec4(g, g, g, c.a);" +
+		"}");
+}
+
+# A uniform updated every frame, which is how anything animated is driven.
+fn effect_wave() {
+	return love_graphics_newShader(
+		"extern float time;" +
+		"vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
+		"  vec2 p = uv + vec2(sin(uv.y * 20.0 + time * 4.0) * 0.03, 0.0);" +
+		"  return Texel(tex, p) * color;" +
+		"}");
+}
+
+fn Effects(other) {
+	let self = { "which": 0, "time": 0.0 };
+	self.wave = effect_wave();
+
+	self.all = [
+		{ "name": "1  mix -- two textures through one shader",
+		  "shader": effect_mix(other) },
+		{ "name": "2  greyscale -- a fragment shader on its own",
+		  "shader": effect_greyscale() },
+		{ "name": "3  wave -- an `extern float` updated every frame",
+		  "shader": self.wave },
+		{ "name": "4  no shader", "shader": null }
+	];
+
+	self.current = fn() { return self.all[self.which]; };
+
+	self.select = fn(index) {
+		if (index >= 0 && index < len(self.all)) { self.which = index; }
+		return 0;
+	};
+
+	self.update = fn(dt) {
+		self.time = self.time + dt;
+		love_shader_send(self.wave, "time", self.time);
+		return 0;
+	};
+
+	self.bind = fn() {
+		love_graphics_setShader(self.current().shader);
+		return 0;
+	};
+
+	return self;
+}

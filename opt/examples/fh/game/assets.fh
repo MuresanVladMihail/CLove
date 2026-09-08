@@ -1,0 +1,33 @@
+# Images and quads, each loaded once and kept.
+#
+# A quad is built against the texture's size, so it is the same object for
+# every cell or entity that uses that tile -- which is the whole reason to
+# cache it rather than make one per draw.
+
+fn Assets() {
+	let self = { "images": {}, "quads": {} };
+
+	self.image = fn(path) {
+		if (path == null) { return null; }
+		if (!contains_key(self.images, path)) {
+			if (io_filetype(path) != "file") { return null; }
+			self.images[path] = love_graphics_newImage(path);
+		}
+		return self.images[path];
+	};
+
+	self.quad = fn(path, rect) {
+		let key = path + "|" + rect[0] + "," + rect[1] + "," + rect[2] + "," + rect[3];
+		if (contains_key(self.quads, key)) { return self.quads[key]; }
+
+		let img = self.image(path);
+		if (img == null) { return null; }
+
+		let quad = love_graphics_newQuad(rect[0], rect[1], rect[2], rect[3],
+			love_image_getWidth(img), love_image_getHeight(img));
+		self.quads[key] = quad;
+		return quad;
+	};
+
+	return self;
+}

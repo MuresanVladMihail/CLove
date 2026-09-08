@@ -50,6 +50,42 @@ Roughly in the order they are worth reading.
 `editor/` and `game/` carry their own `art/` and a `packages` symlink, so
 they run and package on their own.
 
+## How they are laid out
+
+`main.fh` is the wiring: `love_load`, `love_update`, `love_draw`, and the input
+callbacks forwarded to whatever handles them. Anything with state or substance
+of its own lives beside it in a module the main file includes once — the bigger
+examples are three or four small files rather than one long one:
+
+```
+joints/    body.fh  scene.fh  rigs.fh  main.fh
+game/      assets.fh  world.fh  render.fh  level.fh  main.fh
+input/     player.fh  log.fh  hud.fh  main.fh
+```
+
+FH has no classes, so a "class" here is a function that returns a map of
+closures over its own state — the same shape `opt/packages/scene` uses:
+
+```fh
+fn Body(world, x, y) {
+    let self = { "x": x, "y": y };
+    self.body = love_physics_newBody(world, x, y, "dynamic");
+
+    self.draw = fn() { ... reads self ... };
+    return self;
+}
+```
+
+`include` is textual and has **no include guard**, so a file included twice
+declares its functions twice and the second one is an error — include each
+module exactly once, and let a module take what it needs as an argument rather
+than including its dependency again.
+
+Two FH rules worth knowing before you copy one of these: a global `let` must be
+initialised with a *constant* (a string built by concatenation belongs in a
+function), and `%` is integer-only, so cell coordinates that came out of
+`math_floor` need their own wrap helper.
+
 ## Writing one
 
 Every callback is optional — CLove checks whether the function exists before

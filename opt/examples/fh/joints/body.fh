@@ -1,0 +1,97 @@
+# A body and the shape it is drawn as.
+#
+# Box2D knows a body's transform but not how you want it drawn, so each one is
+# wrapped here with its size and kind. `draw()` is the only place that reads
+# them, which is why they live together rather than in a parallel array.
+
+fn Body(world, x, y, kind, density) {
+	let self = {};
+	self.body = love_physics_newBody(world, x, y, kind);
+	self.shape = "rect";
+	self.w = 0;
+	self.h = 0;
+
+	self.is_dynamic = fn() { return love_body_getType(self.body) == "dynamic"; };
+	self.x = fn() { return love_body_getX(self.body); };
+	self.y = fn() { return love_body_getY(self.body); };
+
+	# Squared distance to a point, for picking: no square root, because the
+	# only thing asked of it is a comparison against a radius.
+	self.distance2 = fn(px, py) {
+		let dx = self.x() - px;
+		let dy = self.y() - py;
+		return dx * dx + dy * dy;
+	};
+
+	self.colour = fn() {
+		if (self.is_dynamic()) { return [150, 200, 240]; }
+		return [70, 78, 96];
+	};
+
+	# The corners are worked out here rather than drawn through a pushed
+	# transform: a rotated rectangle is four points, and doing it by hand keeps
+	# the matrix stack out of the draw loop entirely.
+	self.draw_rect = fn(x, y, angle) {
+		let hw = self.w * 0.5;
+		let hh = self.h * 0.5;
+		let c = math_cos(angle);
+		let s = math_sin(angle);
+		let cx = [0.0 - hw, hw, hw, 0.0 - hw, 0.0 - hw];
+		let cy = [0.0 - hh, 0.0 - hh, hh, hh, 0.0 - hh];
+
+		let pts = [];
+		for (let i = 0; i < 5; i++) {
+			append(pts, x + cx[i] * c - cy[i] * s);
+			append(pts, y + cx[i] * s + cy[i] * c);
+		}
+		love_geometry_polygon("line", pts);
+	};
+
+	self.draw_circle = fn(x, y, angle) {
+		love_geometry_circle("line", x, y, self.w);
+		# a spoke, so rotation is visible on something round
+		love_geometry_polygon("line", [x, y,
+			x + math_cos(angle) * self.w, y + math_sin(angle) * self.w]);
+	};
+
+	self.draw = fn() {
+		let c = self.colour();
+		love_graphics_setColor(c[0], c[1], c[2]);
+
+		let x = self.x();
+		let y = self.y();
+		let angle = love_body_getAngle(self.body);
+		if (self.shape == "circle") {
+			self.draw_circle(x, y, angle);
+		} else {
+			self.draw_rect(x, y, angle);
+		}
+	};
+
+	return self;
+}
+
+fn Box(world, x, y, w, h, kind, density) {
+	let self = Body(world, x, y, kind, density);
+	self.shape = "rect";
+	self.w = w;
+	self.h = h;
+
+	let fixture = love_physics_newFixture(self.body,
+		love_physics_newRectangleShape(w, h), density);
+	love_fixture_setRestitution(fixture, 0.1);
+	love_fixture_setFriction(fixture, 0.4);
+	return self;
+}
+
+fn Ball(world, x, y, r, kind, density) {
+	let self = Body(world, x, y, kind, density);
+	self.shape = "circle";
+	self.w = r;
+	self.h = r;
+
+	let fixture = love_physics_newFixture(self.body,
+		love_physics_newCircleShape(r), density);
+	love_fixture_setRestitution(fixture, 0.35);
+	return self;
+}

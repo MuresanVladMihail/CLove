@@ -16,13 +16,24 @@
 #      packages/scene    the read side of a level, for building the world --
 #                        entities, and the tile map painted under them
 #
-#  What this file is, is the wiring: forward the input callbacks, keep a Box2D
-#  world in step with the document, and draw it.
+#  and this example is four files of its own:
+#
+#      assets.fh   images and quads, loaded once
+#      world.fh    the Box2D world built from a scene
+#      render.fh   drawing that scene: the map, then the entities
+#      level.fh    the level it plays on a first run
+#
+#  What main.fh is, is the wiring: forward the input callbacks, keep the world
+#  in step with the document, and draw.
 # ============================================================================
 
 include "packages/editor/editor.fh"
 include "packages/scene/scene.fh"
 
+include "assets.fh"
+include "world.fh"
+include "render.fh"
+include "level.fh"
 
 let LEVEL = "level1.json";
 
@@ -30,210 +41,29 @@ let LEVEL = "level1.json";
 # state parks here for them the same way the editor's does.
 let HOST = { "game": null };
 
-
-# ============================================================================
-#  The world
-# ============================================================================
-#
-#  Rebuilt from the document whenever the editor has changed it. The entity id
-#  goes into every body's and fixture's user data: a collision callback is
-#  handed fixtures and nothing else, so that id is the only way back from a
-#  contact to the thing in the level that caused it.
-
-fn build_world(g) {
-	let scene = Scene(editor_document(g.ed));
-
-	love_physics_setMeter(scene.meter());
-	let gravity = scene.gravity();
-	g.world = love_physics_newWorld(gravity[0], gravity[1]);
-	g.bodies = [];
-
-	let entities = scene.all();
-	for (let i = 0; i < len(entities); i++) {
-		let e = entities[i];
-		let f = scene.fixture(e);
-		let c = scene.center(e);
-		let size = scene.size(e);
-
-		let body = love_physics_newBody(g.world, c[0], c[1], scene.body_type(e));
-		love_body_setAngle(body, scene.angle(e));
-
-		let shape = love_physics_newRectangleShape(size[0], size[1]);
-		if (f.shape == "circle") {
-			shape = love_physics_newCircleShape(size[0] * 0.5);
-		}
-
-		let fixture = love_physics_newFixture(body, shape, f.density);
-		love_fixture_setFriction(fixture, f.friction);
-		love_fixture_setRestitution(fixture, f.restitution);
-
-		love_body_setUserData(body, scene.id(e));
-		love_fixture_setUserData(fixture, scene.id(e));
-
-		append(g.bodies, [scene.id(e), body]);
-	}
-
-	# The map's collision. A cell collides when its layer is marked solid or
-	# when its tile is, and the package hands back runs with each row of
-	# touching cells already merged -- so this is a handful of static bodies
-	# rather than one per tile, and nothing catches on the seam between two of
-	# them. Each run carries what it collides as, because only cells that
-	# collide alike are merged into one.
-	let solid = scene.solid_tile_rects();
-	for (let i = 0; i < len(solid); i++) {
-		let r = solid[i];
-		let body = love_physics_newBody(g.world,
-			r.x + r.w * 0.5, r.y + r.h * 0.5, "static");
-		let fixture = love_physics_newFixture(body,
-			love_physics_newRectangleShape(r.w, r.h), 1);
-		love_fixture_setFriction(fixture, r.friction);
-		love_fixture_setRestitution(fixture, r.restitution);
-		love_fixture_setSensor(fixture, r.sensor);
-		love_fixture_setFilterData(fixture, r.category, r.mask, r.group);
-
-		# The map has no entity behind it, so a contact callback would read
-		# null and know only that it hit something. The tile's name is what it
-		# reads instead -- a string, where an entity's user data is its id.
-		if (len(r.name) > 0) { love_fixture_setUserData(fixture, r.name); }
-	}
-
-	g.scene = scene;
-	build_tile_batches(g);
+# Rebuilt from the document whenever the editor has changed it.
+fn rebuild(g) {
+	g.scene = Scene(editor_document(g.ed));
+	g.world = GameWorld(g.scene);
+	g.world.build();
+	g.renderer.build_tiles(g.scene);
 	g.built_at = editor_revision(g.ed);
-	println("world rebuilt: " + len(g.bodies) + " bodies, " + len(solid) +
-		" tile shapes, at revision " + g.built_at);
+
+	println("world rebuilt: " + len(g.world.bodies) + " bodies, " +
+		g.world.tile_shapes + " tile shapes, at revision " + g.built_at);
 	return 0;
 }
-
-# The tile map, drawn under everything else. A quad is made once per tile of a
-# sheet and kept: it is built against the texture's size, so it is the same
-# object for every cell that uses that tile.
-fn quad_for(g, path, rect) {
-	let key = path + "|" + rect[0] + "," + rect[1] + "," + rect[2] + "," + rect[3];
-	if (contains_key(g.quads, key)) { return g.quads[key]; }
-
-	let img = sprite_for(g, path);
-	if (img == null) { return null; }
-
-	let quad = love_graphics_newQuad(rect[0], rect[1], rect[2], rect[3],
-		love_image_getWidth(img), love_image_getHeight(img));
-	g.quads[key] = quad;
-	return quad;
-}
-
-fn tile_quad_for(g, ts, tx, ty) {
-	return quad_for(g, ts.path, g.scene.tile_source(ts, tx, ty));
-}
-
-# The map goes into sprite batches, one per (layer, sheet): the cells only
-# change when the editor changes them, and a screenful of them drawn one at a
-# time is a screenful of draw calls every frame for a picture that did not
-# move. Built with the world, and thrown away with it.
-fn build_tile_batches(g) {
-	let size = g.scene.tile_size();
-	let layers = g.scene.tile_layers();
-	g.tile_batches = [];
-
-	for (let i = 0; i < len(layers); i++) {
-		let layer = layers[i];
-		let cells = g.scene.tile_cells(layer);
-		let sheets = g.scene.tilesets();
-
-		for (let t = 0; t < len(sheets); t++) {
-			let ts = sheets[t];
-			let img = sprite_for(g, ts.path);
-			if (img == null) { continue; }
-
-			# a batch cannot grow past the size it is made with, so count first
-			let mine = [];
-			for (let c = 0; c < len(cells); c++) {
-				if (cells[c][2] == ts.id) { append(mine, cells[c]); }
-			}
-			if (len(mine) == 0) { continue; }
-
-			let batch = love_graphics_newSpriteBatch(img, len(mine));
-			for (let c = 0; c < len(mine); c++) {
-				let cell = mine[c];
-				love_graphics_batch_add(batch,
-					tile_quad_for(g, ts, cell[3], cell[4]),
-					cell[0] * size[0], cell[1] * size[1], 0,
-					size[0] * 1.0 / ts.tile_w, size[1] * 1.0 / ts.tile_h);
-			}
-			append(g.tile_batches, [layer, batch]);
-		}
-	}
-	return 0;
-}
-
-fn draw_tiles(g) {
-	love_graphics_setColor(255, 255, 255, 255);
-	for (let i = 0; i < len(g.tile_batches); i++) {
-		# the batches are in layer order, back first, the way the entities are
-		if (!g.tile_batches[i][0].visible) { continue; }
-		love_graphics_draw(g.tile_batches[i][1], 0, 0);
-	}
-	return 0;
-}
-
-
-fn sprite_for(g, path) {
-	if (path == null) { return null; }
-	if (!contains_key(g.images, path)) {
-		if (io_filetype(path) != "file") { return null; }
-		g.images[path] = love_graphics_newImage(path);
-	}
-	return g.images[path];
-}
-
-
-# ============================================================================
-#  Lifecycle
-# ============================================================================
 
 fn love_load() {
 	let g = {};
-	g.images = {};
-	g.quads = {};     # one per tile of a sheet, see tile_quad_for()
-	g.tile_batches = [];
+	g.renderer = Renderer(Assets());
 
 	# The editor is not standalone here: Esc switches it off rather than
 	# quitting, and it starts switched off so the game is what you see first.
 	g.ed = editor_new({ "scene": LEVEL, "standalone": false, "active": false });
+	if (doc_count(g.ed) == 0) { seed_level(g.ed, LEVEL); }
 
-	# A level to play on a first run, so the example has something in it.
-	if (doc_count(g.ed) == 0) {
-		let ground = doc_add(g.ed, "Ground", "rect", 60, 520, 980, 60, 92, 128, 84);
-		ground.groups = ["terrain"];
-
-		let crate = doc_add(g.ed, "Crate", "rect", 300, 120, 90, 90, 255, 255, 255);
-		crate.sprite = { "path": "art/crate.svg" };
-		crate.body.type = "dynamic";
-		crate.groups = ["props"];
-
-		let coin = doc_add(g.ed, "Coin", "circle", 520, 60, 56, 56, 255, 255, 255);
-		coin.sprite = { "path": "art/coin.svg" };
-		coin.body.type = "dynamic";
-		coin.fixtures[0].restitution = 0.6;
-		coin.groups = ["pickups"];
-
-		# A ledge painted out of a spritesheet, so the level has a map in it
-		# as well as entities -- press F1 and the Tiles tool paints more.
-		let sheet = tiles_add_set(g.ed, "art/tiles.png");
-		let map = tiles_map(g.ed);
-		map.tile_w = 32;
-		map.tile_h = 32;
-
-		let layer = tiles_current_layer(g.ed);
-		layer.solid = true;
-		for (let cx = 12; cx < 20; cx++) {
-			tiles_put(g.ed, layer, cx, 10, [sheet.id, 0, 0]);
-		}
-		g.ed.brush = [sheet.id, 0, 0];
-
-		doc_save(g.ed, LEVEL);
-	}
-
-	build_world(g);
+	rebuild(g);
 	love_graphics_setBackgroundColor(24, 26, 32, 255);
 
 	HOST.game = g;
@@ -250,59 +80,14 @@ fn love_update(dt, g) {
 	# world is out of date. A host that wanted the change to land mid-edit
 	# would do this whenever the revision moves instead -- the revision is
 	# there so the choice is the host's.
-	if (editor_revision(g.ed) != g.built_at) { build_world(g); }
+	if (editor_revision(g.ed) != g.built_at) { rebuild(g); }
 
-	love_world_update(g.world, dt);
-	return 0;
-}
-
-fn draw_entity(g, e, body) {
-	let pos = love_body_getPosition(body);
-	let angle = love_body_getAngle(body);
-	let size = g.scene.size(e);
-	let colour = g.scene.color(e);
-
-	love_graphics_setColor(colour[0], colour[1], colour[2], 255);
-
-	let img = sprite_for(g, g.scene.sprite_path(e));
-	if (img == null) {
-		if (g.scene.fixture(e).shape == "circle") {
-			love_geometry_circle("fill", pos[0], pos[1], size[0] * 0.5, 32);
-		} else {
-			love_geometry_rectangle("fill", pos[0], pos[1], size[0], size[1],
-				angle, 1, 1, size[0] * 0.5, size[1] * 0.5);
-		}
-		return 0;
-	}
-
-	# The artwork may be one tile of a sheet rather than a whole file, which
-	# is what the editor's "Brush -> selected sprite" leaves behind: then the
-	# crop's size is what gets scaled onto the entity, not the image's.
-	let crop = g.scene.sprite_quad(e);
-	let iw = love_image_getWidth(img);
-	let ih = love_image_getHeight(img);
-	if (crop != null) {
-		iw = crop[2];
-		ih = crop[3];
-		love_graphics_draw(img, quad_for(g, g.scene.sprite_path(e), crop),
-			pos[0], pos[1], angle, size[0] / iw, size[1] / ih, iw * 0.5, ih * 0.5);
-		return 0;
-	}
-
-	love_graphics_draw(img, pos[0], pos[1], angle,
-		size[0] / iw, size[1] / ih, iw * 0.5, ih * 0.5);
+	g.world.update(dt);
 	return 0;
 }
 
 fn love_draw(g) {
-	# the map first: it is the ground the rest stands on
-	draw_tiles(g);
-
-	for (let i = 0; i < len(g.bodies); i++) {
-		let id = g.bodies[i][0];
-		let e = g.scene.get(id);
-		if (e != null && g.scene.is_visible(e)) { draw_entity(g, e, g.bodies[i][1]); }
-	}
+	g.renderer.draw(g.scene, g.world);
 
 	love_graphics_setColor(150, 155, 170, 255);
 	love_graphics_print("F1: editor", 12, 12);

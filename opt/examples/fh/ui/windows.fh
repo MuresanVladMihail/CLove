@@ -1,0 +1,111 @@
+# One function per window. Each begins and ends its own container, so what a
+# window contains is read in one place -- and microui needs every widget to
+# sit inside exactly one of them.
+
+include "log.fh"
+
+fn window_demo(app) {
+	if (!love_ui_begin_window("Demo window", 40, 40, 330, 460, 0)) { return 0; }
+
+	if (love_ui_header("Buttons", OPT_EXPANDED)) {
+		love_ui_layout_row(3, [86, -110, -1], 0);
+		love_ui_label("Row 1:");
+		if (love_ui_button("Button 1", ALIGN_CENTER)) { app.log.add("pressed button 1"); }
+		if (love_ui_button("Button 2", ALIGN_CENTER)) { app.log.add("pressed button 2"); }
+		love_ui_label("Row 2:");
+		if (love_ui_button("Button 3", ALIGN_CENTER)) { app.log.add("pressed button 3"); }
+		if (love_ui_button("Button 4", ALIGN_CENTER)) { app.log.add("pressed button 4"); }
+	}
+
+	if (love_ui_header("Tree and text", OPT_EXPANDED)) {
+		love_ui_layout_row(2, [140, -1], 0);
+
+		love_ui_layout_begin_column();
+		if (love_ui_begin_tree("Test 1", 0)) {
+			love_ui_label("Hello");
+			love_ui_label("world");
+			love_ui_end_tree();
+		}
+		if (love_ui_begin_tree("Test 2", 0)) {
+			# love_ui_checkbox() returns true on the frame the box was
+			# clicked, so the script keeps the state itself.
+			for (let i = 0; i < len(app.checks); i++) {
+				love_ui_pushId(i);
+				if (love_ui_checkbox("checkbox " + (i + 1), app.checks[i], i + 1)) {
+					app.checks[i] = !app.checks[i];
+				}
+				love_ui_popId();
+			}
+			love_ui_end_tree();
+		}
+		love_ui_layout_end_column();
+
+		love_ui_layout_begin_column();
+		love_ui_layout_row(1, [-1], 0);
+		love_ui_text("Lorem ipsum dolor sit amet, consectetur adipiscing " +
+			"elit. Maecenas lacinia, sem eu lacinia molestie, mi risus " +
+			"faucibus ipsum, eu varius magna felis a nulla.");
+		love_ui_layout_end_column();
+	}
+
+	if (love_ui_header("Background colour", OPT_EXPANDED)) {
+		love_ui_layout_row(2, [-96, -1], 74);
+
+		love_ui_layout_begin_column();
+		love_ui_layout_row(2, [56, -1], 0);
+		# love_ui_slider() returns the edited value, so the usual
+		# immediate-mode assignment works.
+		let names = ["Red:", "Green:", "Blue:"];
+		for (let i = 0; i < 3; i++) {
+			love_ui_label(names[i]);
+			app.bg[i] = love_ui_slider(app.bg[i], 0, 255, 1, ALIGN_CENTER);
+		}
+		love_ui_layout_end_column();
+
+		# a swatch painted straight into the next layout cell
+		let r = love_ui_layout_next();
+		love_ui_rect(r[0], r[1], r[2], r[3], app.bg[0], app.bg[1], app.bg[2]);
+		love_ui_control_text(tointeger(app.bg[0]) + ", " + tointeger(app.bg[1]) +
+			", " + tointeger(app.bg[2]),
+			r[0], r[1], r[2], r[3], 0, love_ui_align("center"));
+	}
+
+	love_ui_end_window();
+	return 0;
+}
+
+# One row of the style editor: a colour by name, three sliders, and a swatch.
+fn style_row(name) {
+	let c = love_ui_getColor(name);
+	love_ui_label(name);
+
+	let r = love_ui_slider(c[0], 0, 255, 1, ALIGN_CENTER);
+	let g = love_ui_slider(c[1], 0, 255, 1, ALIGN_CENTER);
+	let b = love_ui_slider(c[2], 0, 255, 1, ALIGN_CENTER);
+
+	# c[4] is the MU_COLOR_* id that love_ui_getColor() resolved the name to
+	love_ui_setColor(c[4], r, g, b, c[3]);
+
+	let swatch = love_ui_layout_next();
+	love_ui_rect(swatch[0], swatch[1], swatch[2], swatch[3], r, g, b, 255);
+	return 0;
+}
+
+fn window_style(app) {
+	if (!love_ui_begin_window("Style editor", 390, 300, 430, 240, 0)) { return 0; }
+
+	love_ui_layout_row(5, [100, 60, 60, 60, -1], 0);
+	let names = ["windowBg", "button", "buttonHover", "text", "border"];
+	for (let i = 0; i < len(names); i++) { style_row(names[i]); }
+
+	love_ui_end_window();
+	return 0;
+}
+
+fn window_log(app) {
+	if (!love_ui_begin_window("Log", 390, 40, 430, 240, 0)) { return 0; }
+	app.log.draw_lines();
+	app.log.draw_entry();
+	love_ui_end_window();
+	return 0;
+}

@@ -4,6 +4,9 @@
 #  Run it with:
 #      cd opt/examples/fh/ui && ../../../../build/clove
 #
+#      log.fh      the log window's lines, panel and entry box
+#      windows.fh  one function per window
+#
 #  For a larger, application-shaped use of the same widgets (docked panels, a
 #  viewport, an inspector), see ../editor.
 # ============================================================================
@@ -13,178 +16,36 @@
 let ALIGN_CENTER = 1;
 let OPT_EXPANDED = 4096;   # MU_OPT_EXPANDED -- headers and trees start open
 
-let LOG_BOX = 1;           # id of the log window's text box
-
-
-fn log_line(self, msg) {
-	append(self.log, msg);
-	if (len(self.log) > 60) {
-		let trimmed = [];
-		for (let i = 10; i < len(self.log); i = i + 1) {
-			append(trimmed, self.log[i]);
-		}
-		self.log = trimmed;
-	}
-	return 0;
-}
+include "windows.fh"
 
 fn love_load() {
-	let self = {};
+	let app = {};
+	app.log = Log();
+	app.checks = [true, false, false];
+	app.bg = [90, 95, 110];
 
-	self.log = [];
-	self.log_panel = love_ui_newContainer();
-
-	self.checkbox_1 = true;
-	self.checkbox_2 = false;
-	self.checkbox_3 = false;
-
-	self.bg = [90, 95, 110];
-
-	log_line(self, "ui example started");
-	love_graphics_setBackgroundColor(self.bg[0], self.bg[1], self.bg[2], 255);
-	return self;
+	app.log.add("ui example started");
+	love_graphics_setBackgroundColor(app.bg[0], app.bg[1], app.bg[2], 255);
+	return app;
 }
 
-fn demo_window(self) {
-	if (love_ui_begin_window("Demo window", 40, 40, 330, 460, 0)) {
-		if (love_ui_header("Buttons", OPT_EXPANDED)) {
-			love_ui_layout_row(3, [86, -110, -1], 0);
-			love_ui_label("Row 1:");
-			if (love_ui_button("Button 1", ALIGN_CENTER)) { log_line(self, "pressed button 1"); }
-			if (love_ui_button("Button 2", ALIGN_CENTER)) { log_line(self, "pressed button 2"); }
-			love_ui_label("Row 2:");
-			if (love_ui_button("Button 3", ALIGN_CENTER)) { log_line(self, "pressed button 3"); }
-			if (love_ui_button("Button 4", ALIGN_CENTER)) { log_line(self, "pressed button 4"); }
-		}
-
-		if (love_ui_header("Tree and text", OPT_EXPANDED)) {
-			love_ui_layout_row(2, [140, -1], 0);
-
-			love_ui_layout_begin_column();
-			if (love_ui_begin_tree("Test 1", 0)) {
-				love_ui_label("Hello");
-				love_ui_label("world");
-				love_ui_end_tree();
-			}
-			if (love_ui_begin_tree("Test 2", 0)) {
-				# love_ui_checkbox() returns true on the frame the box was
-				# clicked, so the script keeps the state itself.
-				if (love_ui_checkbox("checkbox 1", self.checkbox_1, 1)) {
-					self.checkbox_1 = !self.checkbox_1;
-				}
-				if (love_ui_checkbox("checkbox 2", self.checkbox_2, 2)) {
-					self.checkbox_2 = !self.checkbox_2;
-				}
-				if (love_ui_checkbox("checkbox 3", self.checkbox_3, 3)) {
-					self.checkbox_3 = !self.checkbox_3;
-				}
-				love_ui_end_tree();
-			}
-			love_ui_layout_end_column();
-
-			love_ui_layout_begin_column();
-			love_ui_layout_row(1, [-1], 0);
-			love_ui_text("Lorem ipsum dolor sit amet, consectetur adipiscing " +
-				"elit. Maecenas lacinia, sem eu lacinia molestie, mi risus " +
-				"faucibus ipsum, eu varius magna felis a nulla.");
-			love_ui_layout_end_column();
-		}
-
-		if (love_ui_header("Background colour", OPT_EXPANDED)) {
-			love_ui_layout_row(2, [-96, -1], 74);
-
-			love_ui_layout_begin_column();
-			love_ui_layout_row(2, [56, -1], 0);
-			# love_ui_slider() returns the edited value, so the usual
-			# immediate-mode assignment works.
-			love_ui_label("Red:");   self.bg[0] = love_ui_slider(self.bg[0], 0, 255, 1, ALIGN_CENTER);
-			love_ui_label("Green:"); self.bg[1] = love_ui_slider(self.bg[1], 0, 255, 1, ALIGN_CENTER);
-			love_ui_label("Blue:");  self.bg[2] = love_ui_slider(self.bg[2], 0, 255, 1, ALIGN_CENTER);
-			love_ui_layout_end_column();
-
-			# a swatch painted straight into the next layout cell
-			let r = love_ui_layout_next();
-			love_ui_rect(r[0], r[1], r[2], r[3], self.bg[0], self.bg[1], self.bg[2]);
-			love_ui_control_text(tointeger(self.bg[0]) + ", " +
-				tointeger(self.bg[1]) + ", " +
-				tointeger(self.bg[2]),
-				r[0], r[1], r[2], r[3], 0, love_ui_align("center"));
-		}
-
-		love_ui_end_window();
-	}
-	return 0;
-}
-
-fn style_row(name) {
-	let c = love_ui_getColor(name);
-	love_ui_label(name);
-	let r = love_ui_slider(c[0], 0, 255, 1, ALIGN_CENTER);
-	let g = love_ui_slider(c[1], 0, 255, 1, ALIGN_CENTER);
-	let b = love_ui_slider(c[2], 0, 255, 1, ALIGN_CENTER);
-	# c[4] is the MU_COLOR_* id that love_ui_getColor() resolved the name to
-	love_ui_setColor(c[4], r, g, b, c[3]);
-	let sw = love_ui_layout_next();
-	love_ui_rect(sw[0], sw[1], sw[2], sw[3], r, g, b, 255);
-	return 0;
-}
-
-fn style_window(self) {
-	if (love_ui_begin_window("Style editor", 390, 300, 430, 240, 0)) {
-		love_ui_layout_row(5, [100, 60, 60, 60, -1], 0);
-		style_row("windowBg");
-		style_row("button");
-		style_row("buttonHover");
-		style_row("text");
-		style_row("border");
-		love_ui_end_window();
-	}
-	return 0;
-}
-
-fn log_window(self) {
-	if (love_ui_begin_window("Log", 390, 40, 430, 240, 0)) {
-		love_ui_layout_row(1, [-1], -30);
-		love_ui_begin_panel(self.log_panel, "log", 0);
-		love_ui_layout_row(1, [-1], 0);
-		for (let i = 0; i < len(self.log); i = i + 1) {
-			love_ui_text(self.log[i]);
-		}
-		love_ui_end_panel();
-
-		love_ui_layout_row(2, [-70, -1], 0);
-		# love_ui_textbox(id, [seed_text]) -> [res, text]; microui owns the
-		# buffer, so what you type survives between frames.
-		let box = love_ui_textbox(LOG_BOX);
-		let submitted = box[0] == love_ui_res_state("submit");
-		if (love_ui_button("Submit", ALIGN_CENTER)) {
-			submitted = true;
-		}
-		if (submitted && len(box[1]) > 0) {
-			log_line(self, box[1]);
-			love_ui_clear_textbox(LOG_BOX);
-		}
-
-		love_ui_end_window();
-	}
-	return 0;
-}
-
-fn love_update(dt, self) {
-	if (love_keyboard_isDown("escape")) {
-		love_event_quit();
-	}
+# The whole UI is rebuilt every frame between love_ui_begin() and end(): that
+# is what "immediate mode" means, and it is why a widget's state lives in the
+# script rather than in a retained widget object.
+fn love_update(dt, app) {
+	if (love_keyboard_isDown("escape")) { love_event_quit(); }
 
 	love_ui_begin();
-	demo_window(self);
-	log_window(self);
-	style_window(self);
+	window_demo(app);
+	window_log(app);
+	window_style(app);
 	love_ui_end();
+	return 0;
 }
 
-fn love_draw(self) {
-	love_graphics_setBackgroundColor(self.bg[0], self.bg[1], self.bg[2], 255);
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(app.bg[0], app.bg[1], app.bg[2], 255);
+	return 0;
 }
 
-fn main() {
-}
+fn main() {}

@@ -6,63 +6,94 @@
 # the drawing, so it stays sharp instead of turning into big pixels.
 #
 # SPACE pauses the zoom, LEFT/RIGHT zoom by hand, ESC quits.
+#
+#   cd opt/examples/fh/vector_art && ../../../../build/clove
+
+let MIN_SCALE = 0.5;
+let MAX_SCALE = 6.0;
+let AUTO_SPEED = 1.5;
+let MANUAL_SPEED = 3.0;
+
+# The zoom, which either walks up and down on its own or follows the arrow
+# keys -- touching them stops the animation, which is what "pause" means here.
+fn Zoom() {
+	let self = { "scale": 1.0, "direction": 1.0, "running": true };
+
+	self.clamp = fn() {
+		if (self.scale > MAX_SCALE) { self.scale = MAX_SCALE; }
+		if (self.scale < MIN_SCALE) { self.scale = MIN_SCALE; }
+		return 0;
+	};
+
+	self.nudge = fn(delta) {
+		self.running = false;
+		self.scale = self.scale + delta;
+		return self.clamp();
+	};
+
+	self.pause = fn() {
+		self.running = false;
+		return 0;
+	};
+
+	self.update = fn(dt) {
+		if (!self.running) { return 0; }
+
+		self.scale = self.scale + self.direction * dt * AUTO_SPEED;
+		if (self.scale > MAX_SCALE) { self.direction = -1.0; }
+		if (self.scale < MIN_SCALE) { self.direction = 1.0; }
+		return self.clamp();
+	};
+
+	return self;
+}
 
 fn love_load() {
-    let self = {};
+	let app = {};
 
-    # Vector art: re-rasterized on demand as it is drawn.
-    self.badge = love_graphics_newImage("../assets/badge.svg");
+	# Vector art: re-rasterized on demand as it is drawn.
+	app.badge = love_graphics_newImage("../assets/badge.svg");
 
-    # The same drawing, pinned at its authored size: never re-rasterized, so it
-    # blurs when magnified exactly like a .png would.
-    self.pinned = love_graphics_newImage("../assets/badge.svg", 1);
+	# The same drawing, pinned at its authored size: never re-rasterized, so it
+	# blurs when magnified exactly like a .png would.
+	app.pinned = love_graphics_newImage("../assets/badge.svg", 1);
 
-    self.font = love_graphics_newFont(14);
-    love_graphics_setFont(self.font);
-    love_graphics_setBackgroundColor(30, 32, 38);
+	app.zoom = Zoom();
 
-    self.scale = 1.0;
-    self.dir = 1.0;
-    self.running = true;
-
-    return self;
+	love_graphics_setFont(love_graphics_newFont(14));
+	love_graphics_setBackgroundColor(30, 32, 38);
+	return app;
 }
 
-fn love_update(dt, self) {
-    if (love_keyboard_isDown("escape")) {
-        love_event_quit();
-    }
+fn love_update(dt, app) {
+	if (love_keyboard_isDown("escape")) { love_event_quit(); }
 
-    if (love_keyboard_isDown("right")) {
-        self.running = false;
-        self.scale = self.scale + dt * 3.0;
-    } elif (love_keyboard_isDown("left")) {
-        self.running = false;
-        self.scale = self.scale - dt * 3.0;
-    } elif (love_keyboard_isDown("space")) {
-        self.running = false;
-    } elif (self.running) {
-        self.scale = self.scale + self.dir * dt * 1.5;
-        if (self.scale > 6.0) { self.dir = -1.0; }
-        if (self.scale < 0.5) { self.dir = 1.0; }
-    }
-
-    if (self.scale > 6.0) { self.scale = 6.0; }
-    if (self.scale < 0.5) { self.scale = 0.5; }
+	if (love_keyboard_isDown("right")) {
+		app.zoom.nudge(dt * MANUAL_SPEED);
+	} elif (love_keyboard_isDown("left")) {
+		app.zoom.nudge(0.0 - dt * MANUAL_SPEED);
+	} elif (love_keyboard_isDown("space")) {
+		app.zoom.pause();
+	} else {
+		app.zoom.update(dt);
+	}
+	return 0;
 }
 
-fn love_draw(self) {
-    love_graphics_clear();
+fn love_draw(app) {
+	love_graphics_clear();
 
-    love_graphics_draw(self.pinned, 40, 90, 0, self.scale, self.scale);
-    love_graphics_draw(self.badge, 420, 90, 0, self.scale, self.scale);
+	let scale = app.zoom.scale;
+	love_graphics_draw(app.pinned, 40, 90, 0, scale, scale);
+	love_graphics_draw(app.badge, 420, 90, 0, scale, scale);
 
-    love_graphics_print("pinned at scale 1 - blurs when magnified", 40, 20);
-    love_graphics_print("vector - re-rasterized, stays sharp", 420, 20);
-    love_graphics_print("drawn at x" + self.scale, 40, 45);
-    love_graphics_print("texture rasterized at x" + love_image_getVectorScale(self.badge), 420, 45);
-    love_graphics_print("SPACE: pause   LEFT/RIGHT: zoom   ESC: quit", 40, 65);
+	love_graphics_print("pinned at scale 1 - blurs when magnified", 40, 20);
+	love_graphics_print("vector - re-rasterized, stays sharp", 420, 20);
+	love_graphics_print("drawn at x" + scale, 40, 45);
+	love_graphics_print("texture rasterized at x" +
+		love_image_getVectorScale(app.badge), 420, 45);
+	love_graphics_print("SPACE: pause   LEFT/RIGHT: zoom   ESC: quit", 40, 65);
+	return 0;
 }
 
-fn main() {
-}
+fn main() {}

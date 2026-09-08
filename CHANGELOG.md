@@ -192,6 +192,21 @@ version 0.8.0 not yet released
 	and a math_random() that hands back integers where it used to hand back
 	whole-numbered floats (and no longer returns 1.0 from math_random(), which
 	made `math_random() * n` able to return n itself).
+* changed: the FH examples were rewritten. Each one is `main.fh` -- the
+	lifecycle and the input callbacks, and nothing else -- plus the modules it
+	includes: joints is body/scene/rigs, game is assets/world/render/level,
+	input is player/log/hud, and so on down to the small ones, which stayed
+	single files with their draw split into named sections. State that used to
+	sit in a module-level map (`S`, `I`, `F`, `W`, ...) that every function
+	reached into is now held by the thing it belongs to -- a constructor
+	returning a map of closures, the shape opt/packages/scene already used.
+	opt/examples/fh/README.md documents the layout, the idiom, and the two FH
+	rules that bite when you copy one (a global `let` needs a constant
+	initializer; `%` is integer-only).
+* fixed: the physics example took its input callbacks apart wrong --
+	`love_mousepressed(x, y, button)` where CLove passes one array, and
+	`key == "escape"` where a key event is `[name, code, isrepeat]`. Escape did
+	not quit and a click raised an error inside the bounding-box query.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

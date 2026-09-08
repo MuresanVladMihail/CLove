@@ -1,0 +1,90 @@
+# The directory listing on the left: where you are, what is in it, and which
+# entry the arrows have landed on.
+#
+# love_filesystem_list() reads through PhysFS, so it only sees what has been
+# mounted -- main.fh mounts the working directory before this is asked
+# anything.
+
+fn Browser(start) {
+	let self = { "dir": start, "entries": [], "selected": 0 };
+
+	self.refresh = fn() {
+		let list = love_filesystem_list(self.dir);
+		if (list == null) { list = []; }
+		self.entries = list;
+		if (self.selected >= len(self.entries)) { self.selected = 0; }
+		return 0;
+	};
+
+	self.current = fn() {
+		if (len(self.entries) == 0) { return null; }
+		return self.entries[self.selected];
+	};
+
+	self.move = fn(delta) {
+		let next = self.selected + delta;
+		if (next >= 0 && next < len(self.entries)) { self.selected = next; }
+		return 0;
+	};
+
+	self.enter = fn() {
+		let entry = self.current();
+		if (entry == null || !entry.dir) { return 0; }
+
+		self.dir = self.dir + "/" + entry.name;
+		self.selected = 0;
+		self.refresh();
+		return 0;
+	};
+
+	self.leave = fn() {
+		self.dir = self.dir + "/..";
+		self.selected = 0;
+		self.refresh();
+		return 0;
+	};
+
+	# PhysFS paths are relative to what was mounted, with no leading "./".
+	self.path_of = fn(entry) {
+		if (self.dir == ".") { return entry.name; }
+		return self.dir + "/" + entry.name;
+	};
+
+	# The window scrolls with the selection rather than paging: the entry you
+	# are on is always the one you can see.
+	self.first_visible = fn(rows) {
+		if (self.selected < rows) { return 0; }
+		return self.selected - rows + 1;
+	};
+
+	self.draw = fn(x, y, rows, row_height) {
+		love_graphics_setColor(120, 200, 255);
+		love_graphics_print("listing  " + self.dir, x, y);
+
+		let first = self.first_visible(rows);
+		for (let i = 0; i < rows; i++) {
+			let index = first + i;
+			if (index >= len(self.entries)) { break; }
+
+			let entry = self.entries[index];
+			let row_y = y + 26 + i * row_height;
+
+			if (index == self.selected) {
+				love_graphics_setColor(50, 62, 84);
+				love_geometry_rectangle("fill", x - 4, row_y - 3, 420, 20);
+			}
+
+			let mark = "  ";
+			if (entry.dir) {
+				mark = "> ";
+				love_graphics_setColor(255, 200, 110);
+			} else {
+				love_graphics_setColor(210, 214, 224);
+			}
+			love_graphics_print(mark + entry.name, x + 4, row_y);
+		}
+		return 0;
+	};
+
+	return self;
+}

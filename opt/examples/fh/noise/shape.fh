@@ -1,0 +1,60 @@
+# The polygon on the right: drag a corner and watch love_math_isConvex()
+# follow. Box2D only has convex shapes, which is why the answer matters.
+
+let GRAB_RADIUS2 = 400;   # 20 pixels, squared
+
+fn ConvexShape(points) {
+	let self = { "points": points, "convex": love_math_isConvex(points), "drag": -1 };
+
+	self.grab_at = fn(x, y) {
+		self.drag = -1;
+		for (let i = 0; i + 1 < len(self.points); i = i + 2) {
+			let dx = self.points[i] - x;
+			let dy = self.points[i + 1] - y;
+			if (dx * dx + dy * dy < GRAB_RADIUS2) {
+				self.drag = i;
+				return true;
+			}
+		}
+		return false;
+	};
+
+	self.release = fn() {
+		self.drag = -1;
+		return 0;
+	};
+
+	self.drag_to = fn(x, y) {
+		if (self.drag < 0) { return 0; }
+		self.points[self.drag] = x;
+		self.points[self.drag + 1] = y;
+		self.convex = love_math_isConvex(self.points);
+		return 0;
+	};
+
+	self.verdict = fn() {
+		if (self.convex) { return "convex"; }
+		return "concave -- Box2D would need it split";
+	};
+
+	self.draw = fn() {
+		if (self.convex) {
+			love_graphics_setColor(120, 220, 160);
+		} else {
+			love_graphics_setColor(240, 130, 120);
+		}
+
+		let closed = [];
+		for (let i = 0; i < len(self.points); i++) { append(closed, self.points[i]); }
+		append(closed, self.points[0]);
+		append(closed, self.points[1]);
+		love_geometry_polygon("line", closed);
+
+		for (let i = 0; i + 1 < len(self.points); i = i + 2) {
+			love_geometry_circle("fill", self.points[i], self.points[i + 1], 5);
+		}
+		return 0;
+	};
+
+	return self;
+}

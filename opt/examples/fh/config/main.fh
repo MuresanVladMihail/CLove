@@ -10,35 +10,35 @@
 #   cd opt/examples/fh/config && ../../../../build/clove
 
 fn love_load() {
-    let self = {};
-    self.rows = [
-        ["title", love_window_getTitle()],
-        ["width", "" + love_window_getWidth()],
-        ["height", "" + love_window_getHeight()],
-        ["display count", "" + love_window_getDisplayCount()]
-    ];
-    return self;
+	let self = {};
+	self.rows = [
+		["title", love_window_getTitle()],
+		["width", "" + love_window_getWidth()],
+		["height", "" + love_window_getHeight()],
+		["display count", "" + love_window_getDisplayCount()]
+	];
+	return self;
 }
 
 fn love_update(dt, self) {
-    if (love_keyboard_isDown("escape")) { love_event_quit(); }
+	if (love_keyboard_isDown("escape")) { love_event_quit(); }
 }
 
 fn love_draw(self) {
-    love_graphics_setBackgroundColor(26, 28, 36);
-    love_graphics_setColor(235, 235, 245);
-    love_graphics_print("the window this config.fh asked for", 40, 40);
+	love_graphics_setBackgroundColor(26, 28, 36);
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print("the window this config.fh asked for", 40, 40);
 
-    love_graphics_setColor(200, 205, 215);
-    for (let i = 0; i < len(self.rows); i++) {
-        love_graphics_print(self.rows[i][0], 40, 90 + i * 26);
-        love_graphics_print(self.rows[i][1], 200, 90 + i * 26);
-    }
+	love_graphics_setColor(200, 205, 215);
+	for (let i = 0; i < len(self.rows); i++) {
+		love_graphics_print(self.rows[i][0], 40, 90 + i * 26);
+		love_graphics_print(self.rows[i][1], 200, 90 + i * 26);
+	}
 
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print("the window is resizable and has a max/min size -- try dragging it", 40, 230);
-    love_graphics_print("read config.fh next to this file for every key", 40, 256);
-    love_graphics_print("escape to quit", 40, 290);
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print("the window is resizable and has a max/min size -- try dragging it", 40, 230);
+	love_graphics_print("read config.fh next to this file for every key", 40, 256);
+	love_graphics_print("escape to quit", 40, 290);
 }
 
 fn main() {}

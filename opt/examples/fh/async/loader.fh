@@ -1,0 +1,105 @@
+# The two ways to load the same eight files, behind one object.
+#
+# Both finish at about the same wall-clock time. What differs is where the work
+# lands: blocking puts all of it in the frame that asked for it, async spreads
+# the collection over the frames that follow.
+
+include "tiles.fh"
+
+let TAKE_BUDGET = 0.004;   # seconds per frame this demo will spend uploading
+
+fn Loader() {
+	let self = { "mode": "nothing loaded", "jobs": [], "images": [],
+	             "started": 0.0, "wall": 0.0, "note": "" };
+
+	self.release = fn() {
+		self.images = [];
+		self.jobs = [];
+		self.mode = "nothing loaded";
+		self.wall = 0.0;
+		self.note = "";
+		return 0;
+	};
+
+	# The way everybody writes it first: the whole cost lands in one frame.
+	self.load_blocking = fn() {
+		self.release();
+		self.mode = "blocking";
+
+		let started = love_timer_getTime();
+		for (let i = 0; i < TILES; i++) {
+			append(self.images, love_graphics_newImage(tile_path(i)));
+		}
+		self.wall = love_timer_getTime() - started;
+		self.note = "eight newImage() calls, all inside this one frame";
+		return 0;
+	};
+
+	# The same eight files, queued in a few microseconds. collect() picks them
+	# up as they turn up.
+	self.load_async = fn() {
+		self.release();
+		self.mode = "async";
+		self.started = love_timer_getTime();
+
+		for (let i = 0; i < TILES; i++) {
+			append(self.jobs, love_asset_loadImage(tile_path(i)));
+		}
+		self.note = "queued in " +
+			tointeger((love_timer_getTime() - self.started) * 1000000) + " microseconds";
+		return 0;
+	};
+
+	# Collecting is one status check per outstanding job. take() does the GL
+	# upload here, on the thread that owns the context -- cheap next to the
+	# decode, but eight 1536x1536 textures is still 72 MB, and doing all of
+	# them in whichever frame they happen to land is its own hitch. So this
+	# spends a fixed slice of the frame on uploads and leaves the rest for the
+	# next one. It is the same trick a streaming world uses.
+	self.collect = fn() {
+		if (len(self.jobs) == 0) { return 0; }
+
+		let deadline = love_timer_getTime() + TAKE_BUDGET;
+		let still = [];
+		for (let i = 0; i < len(self.jobs); i++) {
+			let job = self.jobs[i];
+			let status = love_asset_status(job);
+
+			if (status == "pending") {
+				append(still, job);
+			} elif (status == "ready") {
+				if (love_timer_getTime() < deadline) {
+					append(self.images, love_asset_take(job));
+				} else {
+					append(still, job);      # ready, collected next frame
+				}
+			}
+			# "failed" is dropped; love_asset_take() would say which file it was
+		}
+		self.jobs = still;
+
+		if (len(self.jobs) == 0) { self.finish(); }
+		return 0;
+	};
+
+	self.finish = fn() {
+		self.wall = love_timer_getTime() - self.started;
+		self.note = "all " + len(self.images) + " on screen after " +
+			tointeger(self.wall * 1000) + " ms, without a frame over budget";
+		return 0;
+	};
+
+	# What was loaded, small, in a grid.
+	self.draw = fn(x, y, side, per_row) {
+		love_graphics_setColor(255, 255, 255);
+		for (let i = 0; i < len(self.images); i++) {
+			love_graphics_draw(self.images[i],
+				x + (i % per_row) * (side + 10),
+				y + tointeger(i / per_row) * (side + 10),
+				0, side / TILE_SIZE, side / TILE_SIZE);
+		}
+		return 0;
+	};
+
+	return self;
+}

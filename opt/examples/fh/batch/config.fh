@@ -1,8 +1,8 @@
 fn love_config(c) {
-    c.window_title = "CLove -- sprite batches";
-    c.window_width = 1000;
-    c.window_height = 640;
-    c.window_vsync = true;
-    c.window_resizable = true;
-    c.window_icon = "../assets/icon.png";
+	c.window_title = "CLove -- sprite batches";
+	c.window_width = 1000;
+	c.window_height = 640;
+	c.window_vsync = true;
+	c.window_resizable = true;
+	c.window_icon = "../assets/icon.png";
 }

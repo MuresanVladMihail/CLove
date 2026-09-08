@@ -1,0 +1,84 @@
+# The right-hand readout: one label/value row at a time, and the gamepad panel
+# under it. Nothing here holds state -- it draws what it is handed.
+
+let LABEL_X = 660;
+let VALUE_X = 812;
+let ROW_STEP = 22;
+
+fn hud_row(label, value, y) {
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print(label, LABEL_X, y);
+	love_graphics_setColor(228, 232, 240);
+	love_graphics_print(value, VALUE_X, y);
+	return 0;
+}
+
+fn hud_state(state, player) {
+	let mx = love_mouse_getX();
+	let my = love_mouse_getY();
+
+	hud_row("last key", state.last_key, 70);
+	hud_row("text input", state.text, 92);
+	hud_row("mouse", mx + ", " + my, 114);
+	hud_row("buttons", "l " + love_mouse_isDown("l") +
+		"  r " + love_mouse_isDown("r") +
+		"  m " + love_mouse_isDown("m"), 136);
+	hud_row("clicks", "" + state.clicks, 158);
+	hud_row("wheel", "" + state.wheel, 180);
+	hud_row("shift held", "" + (love_keyboard_isDown("lshift") ||
+		love_keyboard_isDown("rshift")), 202);
+	hud_row("trail", "" + player.trail, 224);
+	return 0;
+}
+
+# Every axis as a bar centred on zero, so a stick's rest position is visible
+# as well as its throw.
+fn hud_axes(top) {
+	let count = love_joystick_getAxisCount(0);
+	for (let i = 0; i < count; i++) {
+		let value = love_joystick_getAxis(0, i);
+		let y = top + i * 18;
+
+		love_graphics_setColor(70, 74, 88);
+		love_geometry_rectangle("fill", VALUE_X, y, 200, 8);
+		love_graphics_setColor(120, 210, 255);
+		love_geometry_rectangle("fill", VALUE_X + 100, y, value * 100, 8);
+		love_graphics_setColor(150, 155, 170);
+		love_graphics_print("axis " + i, LABEL_X, y - 5);
+	}
+	return 0;
+}
+
+fn hud_joystick(sticks) {
+	love_graphics_setColor(120, 200, 255);
+	love_graphics_print("love.joystick", LABEL_X, 262);
+	hud_row("connected", "" + sticks, 286);
+
+	if (sticks == 0 || !love_joystick_isConnected(0)) {
+		love_graphics_setColor(120, 124, 140);
+		love_graphics_print("plug a gamepad in and it appears here --", LABEL_X, 312);
+		love_graphics_print("name, axes, buttons and hats, live.", LABEL_X, 332);
+		return 0;
+	}
+
+	hud_row("name", love_joystick_getName(0), 308);
+	hud_row("gamepad", "" + love_joystick_isGamepad(0), 330);
+	hud_row("axes", "" + love_joystick_getAxisCount(0), 352);
+	hud_row("buttons", "" + love_joystick_getButtonCount(0), 374);
+	hud_row("hats", "" + love_joystick_getHatCount(0), 396);
+	hud_axes(424);
+	return 0;
+}
+
+# The pointer, and a line from the player to it: two ways of knowing where the
+# mouse is, drawn as one.
+fn hud_pointer(player) {
+	let mx = love_mouse_getX();
+	let my = love_mouse_getY();
+
+	love_graphics_setColor(255, 190, 100);
+	love_geometry_circle("line", mx, my, 8);
+	love_graphics_setColor(90, 80, 60);
+	love_geometry_polygon("line", [player.x, player.y, mx, my]);
+	return 0;
+}

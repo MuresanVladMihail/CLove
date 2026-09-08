@@ -1,9 +1,5 @@
 # love.audio: a static source, with volume, pitch, looping and pause.
 #
-# "static" decodes the whole file into memory up front -- right for short
-# sounds. "stream" decodes as it plays, for music; CLove streams Ogg Vorbis
-# only, so this example uses a wav statically.
-#
 # Note where the state lives. love_load()'s return value reaches love_update
 # and love_draw, but *not* the input callbacks -- love_keypressed(key) gets
 # only the key. Anything a key event has to touch therefore lives in a
@@ -15,103 +11,52 @@
 #   click the bar to seek
 #
 #   cd opt/examples/fh/audio && ../../../../build/clove
+#
+#   source.fh  the source and what can be done to it
+#   panel.fh   the readout, the bars, and the seek bar's hit test
 
-let A = {"src": null, "volume": 0.6, "pitch": 1.0};
+include "source.fh"
+include "panel.fh"
+
+let APP = { "track": null };
 
 fn love_load() {
-    A.src = love_audio_newSource("../assets/tone.wav", "static");
-    love_audio_setVolume(A.src, A.volume);
-    love_audio_setPitch(A.src, A.pitch);
-    return A;
+	APP.track = Track("../assets/tone.wav");
+	return APP;
 }
 
-fn clamp(v, lo, hi) {
-    if (v < lo) { return lo; }
-    if (v > hi) { return hi; }
-    return v;
-}
-
+# Toggles belong in a key event, not in isDown(): polled every frame, a toggle
+# would flip sixty times a second while the key is held.
 fn love_keypressed(key) {
-    let k = key[0];
-
-    if (k == "escape") { love_event_quit(); }
-    elif (k == "space") { love_audio_play(A.src); }
-    elif (k == "s")     { love_audio_stop(A.src); }
-
-    # Toggles belong in a key event, not in isDown(): polled every frame, a
-    # toggle would flip sixty times a second while the key is held.
-    elif (k == "l") { love_audio_setLooping(A.src, !love_audio_isLooping(A.src)); }
-    elif (k == "p") {
-        if (love_audio_isPaused(A.src)) { love_audio_resume(A.src); }
-        else { love_audio_pause(A.src); }
-    }
+	let k = key[0];
+	if (k == "escape") { love_event_quit(); }
+	elif (k == "space") { APP.track.play(); }
+	elif (k == "s") { APP.track.stop(); }
+	elif (k == "l") { APP.track.toggle_loop(); }
+	elif (k == "p") { APP.track.toggle_pause(); }
+	return 0;
 }
 
 fn love_mousepressed(m) {
-    # Seeking: the bar is 300px wide at x = 40, y = 230.
-    let mx = love_mouse_getX();
-    let my = love_mouse_getY();
-    if (my > 242 && my < 264 && mx >= 40 && mx <= 620) {
-        let where = (mx - 40) / 580.0 * love_audio_getDuration(A.src);
-        love_audio_seek(A.src, where);
-    }
+	if (panel_seek_hit(m[0], m[1])) {
+		APP.track.seek_fraction(panel_seek_fraction(m[0]));
+	}
+	return 0;
 }
 
-fn love_update(dt, self) {
-    # Held keys, on the other hand, want polling.
-    if (love_keyboard_isDown("up"))    { A.volume = clamp(A.volume + dt, 0.0, 1.0); }
-    if (love_keyboard_isDown("down"))  { A.volume = clamp(A.volume - dt, 0.0, 1.0); }
-    if (love_keyboard_isDown("right")) { A.pitch  = clamp(A.pitch + dt, 0.25, 3.0); }
-    if (love_keyboard_isDown("left"))  { A.pitch  = clamp(A.pitch - dt, 0.25, 3.0); }
-
-    love_audio_setVolume(A.src, A.volume);
-    love_audio_setPitch(A.src, A.pitch);
+# Held keys, on the other hand, want polling.
+fn love_update(dt, app) {
+	if (love_keyboard_isDown("up")) { app.track.nudge_volume(dt); }
+	if (love_keyboard_isDown("down")) { app.track.nudge_volume(0.0 - dt); }
+	if (love_keyboard_isDown("right")) { app.track.nudge_pitch(dt); }
+	if (love_keyboard_isDown("left")) { app.track.nudge_pitch(0.0 - dt); }
+	return 0;
 }
 
-fn bar(x, y, w, fraction, r, g, b) {
-    love_graphics_setColor(70, 74, 88);
-    love_geometry_rectangle("fill", x, y, w, 10);
-    love_graphics_setColor(r, g, b);
-    love_geometry_rectangle("fill", x, y, w * fraction, 10);
-}
-
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(24, 26, 34);
-    love_graphics_setColor(235, 235, 245);
-
-    love_graphics_print("../assets/tone.wav  --  static source", 40, 40);
-
-    let state = "stopped";
-    if (love_audio_isPlaying(A.src)) { state = "playing"; }
-    elif (love_audio_isPaused(A.src)) { state = "paused"; }
-
-    love_graphics_print("state", 40, 100);
-    love_graphics_print(state, 160, 100);
-    love_graphics_print("looping", 40, 130);
-    love_graphics_print("" + love_audio_isLooping(A.src), 160, 130);
-    love_graphics_print("volume", 40, 160);
-    love_graphics_print("" + love_audio_getVolume(A.src), 160, 160);
-    love_graphics_print("pitch", 40, 190);
-    love_graphics_print("" + love_audio_getPitch(A.src), 160, 190);
-
-    # Position. A source had no notion of one until love_audio_tell() existed,
-    # which is what a rhythm game, a cutscene or a replay needs.
-    love_graphics_print("position", 40, 220);
-    love_graphics_print("" + love_audio_tell(A.src) + " / " + love_audio_getDuration(A.src), 160, 220);
-
-    bar(320, 163, 300, A.volume, 120, 220, 160);
-    bar(320, 193, 300, A.pitch / 3.0, 220, 180, 120);
-
-    # A seek bar, clickable.
-    let dur = love_audio_getDuration(A.src);
-    let at = 0.0;
-    if (dur > 0) { at = love_audio_tell(A.src) / dur; }
-    bar(40, 248, 580, at, 120, 180, 240);
-
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print("SPACE play    S stop    P pause/resume    L loop", 40, 296);
-    love_graphics_print("UP/DOWN volume    LEFT/RIGHT pitch    escape quit", 40, 321);
-    love_graphics_print("click the blue bar to seek", 40, 346);
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(24, 26, 34);
+	panel_draw(app.track);
+	return 0;
 }
 
 fn main() {}
