@@ -185,6 +185,13 @@ version 0.8.0 not yet released
 	beside the path -- which is what lets one spritesheet dress a whole level.
 	opt/examples/fh/game draws both, and its level1.json now ships with a
 	painted ledge; opt/examples/fh/editor starts with one too.
+* changed: re-synced the vendored FH (src/3rdparty/FH) with upstream. Still
+	unpatched, so it stays a plain copy -- see CLAUDE.md. It brings sort(),
+	setproto()/getproto() for prototype-style objects, string_rep(),
+	string_starts_with(), string_ends_with(), os_clock() and os_monotonic(),
+	and a math_random() that hands back integers where it used to hand back
+	whole-numbered floats (and no longer returns 1.0 from math_random(), which
+	made `math_random() * n` able to return n itself).
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384
