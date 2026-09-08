@@ -9,16 +9,21 @@
 			"id":	1,
 			"props":	{
 			},
+			"links":	{
+			},
 			"color":	[92, 128, 84],
 			"name":	"Ground",
 			"fixtures":	[{
+					"category":	1,
+					"density":	1,
+					"shape":	"rect",
+					"restitution":	0.1,
+					"mask":	65535,
 					"friction":	0.4,
 					"h":	60,
 					"w":	980,
-					"shape":	"rect",
-					"density":	1,
-					"restitution":	0.1,
-					"sensor":	false
+					"sensor":	false,
+					"group":	0
 				}],
 			"visible":	true,
 			"groups":	["terrain"],
@@ -39,16 +44,21 @@
 			"id":	2,
 			"props":	{
 			},
+			"links":	{
+			},
 			"color":	[255, 255, 255],
 			"name":	"Crate",
 			"fixtures":	[{
+					"category":	1,
+					"density":	1,
+					"shape":	"rect",
+					"restitution":	0.1,
+					"mask":	65535,
 					"friction":	0.4,
 					"h":	90,
 					"w":	90,
-					"shape":	"rect",
-					"density":	1,
-					"restitution":	0.1,
-					"sensor":	false
+					"sensor":	false,
+					"group":	0
 				}],
 			"visible":	true,
 			"groups":	["props"],
@@ -71,16 +81,21 @@
 			"id":	3,
 			"props":	{
 			},
+			"links":	{
+			},
 			"color":	[255, 255, 255],
 			"name":	"Coin",
 			"fixtures":	[{
+					"category":	1,
+					"density":	1,
+					"shape":	"circle",
+					"restitution":	0.6,
+					"mask":	65535,
 					"friction":	0.4,
 					"h":	56,
 					"w":	56,
-					"shape":	"circle",
-					"density":	1,
-					"restitution":	0.6,
-					"sensor":	false
+					"sensor":	false,
+					"group":	0
 				}],
 			"visible":	true,
 			"groups":	["pickups"],
@@ -95,7 +110,37 @@
 				"path":	"art/coin.svg"
 			}
 		}],
+	"joints":	[],
 	"next_id":	4,
+	"tilesets":	[{
+			"spacing":	0,
+			"name":	"tiles.png",
+			"tile_h":	32,
+			"margin":	0,
+			"path":	"art/tiles.png",
+			"tile_w":	32,
+			"id":	1
+		}],
+	"tilemap":	{
+		"tile_w":	32,
+		"tile_h":	32,
+		"layers":	[{
+				"name":	"Ground",
+				"cells":	{
+					"18,10":	[1, 0, 0],
+					"13,10":	[1, 0, 0],
+					"16,10":	[1, 0, 0],
+					"17,10":	[1, 0, 0],
+					"15,10":	[1, 0, 0],
+					"14,10":	[1, 0, 0],
+					"19,10":	[1, 0, 0],
+					"12,10":	[1, 0, 0]
+				},
+				"visible":	true,
+				"id":	1,
+				"solid":	true
+			}]
+	},
 	"meter":	30,
-	"version":	1
+	"version":	2
 }

@@ -24,7 +24,7 @@ and each file should be included exactly once.
 ## Constructor
 
 `Scene(source)` — `source` is a path to a `.json` file the editor saved, or a
-document map you already parsed. It raises on a missing file, on something
+document map you already parsed. Documents up to version 2 are understood. It raises on a missing file, on something
 that is not a scene document, and on a document written by a newer editor: a
 level that will not load is a bug, not a state every caller should poll for.
 
@@ -49,9 +49,13 @@ level that will not load is a bug, not a state every caller should poll for.
 to touch, and the group override — ready for `love_fixture_setFilterData()`. A
 level written before the filter existed reads as Box2D's own default.
 
-`sprite_path()` returns a path or `null` — the editor stores nothing else
-about a sprite. `love_graphics_newImage()` loads `.svg` and `.png` through the
-same call, and `love_image_isVector()` tells them apart afterwards.
+`sprite_path()` returns a path or `null`, and `sprite_quad()` the rectangle of
+that image the entity actually draws — `[x, y, w, h]` when its artwork is one
+tile of a spritesheet, `null` when it is the whole file. The editor stores
+nothing else about a sprite. `love_graphics_newImage()` loads `.svg` and `.png`
+through the same call, and `love_image_isVector()` tells them apart afterwards;
+a crop becomes drawable with `love_graphics_newQuad(x, y, w, h, image width,
+image height)`, passed to `love_graphics_draw()` before the position.
 
 `position()` is the document's top-left corner; Box2D wants `center()`.
 
@@ -108,6 +112,54 @@ at the top level and names its ends by id:
 `"distance"` is a rigid link, `"revolute"` a hinge. Build them *after* the
 bodies — both ends have to exist first. A level written before joints existed
 reads as having none.
+
+## The tile map
+
+A level's ground is often painted rather than placed: the document carries the
+spritesheets it was painted from and the cells painted out of them.
+
+| Call | Returns |
+| --- | --- |
+| `tilemap()` | The raw map: cell size and layers. |
+| `tile_size()` | `[width, height]` of one cell, in world units. |
+| `tilesets()` / `tileset(id)` | The sheets, and one by id. |
+| `tile_source(ts, tx, ty)` | Where that tile sits in its sheet, `[x, y, w, h]`. |
+| `tile_layers()` / `tile_layer(name)` | The layers, back first, and one by name. |
+| `tile_cells(layer)` | Every painted cell as `[column, row, sheet id, tile column, tile row]`. |
+| `tile_count(layer)` | How many cells it holds. |
+| `tile_at(layer, cx, cy)` | What is painted in one cell, or `null`. |
+| `tile_cell_at(x, y)` / `tile_rect(cx, cy)` | World point → cell, and cell → the rectangle it covers. |
+| `tile_bounds()` | `[min_x, min_y, max_x, max_y]` over every cell, or `null`. |
+| `solid_tile_rects()` | The collision the solid layers stand for. |
+
+A cell names a **column and a row in the sheet**, not an index into it: an
+index has to be read back through the sheet's column count, which is a property
+of the image file rather than of the level — crop the sheet or swap it for one
+a tile wider and every index means a different picture.
+
+```
+let size = scene.tile_size();
+let cells = scene.tile_cells(scene.tile_layers()[0]);
+for (let i = 0; i < len(cells); i++) {
+    let c = cells[i];
+    let ts = scene.tileset(c[2]);
+    let src = scene.tile_source(ts, c[3], c[4]);
+    # one quad per tile, built once -- and a sprite batch for a big map
+    love_graphics_draw(sheet_image, quad_for(src),
+        c[0] * size[0], c[1] * size[1], 0,
+        size[0] / ts.tile_w, size[1] / ts.tile_h);
+}
+```
+
+`solid_tile_rects()` hands back `[x, y, w, h]` in world units with each row of
+touching cells already merged into one rectangle, ready for
+`love_physics_newRectangleShape()` on a static body. That is one shape per run
+rather than one per tile — Box2D would otherwise spend its time on contacts
+between neighbours that can never move, and a moving box catches on the seam
+between two of them. `opt/examples/fh/game` builds exactly this.
+
+A level written before tile maps existed (document version 1) reads as a map
+with no sheets and no cells rather than as an error.
 
 ## Spatial queries
 

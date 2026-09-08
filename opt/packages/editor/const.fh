@@ -143,8 +143,16 @@ let LEVEL_METER   = 30;
 
 let SCENE_PATH  = "scene.json";
 let PREFS_PATH  = "editor.json";
-let DOC_VERSION = 1;
+let DOC_VERSION = 2;
 let UNDO_LIMIT  = 40;
+
+# --- tiles ------------------------------------------------------------------
+# What a cell of the map is, and what a tile of a new sheet is assumed to be,
+# until either is set. The bounds are the same for both: a tile smaller than a
+# few pixels is not a tile, and one bigger than this is a backdrop.
+let TILE_DEFAULT = 32;
+let TILE_MIN     = 2;
+let TILE_MAX     = 1024;
 
 # --- grid -------------------------------------------------------------------
 # The grid step is in world units and is what Snap rounds to, so it has to stay
@@ -185,7 +193,20 @@ let ID_COL_R = 20;
 let ID_COL_G = 21;
 let ID_COL_B = 22;
 
+# the Tilemap section: the map's cell, and how the current sheet is cut
+let ID_NUM_CELL_W  = 26;
+let ID_NUM_CELL_H  = 27;
+let ID_NUM_TILE_W  = 28;
+let ID_NUM_TILE_H  = 29;
+let ID_NUM_MARGIN  = 30;
+let ID_NUM_SPACING = 31;
+
 let ID_STYLE_BASE = 40;   # the theme editor uses 40..59
+
+# The layer rows' checkboxes. Every row is wrapped in a pushId of the layer's
+# id, and microui hashes that together with these -- so two numbers are enough
+# for however many layers a level has.
+let TILE_CHECK_BASE = 60;
 
 # --- gizmo ------------------------------------------------------------------
 let HANDLE_HALF = 5;    # grip half-size, screen pixels

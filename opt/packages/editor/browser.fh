@@ -59,6 +59,31 @@ fn browser_goto(app, dir) {
 	return 0;
 }
 
+# The dialog itself. `target` says who is asking -- "sprite" for the selected
+# entity, "tileset" for the map -- because what it hands back is a path either
+# way and browser_apply() has to know where to put it.
+fn browser_open_at(app, start, target) {
+	app.browser = { "dir": start, "entries": [], "picked": null, "target": target };
+	browser_goto(app, start);
+	return 0;
+}
+
+# The same dialog, opening on the folder the current sheet came from, and
+# handing what is picked to the tile map rather than to an entity.
+fn browser_open_tileset(app) {
+	let start = app.game_dir;
+	let ts = tiles_current_set(app);
+	if (ts != null) {
+		let current = ts.path;
+		if (!path_is_sep(string_substr(current, 0, 1))) {
+			current = path_join(app.game_dir, current);
+		}
+		let parent = path_parent(current);
+		if (love_filesystem_list(parent) != null) { start = parent; }
+	}
+	return browser_open_at(app, start, "tileset");
+}
+
 # Opens on the folder the entity's art is already in, so re-picking a sprite
 # starts where the last one came from rather than at the game directory.
 fn browser_open(app, e) {
@@ -72,9 +97,7 @@ fn browser_open(app, e) {
 		if (love_filesystem_list(parent) != null) { start = parent; }
 	}
 
-	app.browser = { "dir": start, "entries": [], "picked": null };
-	browser_goto(app, start);
-	return 0;
+	return browser_open_at(app, start, "sprite");
 }
 
 fn browser_close(app) {
@@ -91,14 +114,29 @@ fn browser_store_path(app, full) {
 }
 
 fn browser_apply(app) {
-	let e = doc_selected(app);
-	if (e == null || app.browser.picked == null) {
+	if (app.browser.picked == null) {
 		browser_close(app);
 		return 0;
 	}
 
 	let stored = browser_store_path(app, app.browser.picked);
+
+	# A sheet is picked for the map, a sprite for the selected entity -- the
+	# same dialog, told which one it is answering when it was opened.
+	if (app.browser.target == "tileset") {
+		tiles_add_set(app, stored);
+		browser_close(app);
+		return 0;
+	}
+
+	let e = doc_selected(app);
+	if (e == null) {
+		browser_close(app);
+		return 0;
+	}
+
 	doc_begin_edit(app);
+	# a whole file: whatever crop the entity had belonged to the old image
 	e.sprite = { "path": stored };
 	love_ui_clear_textbox(SPRITE_BOX);
 	log_line(app, "sprite: " + stored);
@@ -111,7 +149,10 @@ fn browser_panel(app) {
 
 	let b = app.browser;
 
-	if (love_ui_begin_window("Choose an image",
+	let title = "Choose an image";
+	if (b.target == "tileset") { title = "Choose a spritesheet"; }
+
+	if (love_ui_begin_window(title,
 	                         dialog_x(app, BROWSER_W), dialog_y(app, BROWSER_H),
 	                         BROWSER_W, BROWSER_H, 0)) {
 		# where we are

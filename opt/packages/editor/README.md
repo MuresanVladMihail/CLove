@@ -58,6 +58,40 @@ fn love_keypressed(k) {
 prompt catches the window's close button. Forward it or that prompt never
 appears.
 
+## Tiles
+
+A map is painted, not placed. **Inspector > Tilemap** adds a spritesheet and
+says how big one tile of it is — plus the margin around the sheet and the
+spacing between two tiles, for one that came out of a packer. The **Tiles**
+button opens that sheet as a palette over the viewport: click a tile there,
+then click or drag in the scene to lay it down, `Shift` to rub it out. Pressing
+Tiles again puts the palette away; it narrows with the viewport and gives up
+when there is no room left for it.
+
+Layers are drawn back to front, the way the hierarchy's z-order works for
+entities, and any of them can be marked **solid** — Play then builds static
+bodies from it, one per row of touching cells rather than one per tile.
+
+**Brush -> selected sprite** gives whatever is selected the brush's tile as its
+artwork: the same sheet, cropped to that one tile. A crate and the ground it
+sits on can come out of the same file.
+
+The document grows two fields for all this:
+
+```json
+"tilesets": [ { "id": 1, "name": "terrain.png", "path": "art/terrain.png",
+                "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0 } ],
+"tilemap":  { "tile_w": 32, "tile_h": 32,
+              "layers": [ { "id": 1, "name": "Ground", "visible": true,
+                            "solid": true, "cells": { "3,-1": [1, 4, 2] } } ] }
+```
+
+A cell is `[tileset id, column, row]` — where the tile *is in the sheet*, not
+an index into it, so cropping the sheet or swapping it for one a tile wider
+does not repaint the level behind your back. Reading it back from a game is
+`opt/packages/scene`; `opt/examples/fh/game` draws a map and collides with it
+in about forty lines.
+
 ## Layout
 
 The panel metrics are fixed; the window is not. The screen size and the

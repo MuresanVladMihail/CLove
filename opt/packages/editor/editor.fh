@@ -53,6 +53,7 @@
 #      properties.fh  free-form authored data on an entity
 #      camera.fh      pan, zoom, world <-> screen
 #      sprites.fh     the image cache
+#      tiles.fh       spritesheets, the tile map, and the palette
 #      poly.fh        cutting a drawn outline into convex pieces for Box2D
 #      trace.fh       collision traced from vector art
 #      world.fh       Edit and Play, the Box2D side
@@ -71,6 +72,7 @@ include "doc.fh"
 include "properties.fh"
 include "camera.fh"
 include "sprites.fh"
+include "tiles.fh"
 include "poly.fh"
 include "trace.fh"
 include "world.fh"
@@ -508,6 +510,23 @@ fn viewport_input(app, dt) {
 		}
 	}
 
+	# The palette floats over the viewport rather than beside it, so it gets
+	# the press before the scene does -- and the wheel too, which scrolls the
+	# sheet there instead of zooming the camera.
+	if (app.tool == "tile" && !app.confirm && app.browser == null) {
+		if (tiles_palette_input(app, pressed && press_inside, px, py)) {
+			# the gesture still ends where the button comes up, even when
+			# that happens over the palette rather than over the scene
+			if (released) {
+				app.paint = null;
+				app.dragging = false;
+				app.gizmo = null;
+			}
+			cursor_update(app, inside);
+			return 0;
+		}
+	}
+
 	let panning = cam_input(app, dt, inside);
 
 	# the simulation owns the scene while it runs; only the camera stays live
@@ -532,6 +551,13 @@ fn viewport_input(app, dt) {
 	    app.delete_scene == null && !app.quitting) {
 		if (app.tool == "polygon") {
 			polygon_click(app, pwx, pwy);
+		} else if (app.tool == "tile") {
+			# Shift is read from the press, not from what is held now: by the
+			# time the event is handled a frame later it may already be up,
+			# and half an erase stroke would paint.
+			app.paint = { "erase": add };
+			app.paint_from = [pwx, pwy];
+			tiles_paint(app, pwx, pwy, add);
 		} else if (app.tool == "select") {
 			# A vertex of the selected polygon wins over everything: it is the
 			# smallest target on screen and it sits on top of the shape it
@@ -587,6 +613,20 @@ fn viewport_input(app, dt) {
 		}
 	}
 
+	# Dragging the brush paints a stroke: the cells between where the mouse was
+	# last frame and where it is now, so a fast drag does not leave gaps.
+	if (app.paint != null && down) {
+		# The stroke is only laid down over the scene, but where it has got to
+		# is remembered either way: a drag that leaves the viewport and comes
+		# back used to paint the line between the two, straight through
+		# everything it had passed over outside.
+		if (inside) {
+			tiles_paint_line(app, app.paint_from[0], app.paint_from[1],
+				app.wx, app.wy, app.paint.erase);
+		}
+		app.paint_from = [app.wx, app.wy];
+	}
+
 	if (app.vertex >= 0 && down) {
 		let e = doc_selected(app);
 		if (e != null) { polygon_move_vertex(app, e, app.vertex, app.wx, app.wy); }
@@ -609,6 +649,7 @@ fn viewport_input(app, dt) {
 		app.vertex = -1;
 		app.dragging = false;
 		app.gizmo = null;
+		app.paint = null;
 	}
 
 	cursor_update(app, inside);
@@ -713,6 +754,7 @@ fn editor_new(opts) {
 	# below, once they exist.
 	app.log = [];
 	app.sprite_cache = {};
+	app.quad_cache = {};      # one quad per (sheet, source rect), see tiles.fh
 	app.trace_cache = {};
 	app.piece_cache = {};     # a polygon's convex decomposition, see sim_pieces
 
@@ -736,6 +778,19 @@ fn editor_new(opts) {
 	app.pan_y = 0;
 
 	app.tool      = "select";
+
+	# The tile side. All of it is a session choice rather than document data:
+	# which sheet the palette shows, which layer is painted, and what the
+	# brush is holding are the editor's state, not the level's -- reopening a
+	# level should not tell you which tile you had picked last time.
+	app.tile_set   = -1;      # the tileset the palette shows
+	app.tile_layer = -1;      # the layer a click paints into
+	app.brush      = null;    # [tileset id, column, row], or null
+	app.paint      = null;    # { "erase": bool } while a paint gesture runs
+	app.paint_from = null;    # where the last painted cell was, for the line
+	app.pal_open   = true;    # the palette, while the Tiles tool is up
+	app.pal_scroll = 0;       # how far down the sheet it is scrolled
+
 	prefs_defaults(app);      # grid, snap, what is drawn, and the dock sizes
 	editor_layout(app);
 	app.show_style = false;
@@ -905,6 +960,7 @@ fn editor_set_active(app, on) {
 		love_mouse_setVisible(true);
 		app.dragging = false;
 		app.gizmo = null;
+		app.paint = null;
 	}
 	return 0;
 }

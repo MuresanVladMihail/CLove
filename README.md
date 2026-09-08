@@ -214,9 +214,10 @@ cd opt/examples/fh/particles
 ### The editor — [`opt/examples/fh/editor`](opt/examples/fh/editor)
 
 A 2D level editor written in FH on top of [`opt/packages/editor`](opt/packages/editor):
-hierarchy, inspector, undo/redo, physics bodies and fixtures, JSON scenes, and
-a console. [`opt/examples/fh/game`](opt/examples/fh/game) embeds it behind F1
-and reloads the level live.
+hierarchy, inspector, undo/redo, physics bodies and fixtures, tile maps painted
+from a spritesheet, JSON scenes, and a console.
+[`opt/examples/fh/game`](opt/examples/fh/game) embeds it behind F1 and reloads
+the level live.
 
 ![The CLove editor](opt/data/example_editor.png?raw=true "opt/examples/fh/editor")
 

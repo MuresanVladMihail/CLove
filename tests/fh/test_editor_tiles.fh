@@ -1,0 +1,200 @@
+# The editor's tile side: a spritesheet loaded and cut up, cells painted from
+# it, what a solid layer collides as, and what the scene package reads back.
+# It runs the real editor package, so the document this asserts on is the one
+# a level file holds.
+
+include "packages/editor/editor.fh"
+include "packages/scene/scene.fh"
+
+fn check(cond, msg) { if (!cond) { error(msg); } }
+
+fn run() {
+    let ed = editor_new({ "scene": "no_such_level.json",
+                          "standalone": false, "active": true });
+
+    # --- a level has a map before anything is painted -----------------
+    check(len(tiles_sets(ed)) == 0, "a new level has no sheets");
+    check(len(tiles_layers(ed)) == 1, "and exactly one layer to paint into");
+    check(tiles_map(ed).tile_w == TILE_DEFAULT, "with the default cell size");
+
+    # --- the sheet ----------------------------------------------------
+    let ts = tiles_add_set(ed, "assets/sheet.png");
+    check(ts.id > 0, "a sheet gets an id");
+    check(ts.name == "sheet.png", "and is named after the file");
+    check(tiles_current_set(ed).id == ts.id, "adding one selects it");
+
+    # 64x64 pixels of 16 -- four columns and four rows
+    ts.tile_w = 16;
+    ts.tile_h = 16;
+    check(tileset_columns(ed, ts) == 4, "the sheet cuts into four columns");
+    check(tileset_rows(ed, ts) == 4, "and four rows");
+
+    # the source rectangle is arithmetic, not a lookup: no image needed
+    let src = tileset_src(ts, 2, 1);
+    check(src[0] == 32 && src[1] == 16, "a tile's rect follows its column and row");
+    check(src[2] == 16 && src[3] == 16, "and is one tile big");
+
+    # margin and spacing are what a packed sheet leaves behind
+    ts.margin = 1;
+    ts.spacing = 2;
+    let packed = tileset_src(ts, 1, 0);
+    check(packed[0] == 1 + 18, "spacing pushes the next column along");
+    check(tileset_columns(ed, ts) == 3, "and a packed sheet holds fewer tiles");
+    ts.margin = 0;
+    ts.spacing = 0;
+
+    # --- painting -----------------------------------------------------
+    let m = tiles_map(ed);
+    m.tile_w = 16;
+    m.tile_h = 16;
+
+    let layer = tiles_current_layer(ed);
+    ed.brush = [ts.id, 1, 2];
+
+    let r0 = editor_revision(ed);
+    doc_end_edit(ed);
+    tiles_paint(ed, 8, 8, false);          # the middle of cell 0,0
+    check(editor_revision(ed) > r0, "painting a cell is a change to the level");
+
+    let cell = tiles_get(layer, 0, 0);
+    check(cell != null, "the cell holds a tile");
+    check(cell[0] == ts.id && cell[1] == 1 && cell[2] == 2,
+          "and it is the sheet, column and row the brush was holding");
+
+    # a cell is found from a world point, negative coordinates included
+    let at = tiles_cell_of(ed, -1, -1);
+    check(at[0] == -1 && at[1] == -1, "a point left of the origin is in cell -1");
+
+    tiles_paint(ed, -8, -8, false);
+    check(tiles_get(layer, -1, -1) != null, "which is where it paints");
+
+    # painting the same tile again changes nothing, so it opens no undo step
+    let r1 = editor_revision(ed);
+    tiles_paint(ed, 8, 8, false);
+    check(editor_revision(ed) == r1, "repainting an identical cell is not a change");
+
+    # --- erasing and undo ---------------------------------------------
+    doc_end_edit(ed);
+    tiles_paint(ed, 8, 8, true);
+    check(tiles_get(layer, 0, 0) == null, "Shift rubs a cell out");
+
+    doc_end_edit(ed);
+    doc_undo(ed);
+    check(tiles_get(tiles_current_layer(ed), 0, 0) != null, "and undo puts it back");
+
+    # --- a stroke -----------------------------------------------------
+    # the cells between two mouse positions, so a fast drag leaves no gaps
+    doc_end_edit(ed);
+    tiles_paint_line(ed, 8, 8, 8 + 16 * 4, 8, false);
+    layer = tiles_current_layer(ed);
+    for (let cx = 0; cx <= 4; cx++) {
+        check(tiles_get(layer, cx, 0) != null, "the stroke fills cell " + cx);
+    }
+
+    # --- what Play collides with --------------------------------------
+    # one rectangle per row of touching cells, not one per tile
+    doc_end_edit(ed);
+    check(len(tiles_solid_rects(ed)) == 0, "a layer is not solid until it is said to be");
+
+    layer.solid = true;
+    tiles_paint(ed, 8 + 16 * 6, 8, false);   # a gap, then one more cell
+    let rects = tiles_solid_rects(ed);
+    check(len(rects) == 3, "a run, a lone cell and the one at -1,-1 make three");
+
+    let widest = 0;
+    for (let i = 0; i < len(rects); i++) {
+        if (rects[i][2] > widest) { widest = rects[i][2]; }
+    }
+    check(widest == 16 * 5, "five touching cells merge into one rectangle");
+
+    # and Play actually builds them: the map is collision, not decoration
+    doc_end_edit(ed);
+    sim_play(ed);
+    check(ed.mode == "play", "Play builds a world from a level that is all tiles");
+    sim_stop(ed);
+    check(ed.mode == "edit", "and Stop throws it away");
+
+    # --- the brush as an entity's sprite -------------------------------
+    doc_end_edit(ed);
+    let crate = doc_add(ed, "Crate", "rect", 0, 0, 40, 40, 200, 200, 200);
+    doc_select_only(ed, crate.id);
+    tiles_apply_to_selection(ed);
+    check(crate.sprite.path == "assets/sheet.png", "the sheet becomes its artwork");
+    check(crate.sprite.quad[0] == 16 && crate.sprite.quad[1] == 32,
+          "cropped to the brush's tile");
+    check(crate.sprite.quad[2] == 16 && crate.sprite.quad[3] == 16,
+          "one tile big");
+
+    # --- removing a sheet takes its cells ------------------------------
+    let painted = tiles_count(ed);
+    check(painted > 0, "there are cells to lose");
+    doc_end_edit(ed);
+    tiles_remove_set(ed, ts.id);
+    check(len(tiles_sets(ed)) == 0, "the sheet is gone");
+    check(tiles_count(ed) == 0, "and every cell painted from it with it");
+
+    doc_end_edit(ed);
+    doc_undo(ed);
+    check(tiles_count(ed) == painted, "undo brings the map back");
+    check(len(tiles_sets(ed)) == 1, "sheet and all");
+
+    # --- through a file ------------------------------------------------
+    doc_save(ed, "tiles_level.json");
+    let reloaded = editor_new({ "scene": "tiles_level.json",
+                                "standalone": false, "active": false });
+    check(len(tiles_sets(reloaded)) == 1, "the sheet survives a round trip");
+    check(tiles_count(reloaded) == painted, "and so does every cell");
+    check(tiles_get(tiles_current_layer(reloaded), 0, 0) != null,
+          "in the cells they were painted in");
+
+    # --- what a game reads ---------------------------------------------
+    let scene = Scene(editor_document(ed));
+    check(scene.version() == DOC_VERSION, "the document is version " + DOC_VERSION);
+    check(len(scene.tilesets()) == 1, "the scene package sees the sheet");
+    check(scene.tileset(ts.id).path == "assets/sheet.png", "and where it lives");
+
+    let size = scene.tile_size();
+    check(size[0] == 16 && size[1] == 16, "and how big a cell is");
+
+    let read_layer = scene.tile_layers()[0];
+    check(scene.tile_count(read_layer) == painted, "every painted cell");
+    let read_cell = scene.tile_at(read_layer, 0, 0);
+    check(read_cell[1] == 1 && read_cell[2] == 2, "with the tile it was given");
+
+    let cells = scene.tile_cells(read_layer);
+    check(len(cells) == painted, "unpacked into an array of its own");
+    check(len(cells[0]) == 5, "as [column, row, sheet, tile column, tile row]");
+
+    let where = scene.tile_cell_at(20, 4);
+    check(where[0] == 1 && where[1] == 0, "a world point lands in the right cell");
+
+    let read_src = scene.tile_source(scene.tileset(ts.id), 1, 2);
+    check(read_src[0] == 16 && read_src[1] == 32,
+          "and the package cuts the sheet the same way the editor does");
+
+    let bounds = scene.tile_bounds();
+    check(bounds[0] == -16, "the map's bounds reach the cell at -1,-1");
+    check(len(scene.solid_tile_rects()) == 3, "and it reads the same collision");
+
+    # --- a level from before tiles existed ------------------------------
+    # It has to load, not be refused, and come back as a map with nothing in it.
+    let old = json_parse("{\"version\": 1, \"meter\": 30, \"gravity\": [0, 900], " +
+        "\"next_id\": 1, \"entities\": [], \"joints\": []}");
+    let migrated = doc_migrate(ed, old);
+    check(migrated != null, "a version 1 level still loads");
+    check(migrated.version == DOC_VERSION, "and is version " + DOC_VERSION + " afterwards");
+    check(len(migrated.tilesets) == 0, "with no sheets");
+    check(len(migrated.tilemap.layers) == 1, "and one empty layer");
+    check(len(Scene(migrated).tile_cells(migrated.tilemap.layers[0])) == 0,
+          "which the scene package reads as an empty map");
+
+    io_remove("tiles_level.json");
+}
+
+fn love_load() {
+    run();
+    println("CLOVE_TEST_OK");
+    love_event_quit();
+}
+
+fn main() {}

@@ -134,6 +134,34 @@ version 0.8.0 not yet released
 	either -- its hand-written source list had drifted far from the tree. It
 	now says so at the top rather than carrying a one-line flag change that
 	would look ported and would not be.
+* added: tile maps in the editor package (opt/packages/editor/tiles.fh). A
+	spritesheet could not be loaded at all before, so a map had to be built out
+	of one entity per tile -- name, transform, body and fixture in the file for
+	something whose whole content is "that tile, there". Inspector > Tilemap
+	adds a sheet and says how big one tile of it is (margin and spacing
+	included, for a packed one); the Tiles tool opens the sheet as a palette
+	over the viewport, a click or a drag paints the cell under the cursor and
+	Shift rubs it out. Layers, each drawn back to front, and any of them can be
+	marked solid: Play then builds static bodies from it with each row of
+	touching cells merged into one rectangle, so a floor is a handful of shapes
+	rather than one per tile and nothing catches on the seam between two.
+	"Brush -> selected sprite" gives the same tile to an entity, so a crate can
+	come out of the sheet too.
+* changed: the scene document is version 2. It carries "tilesets" and
+	"tilemap"; a cell is [tileset id, column, row] -- where the tile is in the
+	sheet rather than an index into it, so cropping the sheet or swapping it
+	for one a tile wider does not silently repaint the level. Version 1 files
+	load and are migrated on the way in.
+* added: the read side of all of it in opt/packages/scene -- scene.tilesets(),
+	tileset(), tilemap(), tile_size(), tile_layers(), tile_layer(),
+	tile_cells(), tile_at(), tile_cell_at(), tile_rect(), tile_source(),
+	tile_bounds(), tile_count() and solid_tile_rects(), which hands back the
+	same merged rectangles the editor collides with. Plus scene.sprite_quad()
+	for an entity whose artwork is one tile of a sheet.
+* added: an entity's sprite may be a crop of its image -- "quad": [x, y, w, h]
+	beside the path -- which is what lets one spritesheet dress a whole level.
+	opt/examples/fh/game draws both, and its level1.json now ships with a
+	painted ledge; opt/examples/fh/editor starts with one too.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

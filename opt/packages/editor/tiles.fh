@@ -1,0 +1,1100 @@
+# ============================================================================
+#  tiles.fh -- spritesheets, and the map painted out of them
+# ----------------------------------------------------------------------------
+#  A tile map is not a lot of little entities. Ten thousand crates would be
+#  ten thousand entities' worth of name, transform, colour, body and fixture
+#  in the file, and in every undo snapshot, for a thing whose whole content is
+#  "sheet 1, the tile at column 4 row 2". So a painted cell is exactly that:
+#  three numbers, in a map keyed by the cell it sits in.
+#
+#  The document grows two fields (doc.fh has the whole layout):
+#
+#    "tilesets": [ { "id": 1, "name": "terrain.png", "path": "art/terrain.png",
+#                    "tile_w": 32, "tile_h": 32, "margin": 0, "spacing": 0 } ],
+#    "tilemap":  { "tile_w": 32, "tile_h": 32,
+#                  "layers": [ { "id": 1, "name": "Ground", "visible": true,
+#                                "solid": false,
+#                                "cells": { "3,-1": [1, 4, 2] } } ] }
+#
+#  A cell holds [tileset id, column, row] -- where the tile *is in the sheet*,
+#  not an index into it. An index has to be read back through the sheet's
+#  column count, which is a property of the image file rather than of the
+#  level: crop the sheet, or swap it for one a tile wider, and every index in
+#  every level means a different picture. A column and a row survive that.
+#
+#  Nothing derived from the image is stored, the same way a traced outline is
+#  not: how many columns a sheet has, and the quads that cut it up, are worked
+#  out from the loaded image and cached on the app.
+#
+#  The palette -- the sheet you pick a tile from -- is drawn in the viewport
+#  with the ordinary graphics calls rather than as a panel, because microui
+#  cannot draw an image at all. Everything about it that is a *setting* (which
+#  sheet, the tile size, the layers) is a panel, in tiles_panel().
+# ============================================================================
+
+
+# The palette overlay, in screen pixels. It floats inside the viewport, against
+# its right edge, rather than taking a dock of its own: the sheet is only
+# wanted while something is being painted, and a fourth dock would still be
+# there for the rest of the time.
+let PAL_W       = 250;   # at most: it gives way to the scene in a narrow one
+let PAL_MIN_W   = 120;   # and below this there is no room for it at all
+let PAL_KEEP    = 150;   # of the viewport is always left for the scene
+let PAL_MARGIN  = 12;
+let PAL_PAD     = 8;
+let PAL_HEADER  = 24;
+let PAL_FOOTER  = 20;
+
+
+# ============================================================================
+#  The document side
+# ============================================================================
+
+fn tiles_new_layer(id, name) {
+	return { "id": id, "name": name, "visible": true, "solid": false,
+	         "cells": {} };
+}
+
+# A level always has one layer: painting with nowhere to paint is a state with
+# no answer to "where did my tile go", and one layer is what a map is.
+fn tilemap_empty() {
+	return { "tile_w": TILE_DEFAULT, "tile_h": TILE_DEFAULT,
+	         "layers": [ tiles_new_layer(1, "Ground") ] };
+}
+
+fn tiles_sets(app)   { return app.doc_data.tilesets; }
+fn tiles_map(app)    { return app.doc_data.tilemap; }
+fn tiles_layers(app) { return app.doc_data.tilemap.layers; }
+
+# One past the highest id in a list of things that have one. Ids are only ever
+# handed out here, and a deleted tileset takes its cells with it, so reusing a
+# number cannot resurrect a reference to the old one.
+fn tiles_next_id(list) {
+	let highest = 0;
+	for (let i = 0; i < len(list); i++) {
+		if (list[i].id > highest) { highest = list[i].id; }
+	}
+	return highest + 1;
+}
+
+fn tiles_find_set(app, id) {
+	let sets = tiles_sets(app);
+	for (let i = 0; i < len(sets); i++) {
+		if (sets[i].id == id) { return sets[i]; }
+	}
+	return null;
+}
+
+fn tiles_find_layer(app, id) {
+	let layers = tiles_layers(app);
+	for (let i = 0; i < len(layers); i++) {
+		if (layers[i].id == id) { return layers[i]; }
+	}
+	return null;
+}
+
+# The sheet the palette is showing. app.tile_set is a session choice, not
+# document data -- so it falls back to the first sheet rather than being
+# something a level has to remember.
+fn tiles_current_set(app) {
+	let ts = tiles_find_set(app, app.tile_set);
+	if (ts != null) { return ts; }
+	let sets = tiles_sets(app);
+	if (len(sets) == 0) { return null; }
+	app.tile_set = sets[0].id;
+	return sets[0];
+}
+
+fn tiles_current_layer(app) {
+	let layer = tiles_find_layer(app, app.tile_layer);
+	if (layer != null) { return layer; }
+	let layers = tiles_layers(app);
+	if (len(layers) == 0) { return null; }
+	app.tile_layer = layers[0].id;
+	return layers[0];
+}
+
+fn tiles_set_index(app, id) {
+	let sets = tiles_sets(app);
+	for (let i = 0; i < len(sets); i++) {
+		if (sets[i].id == id) { return i; }
+	}
+	return -1;
+}
+
+# --- sheets -----------------------------------------------------------------
+
+# `path` is stored the way a sprite's is: relative to the game directory when
+# the file is inside it, absolute otherwise (browser.fh decides that).
+fn tiles_add_set(app, path) {
+	doc_begin_edit(app);
+	let ts = { "id": tiles_next_id(tiles_sets(app)),
+	           "name": path_name(path),
+	           "path": path,
+	           "tile_w": tiles_map(app).tile_w,
+	           "tile_h": tiles_map(app).tile_h,
+	           "margin": 0, "spacing": 0 };
+	append(tiles_sets(app), ts);
+	app.tile_set = ts.id;
+	app.brush = null;
+	log_line(app, "sheet: " + ts.name);
+	return ts;
+}
+
+# Removing a sheet takes every cell painted from it: a cell that names a sheet
+# the level no longer has is a hole that draws nothing and cannot be undone
+# into anything meaningful.
+fn tiles_remove_set(app, id) {
+	if (tiles_find_set(app, id) == null) { return 0; }
+	doc_begin_edit(app);
+
+	let kept = [];
+	let sets = tiles_sets(app);
+	for (let i = 0; i < len(sets); i++) {
+		if (sets[i].id != id) { append(kept, sets[i]); }
+	}
+	app.doc_data.tilesets = kept;
+
+	let dropped = 0;
+	let layers = tiles_layers(app);
+	for (let i = 0; i < len(layers); i++) {
+		let cells = layers[i].cells;
+		let doomed = [];
+		let k = next_key(cells, null);
+		while (k != null) {
+			if (cells[k][0] == id) { append(doomed, k); }
+			k = next_key(cells, k);
+		}
+		for (let d = 0; d < len(doomed); d++) {
+			delete(cells, doomed[d]);
+			dropped = dropped + 1;
+		}
+	}
+
+	if (app.brush != null && app.brush[0] == id) { app.brush = null; }
+	app.tile_set = -1;
+	tiles_current_set(app);
+	log_line(app, "sheet removed, " + dropped + " cells with it");
+	return 0;
+}
+
+# --- layers -----------------------------------------------------------------
+
+fn tiles_add_layer(app) {
+	doc_begin_edit(app);
+	let layer = tiles_new_layer(tiles_next_id(tiles_layers(app)),
+		"Layer " + (len(tiles_layers(app)) + 1));
+	append(tiles_layers(app), layer);
+	app.tile_layer = layer.id;
+	log_line(app, "layer: " + layer.name);
+	return layer;
+}
+
+fn tiles_delete_layer(app, id) {
+	let layers = tiles_layers(app);
+	if (len(layers) <= 1) {
+		log_line(app, "a map keeps one layer");
+		return 0;
+	}
+	doc_begin_edit(app);
+
+	let kept = [];
+	for (let i = 0; i < len(layers); i++) {
+		if (layers[i].id != id) { append(kept, layers[i]); }
+	}
+	app.doc_data.tilemap.layers = kept;
+	app.tile_layer = kept[len(kept) - 1].id;
+	log_line(app, "layer deleted");
+	return 0;
+}
+
+fn tiles_clear_layer(app, layer) {
+	if (layer == null || len(layer.cells) == 0) { return 0; }
+	doc_begin_edit(app);
+	let n = len(layer.cells);
+	layer.cells = {};
+	log_line(app, "cleared " + n + " cells");
+	return 0;
+}
+
+# Array order is draw order, back first -- the same rule the hierarchy's
+# z-order buttons follow for entities.
+fn tiles_move_layer(app, id, delta) {
+	let layers = tiles_layers(app);
+	let from = -1;
+	for (let i = 0; i < len(layers); i++) {
+		if (layers[i].id == id) { from = i; }
+	}
+	if (from < 0) { return 0; }
+
+	let to = from + delta;
+	if (to < 0 || to >= len(layers)) { return 0; }
+
+	doc_begin_edit(app);
+	let moved = layers[from];
+	layers[from] = layers[to];
+	layers[to] = moved;
+	return 0;
+}
+
+# --- cells ------------------------------------------------------------------
+#
+# The key is the cell's coordinate as text, because a map key is a string and
+# a cell is two numbers. It is parsed back the same way, so anything that
+# writes one has to go through tile_key().
+
+fn tile_key(cx, cy) { return "" + cx + "," + cy; }
+
+fn tile_key_cell(key) {
+	let parts = string_split(key, ",");
+	if (len(parts) != 2) { return null; }
+	return [tonumber(parts[0]), tonumber(parts[1])];
+}
+
+fn tiles_get(layer, cx, cy) {
+	if (layer == null) { return null; }
+	let key = tile_key(cx, cy);
+	if (!contains_key(layer.cells, key)) { return null; }
+	return layer.cells[key];
+}
+
+# An edit step is only opened when the cell actually changes: dragging the
+# brush back and forth over one tile is one paint, not forty undo steps.
+fn tiles_put(app, layer, cx, cy, cell) {
+	if (layer == null) { return false; }
+	let old = tiles_get(layer, cx, cy);
+	if (old != null && old[0] == cell[0] && old[1] == cell[1] && old[2] == cell[2]) {
+		return false;
+	}
+	doc_begin_edit(app);
+	layer.cells[tile_key(cx, cy)] = [cell[0], cell[1], cell[2]];
+	return true;
+}
+
+fn tiles_erase(app, layer, cx, cy) {
+	if (layer == null) { return false; }
+	let key = tile_key(cx, cy);
+	if (!contains_key(layer.cells, key)) { return false; }
+	doc_begin_edit(app);
+	delete(layer.cells, key);
+	return true;
+}
+
+# World point -> the cell that covers it. math_floor, not a cast: a point at
+# x = -1 is in cell -1, and truncation would put it in cell 0 along with
+# everything from 0 to 31.
+fn tiles_cell_of(app, wx, wy) {
+	let m = tiles_map(app);
+	return [math_floor(wx / m.tile_w), math_floor(wy / m.tile_h)];
+}
+
+fn tiles_cell_rect(app, cx, cy) {
+	let m = tiles_map(app);
+	return [cx * m.tile_w, cy * m.tile_h, m.tile_w, m.tile_h];
+}
+
+fn tiles_count(app) {
+	let n = 0;
+	let layers = tiles_layers(app);
+	for (let i = 0; i < len(layers); i++) { n = n + len(layers[i].cells); }
+	return n;
+}
+
+# [min_x, min_y, max_x, max_y] over every painted cell, or null when the map is
+# empty. Frame all reads it, so a level that is only tiles still frames.
+fn tiles_bounds(app) {
+	let m = tiles_map(app);
+	let layers = tiles_layers(app);
+	let found = false;
+	let minx = 0;
+	let miny = 0;
+	let maxx = 0;
+	let maxy = 0;
+
+	for (let i = 0; i < len(layers); i++) {
+		let cells = layers[i].cells;
+		let k = next_key(cells, null);
+		while (k != null) {
+			let c = tile_key_cell(k);
+			if (c != null) {
+				let x0 = c[0] * m.tile_w;
+				let y0 = c[1] * m.tile_h;
+				if (!found) {
+					found = true;
+					minx = x0;
+					miny = y0;
+					maxx = x0 + m.tile_w;
+					maxy = y0 + m.tile_h;
+				} else {
+					if (x0 < minx) { minx = x0; }
+					if (y0 < miny) { miny = y0; }
+					if (x0 + m.tile_w > maxx) { maxx = x0 + m.tile_w; }
+					if (y0 + m.tile_h > maxy) { maxy = y0 + m.tile_h; }
+				}
+			}
+			k = next_key(cells, k);
+		}
+	}
+
+	if (!found) { return null; }
+	return [minx, miny, maxx, maxy];
+}
+
+
+# ============================================================================
+#  The sheet: slicing an image into tiles
+# ============================================================================
+
+fn tileset_image(app, ts) {
+	if (ts == null) { return null; }
+	return sprite_image(app, ts.path);
+}
+
+fn tileset_columns(app, ts) {
+	let img = tileset_image(app, ts);
+	if (img == null) { return 0; }
+	let usable = love_image_getWidth(img) - ts.margin * 2 + ts.spacing;
+	let step = ts.tile_w + ts.spacing;
+	if (step <= 0 || usable <= 0) { return 0; }
+	return math_floor(usable / step);
+}
+
+fn tileset_rows(app, ts) {
+	let img = tileset_image(app, ts);
+	if (img == null) { return 0; }
+	let usable = love_image_getHeight(img) - ts.margin * 2 + ts.spacing;
+	let step = ts.tile_h + ts.spacing;
+	if (step <= 0 || usable <= 0) { return 0; }
+	return math_floor(usable / step);
+}
+
+# Where a tile sits in the sheet, in pixels: [x, y, w, h]. Pure arithmetic, no
+# image needed -- the scene package computes the same rect from the same four
+# numbers, which is what lets a game read a level without this file.
+fn tileset_src(ts, tx, ty) {
+	return [ts.margin + tx * (ts.tile_w + ts.spacing),
+	        ts.margin + ty * (ts.tile_h + ts.spacing),
+	        ts.tile_w, ts.tile_h];
+}
+
+# Quads are cached because a screenful of tiles asks for the same few hundred
+# of them every frame, and love_graphics_newQuad() allocates. The key carries
+# everything the quad is made of, so changing a sheet's tile size or margin
+# simply stops hitting the old entries instead of needing them invalidated.
+fn tile_quad(app, img, path, rect) {
+	let key = path + "|" + rect[0] + "," + rect[1] + "," + rect[2] + "," + rect[3];
+	if (contains_key(app.quad_cache, key)) { return app.quad_cache[key]; }
+
+	let q = love_graphics_newQuad(rect[0], rect[1], rect[2], rect[3],
+		love_image_getWidth(img), love_image_getHeight(img));
+	app.quad_cache[key] = q;
+	return q;
+}
+
+fn tileset_quad(app, ts, tx, ty) {
+	let img = tileset_image(app, ts);
+	if (img == null) { return null; }
+	return tile_quad(app, img, ts.path, tileset_src(ts, tx, ty));
+}
+
+
+# ============================================================================
+#  Painting
+# ============================================================================
+
+# A hidden layer is not painted into: a stroke that lands somewhere invisible
+# is worse than one that does nothing. Silently, because this runs per cell of
+# a drag -- the cursor is what says so, in cursor_update().
+fn tiles_paint(app, wx, wy, erase) {
+	let layer = tiles_current_layer(app);
+	if (layer == null || !layer.visible) { return 0; }
+
+	let c = tiles_cell_of(app, wx, wy);
+	if (erase) { return tiles_erase(app, layer, c[0], c[1]); }
+	if (app.brush == null) { return 0; }
+	return tiles_put(app, layer, c[0], c[1], app.brush);
+}
+
+# Fills the cells the current brush covers along a line, so a fast drag does
+# not leave gaps: the mouse only reports where it is once a frame, and a cell
+# is easily crossed between two of them.
+fn tiles_paint_line(app, from_x, from_y, to_x, to_y, erase) {
+	let a = tiles_cell_of(app, from_x, from_y);
+	let b = tiles_cell_of(app, to_x, to_y);
+	let steps = math_max(math_abs(b[0] - a[0]), math_abs(b[1] - a[1]));
+	if (steps == 0) { return tiles_paint(app, to_x, to_y, erase); }
+
+	let m = tiles_map(app);
+	for (let i = 0; i <= steps; i++) {
+		let t = i * 1.0 / steps;
+		# the middle of the cell, so rounding cannot land it one over
+		let cx = a[0] + (b[0] - a[0]) * t;
+		let cy = a[1] + (b[1] - a[1]) * t;
+		tiles_paint(app, (math_floor(cx + 0.5) + 0.5) * m.tile_w,
+		                 (math_floor(cy + 0.5) + 0.5) * m.tile_h, erase);
+	}
+	return 0;
+}
+
+
+# ============================================================================
+#  Collision
+# ============================================================================
+#
+#  A layer marked solid becomes static bodies when Play runs. One body per
+#  tile would be thousands of them, and Box2D would spend its time on contacts
+#  between neighbours that can never move -- so a row of touching cells becomes
+#  one rectangle. That also removes the seams a body-per-tile floor has, where
+#  a moving box catches on the edge between two tiles.
+
+fn tiles_row_runs(cols) {
+	# insertion sort: a row holds tens of entries, and this keeps the merge
+	# below to a single pass
+	for (let i = 1; i < len(cols); i++) {
+		let v = cols[i];
+		let k = i - 1;
+		while (k >= 0 && cols[k] > v) {
+			cols[k + 1] = cols[k];
+			k = k - 1;
+		}
+		cols[k + 1] = v;
+	}
+
+	let runs = [];
+	let start = 0;
+	let prev = 0;
+	let open = false;
+	for (let i = 0; i < len(cols); i++) {
+		if (!open) {
+			start = cols[i];
+			prev = cols[i];
+			open = true;
+		} else if (cols[i] == prev + 1) {
+			prev = cols[i];
+		} else if (cols[i] != prev) {
+			append(runs, [start, prev]);
+			start = cols[i];
+			prev = cols[i];
+		}
+	}
+	if (open) { append(runs, [start, prev]); }
+	return runs;
+}
+
+# [x, y, w, h] in world units, one per merged run, over every solid layer.
+fn tiles_solid_rects(app) {
+	let m = tiles_map(app);
+	let out = [];
+	let layers = tiles_layers(app);
+
+	for (let i = 0; i < len(layers); i++) {
+		let layer = layers[i];
+		if (!layer.solid) { continue; }
+
+		# gather each row's columns, then merge -- the cells map has no order
+		let rows = {};
+		let k = next_key(layer.cells, null);
+		while (k != null) {
+			let c = tile_key_cell(k);
+			if (c != null) {
+				let row = "" + c[1];
+				if (!contains_key(rows, row)) { rows[row] = []; }
+				append(rows[row], c[0]);
+			}
+			k = next_key(layer.cells, k);
+		}
+
+		let row = next_key(rows, null);
+		while (row != null) {
+			let runs = tiles_row_runs(rows[row]);
+			let cy = tonumber(row);
+			for (let r = 0; r < len(runs); r++) {
+				append(out, [runs[r][0] * m.tile_w, cy * m.tile_h,
+				             (runs[r][1] - runs[r][0] + 1) * m.tile_w, m.tile_h]);
+			}
+			row = next_key(rows, row);
+		}
+	}
+	return out;
+}
+
+
+# ============================================================================
+#  Drawing the map
+# ============================================================================
+#
+#  Called inside the camera transform, and only for the cells the viewport can
+#  actually see: a map is unbounded, so walking its cells would be walking
+#  everything ever painted, every frame.
+
+fn tiles_draw_cell(app, m, cx, cy, cell) {
+	let ts = tiles_find_set(app, cell[0]);
+	let img = tileset_image(app, ts);
+	if (img == null) { return 0; }
+
+	# the sheet's tile size need not be the map's: scale onto the cell rather
+	# than leaving a gap or an overlap
+	love_graphics_draw(img, tileset_quad(app, ts, cell[1], cell[2]),
+		cx * m.tile_w, cy * m.tile_h, 0,
+		m.tile_w * 1.0 / ts.tile_w, m.tile_h * 1.0 / ts.tile_h);
+	return 0;
+}
+
+fn tiles_draw_layers(app) {
+	let m = tiles_map(app);
+	let layers = tiles_layers(app);
+	if (len(layers) == 0) { return 0; }
+
+	let tl = cam_to_world(app, app.vp_x, app.vp_y);
+	let br = cam_to_world(app, app.vp_x + app.vp_w, app.vp_y + app.vp_h);
+	let cx0 = math_floor(tl[0] / m.tile_w);
+	let cy0 = math_floor(tl[1] / m.tile_h);
+	let cx1 = math_floor(br[0] / m.tile_w);
+	let cy1 = math_floor(br[1] / m.tile_h);
+	let span = (cx1 - cx0 + 1) * (cy1 - cy0 + 1);
+
+	love_graphics_setColor(255, 255, 255, 255);
+
+	for (let i = 0; i < len(layers); i++) {
+		let layer = layers[i];
+		if (!layer.visible || len(layer.cells) == 0) { continue; }
+
+		# Two ways round the same picture, and the cheaper one wins: walk the
+		# cells the viewport covers, or walk what the layer holds. Zoomed in on
+		# a big map the first is a few hundred lookups; zoomed out over a
+		# nearly empty one it is tens of thousands of misses, and the layer
+		# itself is shorter than that.
+		if (len(layer.cells) < span) {
+			let k = next_key(layer.cells, null);
+			while (k != null) {
+				let c = tile_key_cell(k);
+				if (c != null && c[0] >= cx0 && c[0] <= cx1 &&
+				    c[1] >= cy0 && c[1] <= cy1) {
+					tiles_draw_cell(app, m, c[0], c[1], layer.cells[k]);
+				}
+				k = next_key(layer.cells, k);
+			}
+			continue;
+		}
+
+		for (let cy = cy0; cy <= cy1; cy++) {
+			for (let cx = cx0; cx <= cx1; cx++) {
+				let cell = tiles_get(layer, cx, cy);
+				if (cell != null) { tiles_draw_cell(app, m, cx, cy, cell); }
+			}
+		}
+	}
+	return 0;
+}
+
+# The cell the next click would paint, and what it would put there. Drawn
+# inside the camera transform, over the map and under the panels.
+fn tiles_draw_brush(app) {
+	if (app.tool != "tile" || app.mode == "play") { return 0; }
+	if (!app.hover_viewport) { return 0; }
+	if (tiles_palette_hover(app)) { return 0; }
+
+	let c = tiles_cell_of(app, app.wx, app.wy);
+	let r = tiles_cell_rect(app, c[0], c[1]);
+	let erase = love_keyboard_isDown("lshift") || love_keyboard_isDown("rshift");
+
+	if (!erase && app.brush != null) {
+		let ts = tiles_find_set(app, app.brush[0]);
+		let img = tileset_image(app, ts);
+		if (img != null) {
+			# a ghost of the tile, so the choice is visible where it lands
+			love_graphics_setColor(255, 255, 255, 130);
+			love_graphics_draw(img, tileset_quad(app, ts, app.brush[1], app.brush[2]),
+				r[0], r[1], 0, r[2] * 1.0 / ts.tile_w, r[3] * 1.0 / ts.tile_h);
+		}
+	}
+
+	if (erase) {
+		love_graphics_setColor(255, 120, 120, 230);
+	} else {
+		love_graphics_setColor(120, 220, 255, 230);
+	}
+	love_geometry_rectangle("line", r[0], r[1], r[2], r[3]);
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+
+# ============================================================================
+#  The palette
+# ============================================================================
+#
+#  Drawn with the graphics calls rather than as a microui panel, because
+#  microui has no way to draw an image -- which is the entire content of a
+#  palette. It follows that the clicks are hit-tested here too, and that
+#  viewport_input() has to offer it the press before the scene sees it.
+
+# How wide it may be here: it narrows with the viewport rather than covering
+# it, and gives up entirely when there is nothing left to narrow into. A game's
+# window is not going to be 1280 wide because the palette would like it to be.
+fn tiles_palette_width(app) {
+	return math_min(PAL_W, app.vp_w - PAL_KEEP - PAL_MARGIN * 2);
+}
+
+fn tiles_palette_open(app) {
+	return app.tool == "tile" && app.pal_open && app.mode != "play" &&
+		tiles_palette_width(app) >= PAL_MIN_W;
+}
+
+# [x, y, w, h] on screen, or null when it is not up.
+fn tiles_palette_rect(app) {
+	if (!tiles_palette_open(app)) { return null; }
+	let w = tiles_palette_width(app);
+	let x = app.vp_x + app.vp_w - w - PAL_MARGIN;
+	let y = app.vp_y + PAL_MARGIN;
+	let h = app.vp_h - PAL_MARGIN * 2;
+	return [x, y, w, h];
+}
+
+# The scrolling area the sheet is drawn into.
+fn tiles_palette_sheet_rect(app) {
+	let r = tiles_palette_rect(app);
+	if (r == null) { return null; }
+	return [r[0] + PAL_PAD, r[1] + PAL_HEADER,
+	        r[2] - PAL_PAD * 2, r[3] - PAL_HEADER - PAL_FOOTER];
+}
+
+# The sheet is fitted to the palette's width, so the tiles are as big as the
+# space allows and only the scroll is left to think about.
+fn tiles_palette_scale(app, ts) {
+	let img = tileset_image(app, ts);
+	let area = tiles_palette_sheet_rect(app);
+	if (img == null || area == null) { return 1; }
+	let w = love_image_getWidth(img);
+	if (w <= 0) { return 1; }
+	return area[2] * 1.0 / w;
+}
+
+fn tiles_palette_hover(app) {
+	let r = tiles_palette_rect(app);
+	if (r == null) { return false; }
+	return point_in(app.mx, app.my, r[0], r[1], r[2], r[3]);
+}
+
+# Which tile a point in the palette is over, as [column, row], or null when it
+# is over the gap between two of them or past the end of the sheet.
+fn tiles_palette_cell_at(app, ts, sx, sy) {
+	let area = tiles_palette_sheet_rect(app);
+	if (area == null || ts == null) { return null; }
+	if (!point_in(sx, sy, area[0], area[1], area[2], area[3])) { return null; }
+
+	let scale = tiles_palette_scale(app, ts);
+	if (scale <= 0) { return null; }
+
+	# back to sheet pixels
+	let ix = (sx - area[0]) / scale;
+	let iy = (sy - area[1] + app.pal_scroll) / scale;
+
+	let step_x = ts.tile_w + ts.spacing;
+	let step_y = ts.tile_h + ts.spacing;
+	if (step_x <= 0 || step_y <= 0) { return null; }
+
+	let tx = math_floor((ix - ts.margin) / step_x);
+	let ty = math_floor((iy - ts.margin) / step_y);
+	if (tx < 0 || ty < 0) { return null; }
+	if (tx >= tileset_columns(app, ts) || ty >= tileset_rows(app, ts)) { return null; }
+
+	# inside the tile, not in the spacing after it
+	if ((ix - ts.margin) - tx * step_x > ts.tile_w) { return null; }
+	if ((iy - ts.margin) - ty * step_y > ts.tile_h) { return null; }
+	return [tx, ty];
+}
+
+# How far the sheet can be scrolled: its drawn height less the area's, never
+# below zero, so a sheet that fits does not move at all.
+fn tiles_palette_max_scroll(app, ts) {
+	let img = tileset_image(app, ts);
+	let area = tiles_palette_sheet_rect(app);
+	if (img == null || area == null) { return 0; }
+	let drawn = love_image_getHeight(img) * tiles_palette_scale(app, ts);
+	return math_max(0, drawn - area[3]);
+}
+
+fn tiles_palette_scroll_by(app, dy) {
+	let ts = tiles_current_set(app);
+	app.pal_scroll = app.pal_scroll + dy;
+	let most = tiles_palette_max_scroll(app, ts);
+	if (app.pal_scroll > most) { app.pal_scroll = most; }
+	if (app.pal_scroll < 0) { app.pal_scroll = 0; }
+	return 0;
+}
+
+fn tiles_pick_set(app, delta) {
+	let sets = tiles_sets(app);
+	if (len(sets) == 0) { return 0; }
+	let i = tiles_set_index(app, app.tile_set);
+	if (i < 0) { i = 0; }
+	i = (i + delta + len(sets)) % len(sets);
+	app.tile_set = sets[i].id;
+	app.pal_scroll = 0;
+	return 0;
+}
+
+# The two arrows in the header, when there is more than one sheet to cycle.
+fn tiles_palette_arrows(app) {
+	let r = tiles_palette_rect(app);
+	if (r == null || len(tiles_sets(app)) < 2) { return null; }
+	let size = 16;
+	let y = r[1] + 4;
+	return [[r[0] + r[2] - size * 2 - 10, y, size, size],
+	        [r[0] + r[2] - size - 6, y, size, size]];
+}
+
+# Answers true when the palette took the press, so the viewport leaves it
+# alone -- a click on the sheet must not also paint the scene behind it.
+fn tiles_palette_input(app, pressed, px, py) {
+	let r = tiles_palette_rect(app);
+	if (r == null) { return false; }
+	if (!point_in(app.mx, app.my, r[0], r[1], r[2], r[3])) { return false; }
+
+	# the wheel scrolls the sheet instead of zooming the camera
+	if (app.wheel != 0) {
+		tiles_palette_scroll_by(app, -app.wheel * 48);
+		app.wheel = 0;
+	}
+
+	if (!pressed || !point_in(px, py, r[0], r[1], r[2], r[3])) { return true; }
+
+	let arrows = tiles_palette_arrows(app);
+	if (arrows != null) {
+		if (point_in(px, py, arrows[0][0], arrows[0][1], arrows[0][2], arrows[0][3])) {
+			tiles_pick_set(app, -1);
+			return true;
+		}
+		if (point_in(px, py, arrows[1][0], arrows[1][1], arrows[1][2], arrows[1][3])) {
+			tiles_pick_set(app, 1);
+			return true;
+		}
+	}
+
+	let ts = tiles_current_set(app);
+	let cell = tiles_palette_cell_at(app, ts, px, py);
+	if (cell != null) {
+		app.brush = [ts.id, cell[0], cell[1]];
+		log_line(app, "brush: " + ts.name + " " + cell[0] + "," + cell[1]);
+	}
+	return true;
+}
+
+fn tiles_palette_draw(app) {
+	let r = tiles_palette_rect(app);
+	if (r == null) { return 0; }
+
+	love_graphics_setColor(18, 20, 26, 235);
+	love_geometry_rectangle("fill", r[0], r[1], r[2], r[3]);
+	love_graphics_setColor(70, 76, 90, 255);
+	love_geometry_rectangle("line", r[0], r[1], r[2], r[3]);
+
+	let ts = tiles_current_set(app);
+	if (ts == null) {
+		love_graphics_setColor(190, 195, 205, 255);
+		love_graphics_print("No spritesheet yet.", r[0] + PAL_PAD, r[1] + 6);
+		love_graphics_print("Inspector > Tilemap > Add sheet",
+			r[0] + PAL_PAD, r[1] + 6 + love_font_getHeight() + 4);
+		love_graphics_setColor(255, 255, 255, 255);
+		return 0;
+	}
+
+	# --- header ---
+	love_graphics_setColor(230, 232, 240, 255);
+	let title = ts.name;
+	if (len(tiles_sets(app)) > 1) {
+		title = title + "  (" + (tiles_set_index(app, ts.id) + 1) + "/" +
+			len(tiles_sets(app)) + ")";
+	}
+	love_graphics_print(title, r[0] + PAL_PAD, r[1] + 5);
+
+	let arrows = tiles_palette_arrows(app);
+	if (arrows != null) {
+		for (let i = 0; i < 2; i++) {
+			let a = arrows[i];
+			let hot = point_in(app.mx, app.my, a[0], a[1], a[2], a[3]);
+			if (hot) {
+				love_graphics_setColor(120, 170, 255, 255);
+			} else {
+				love_graphics_setColor(90, 96, 112, 255);
+			}
+			love_geometry_rectangle("fill", a[0], a[1], a[2], a[3]);
+			love_graphics_setColor(235, 238, 245, 255);
+			let glyph = "<";
+			if (i == 1) { glyph = ">"; }
+			love_graphics_print(glyph, a[0] + 5, a[1] + 1);
+		}
+	}
+
+	# --- the sheet ---
+	let area = tiles_palette_sheet_rect(app);
+	let img = tileset_image(app, ts);
+	if (img == null) {
+		love_graphics_setColor(230, 140, 140, 255);
+		love_graphics_print("cannot load " + ts.path, area[0], area[1]);
+		love_graphics_setColor(255, 255, 255, 255);
+		return 0;
+	}
+
+	# glScissor's origin is the bottom left, unlike every other call here --
+	# the same note as in view_draw()
+	love_graphics_setScissor(area[0], app.screen_h - area[1] - area[3], area[2], area[3]);
+
+	let scale = tiles_palette_scale(app, ts);
+	let ox = area[0];
+	let oy = area[1] - app.pal_scroll;
+
+	love_graphics_setColor(255, 255, 255, 255);
+	love_graphics_draw(img, ox, oy, 0, scale, scale);
+
+	# the grid the sheet is cut on, so a wrong tile size is visible rather
+	# than merely wrong
+	let cols = tileset_columns(app, ts);
+	let rows = tileset_rows(app, ts);
+	love_graphics_setColor(120, 130, 150, 120);
+	for (let tx = 0; tx <= cols; tx++) {
+		let x = ox + (ts.margin + tx * (ts.tile_w + ts.spacing)) * scale;
+		love_geometry_line([x, oy + ts.margin * scale,
+			x, oy + (ts.margin + rows * (ts.tile_h + ts.spacing)) * scale]);
+	}
+	for (let ty = 0; ty <= rows; ty++) {
+		let y = oy + (ts.margin + ty * (ts.tile_h + ts.spacing)) * scale;
+		love_geometry_line([ox + ts.margin * scale, y,
+			ox + (ts.margin + cols * (ts.tile_w + ts.spacing)) * scale, y]);
+	}
+
+	# what the mouse is over, and what the brush is set to
+	let hover = tiles_palette_cell_at(app, ts, app.mx, app.my);
+	if (hover != null) {
+		let src = tileset_src(ts, hover[0], hover[1]);
+		love_graphics_setColor(255, 255, 255, 160);
+		love_geometry_rectangle("line", ox + src[0] * scale, oy + src[1] * scale,
+			src[2] * scale, src[3] * scale);
+	}
+	if (app.brush != null && app.brush[0] == ts.id) {
+		let src = tileset_src(ts, app.brush[1], app.brush[2]);
+		love_graphics_setColor(255, 214, 90, 255);
+		love_geometry_rectangle("line", ox + src[0] * scale, oy + src[1] * scale,
+			src[2] * scale, src[3] * scale);
+	}
+
+	love_graphics_setScissor();
+	# the viewport's own clip, which this borrowed for a moment
+	love_graphics_setScissor(app.vp_x, app.screen_h - app.vp_y - app.vp_h,
+		app.vp_w, app.vp_h);
+
+	# --- footer ---
+	love_graphics_setColor(150, 158, 175, 255);
+	let footer = cols + "x" + rows + " tiles";
+	if (app.brush != null && app.brush[0] == ts.id) {
+		footer = footer + "   brush " + app.brush[1] + "," + app.brush[2];
+	} else {
+		footer = footer + "   click a tile";
+	}
+	love_graphics_print(footer, r[0] + PAL_PAD, r[1] + r[3] - PAL_FOOTER + 2);
+	love_graphics_setColor(255, 255, 255, 255);
+	return 0;
+}
+
+
+# ============================================================================
+#  The panel
+# ============================================================================
+#
+#  Everything about the map that is a setting rather than a picture: the cell
+#  size, the sheets and how they are cut, and the layers. It is a section of
+#  the inspector, so it is beside the entity fields rather than in a window of
+#  its own -- a map and the things standing on it are one level.
+
+fn tiles_clamp_tile(v) {
+	let n = math_floor(v + 0.5);
+	if (n < TILE_MIN) { n = TILE_MIN; }
+	if (n > TILE_MAX) { n = TILE_MAX; }
+	return n;
+}
+
+# The brush, as a crop on the selected entities' sprite: the other half of
+# "extract a tile from a sheet", for the things that move rather than the
+# ground they stand on.
+fn tiles_apply_to_selection(app) {
+	if (app.brush == null) { return 0; }
+	let ts = tiles_find_set(app, app.brush[0]);
+	if (ts == null) { return 0; }
+
+	let sel = doc_selected_entities(app);
+	if (len(sel) == 0) { return 0; }
+
+	doc_begin_edit(app);
+	let src = tileset_src(ts, app.brush[1], app.brush[2]);
+	for (let i = 0; i < len(sel); i++) {
+		sel[i].sprite = { "path": ts.path, "quad": [src[0], src[1], src[2], src[3]] };
+	}
+	love_ui_clear_textbox(SPRITE_BOX);
+	log_line(app, "sprite: " + ts.name + " " + app.brush[1] + "," + app.brush[2] +
+		" on " + len(sel));
+	return 0;
+}
+
+fn tiles_sheet_section(app) {
+	let sets = tiles_sets(app);
+
+	love_ui_layout_row(1, [-1], 0);
+	if (len(sets) == 0) {
+		love_ui_label("no sheet yet");
+	}
+	for (let i = 0; i < len(sets); i++) {
+		let ts = sets[i];
+		# two sheets can have the same file name, and microui hashes a
+		# button's label into its id
+		love_ui_pushId(ts.id);
+		let mark = "  ";
+		if (app.tile_set == ts.id) { mark = "> "; }
+		if (love_ui_button(mark + ts.name, ALIGN_LEFT)) {
+			app.tile_set = ts.id;
+			app.pal_scroll = 0;
+		}
+		love_ui_popId();
+	}
+
+	love_ui_layout_row(2, [-90, -1], 0);
+	if (love_ui_button("Add sheet...", ALIGN_CENTER)) { browser_open_tileset(app); }
+	tip(app, "Pick a spritesheet. Only its path is stored -- relative when " +
+		"the file is inside the game folder, absolute otherwise.");
+	if (ui_button_enabled("Remove", len(sets) > 0, ALIGN_CENTER)) {
+		tiles_remove_set(app, app.tile_set);
+	}
+	tip(app, "Take the sheet out of the level, and with it every cell painted " +
+		"from it.");
+
+	let ts = tiles_current_set(app);
+	if (ts == null) { return 0; }
+
+	love_ui_layout_row(3, [46, 74, -1], 0);
+	love_ui_label("Tile:");
+	let tw = tiles_clamp_tile(love_ui_number(ts.tile_w, 1, ID_NUM_TILE_W, ALIGN_CENTER, 0));
+	let th = tiles_clamp_tile(love_ui_number(ts.tile_h, 1, ID_NUM_TILE_H, ALIGN_CENTER, 0));
+	if (tw != ts.tile_w || th != ts.tile_h) {
+		doc_begin_edit(app);
+		ts.tile_w = tw;
+		ts.tile_h = th;
+		app.brush = null;
+	}
+	tip(app, "How big one tile is in this sheet, in pixels. The grid drawn " +
+		"over the palette is this, so a wrong size is visible rather than " +
+		"merely wrong.");
+
+	love_ui_label("Gaps:");
+	let margin = math_max(0, math_floor(love_ui_number(ts.margin, 1, ID_NUM_MARGIN, ALIGN_CENTER, 0) + 0.5));
+	let spacing = math_max(0, math_floor(love_ui_number(ts.spacing, 1, ID_NUM_SPACING, ALIGN_CENTER, 0) + 0.5));
+	if (margin != ts.margin || spacing != ts.spacing) {
+		doc_begin_edit(app);
+		ts.margin = margin;
+		ts.spacing = spacing;
+		app.brush = null;
+	}
+	tip(app, "Margin around the sheet, then spacing between two tiles. Both " +
+		"are what a packer leaves behind; both are zero in a plain grid.");
+
+	love_ui_layout_row(1, [-1], 0);
+	let img = tileset_image(app, ts);
+	if (img == null) {
+		love_ui_label("cannot load " + ts.path);
+	} else {
+		love_ui_label(tileset_columns(app, ts) + "x" + tileset_rows(app, ts) +
+			" tiles of " + love_image_getWidth(img) + "x" + love_image_getHeight(img));
+	}
+	return 0;
+}
+
+fn tiles_layer_section(app) {
+	let layers = tiles_layers(app);
+	let current = tiles_current_layer(app);
+
+	for (let i = 0; i < len(layers); i++) {
+		let layer = layers[i];
+		love_ui_pushId(layer.id);
+
+		love_ui_layout_row(3, [78, 46, -1], 0);
+		let mark = "  ";
+		if (current != null && current.id == layer.id) { mark = "> "; }
+		if (love_ui_button(mark + layer.name, ALIGN_LEFT)) { app.tile_layer = layer.id; }
+
+		if (love_ui_checkbox("vis", layer.visible, TILE_CHECK_BASE)) {
+			doc_begin_edit(app);
+			layer.visible = !layer.visible;
+		}
+		if (love_ui_checkbox("solid", layer.solid, TILE_CHECK_BASE + 1)) {
+			doc_begin_edit(app);
+			layer.solid = !layer.solid;
+		}
+		tip(app, "A solid layer becomes static collision when Play runs: each " +
+			"row of touching cells as one rectangle, so nothing catches on " +
+			"the seam between two tiles.");
+
+		love_ui_popId();
+	}
+
+	love_ui_layout_row(4, [58, 58, 58, -1], 0);
+	if (love_ui_button("Add", ALIGN_CENTER)) { tiles_add_layer(app); }
+	if (ui_button_enabled("Delete", len(layers) > 1, ALIGN_CENTER)) {
+		tiles_delete_layer(app, app.tile_layer);
+	}
+	if (love_ui_button("Down", ALIGN_CENTER)) { tiles_move_layer(app, app.tile_layer, -1); }
+	if (love_ui_button("Up", ALIGN_CENTER)) { tiles_move_layer(app, app.tile_layer, 1); }
+	tip(app, "This list is the draw order, front last -- the same rule the " +
+		"hierarchy follows for entities.");
+
+	love_ui_layout_row(2, [-90, -1], 0);
+	let cells = 0;
+	if (current != null) { cells = len(current.cells); }
+	love_ui_label(cells + " cells here");
+	if (ui_button_enabled("Clear", cells > 0, ALIGN_CENTER)) {
+		tiles_clear_layer(app, current);
+	}
+	return 0;
+}
+
+fn tiles_panel(app) {
+	let opt = 0;
+	if (app.tool == "tile") { opt = OPT_EXPANDED; }
+	if (!love_ui_header("Tilemap", opt)) { return 0; }
+
+	let m = tiles_map(app);
+
+	love_ui_layout_row(3, [46, 74, -1], 0);
+	love_ui_label("Cell:");
+	let cw = tiles_clamp_tile(love_ui_number(m.tile_w, 1, ID_NUM_CELL_W, ALIGN_CENTER, 0));
+	let ch = tiles_clamp_tile(love_ui_number(m.tile_h, 1, ID_NUM_CELL_H, ALIGN_CENTER, 0));
+	if (cw != m.tile_w || ch != m.tile_h) {
+		doc_begin_edit(app);
+		m.tile_w = cw;
+		m.tile_h = ch;
+	}
+	tip(app, "How big a cell of the map is, in world units. A sheet whose " +
+		"tiles are a different size is scaled onto it rather than leaving a " +
+		"gap, so this is the map's grid, not the artwork's.");
+
+	love_ui_layout_row(1, [-1], 0);
+	if (love_ui_button("Paint tiles", ALIGN_CENTER)) {
+		app.tool = "tile";
+		app.pal_open = true;
+		log_line(app, "tool: tile -- click paints, Shift erases");
+	}
+	tip(app, "The Tiles tool: the palette opens over the viewport, a click " +
+		"paints the cell under the cursor and Shift+click rubs it out.");
+
+	if (love_ui_header("Sheets", OPT_EXPANDED)) { tiles_sheet_section(app); }
+	if (love_ui_header("Layers", OPT_EXPANDED)) { tiles_layer_section(app); }
+
+	love_ui_layout_row(1, [-1], 0);
+	if (ui_button_enabled("Brush -> selected sprite",
+	                      app.brush != null && doc_selected(app) != null,
+	                      ALIGN_CENTER)) {
+		tiles_apply_to_selection(app);
+	}
+	tip(app, "Give everything selected the brush's tile as its sprite -- the " +
+		"same sheet, cropped to that one tile. Entities take a tile the same " +
+		"way the map does.");
+	return 0;
+}

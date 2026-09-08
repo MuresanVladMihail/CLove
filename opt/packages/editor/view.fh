@@ -112,10 +112,19 @@ fn view_draw_entity(app, e) {
 			}
 		} else {
 			# scale the artwork onto the fixture, and rotate about its centre
-			let iw = love_image_getWidth(img);
-			let ih = love_image_getHeight(img);
-			love_graphics_draw(img, cx, cy, angle,
-				f.w / iw, f.h / ih, iw * 0.5, ih * 0.5);
+			let size = sprite_size_of(app, e, img);
+			let iw = size[0];
+			let ih = size[1];
+			let quad = sprite_quad_of(app, e);
+			if (quad == null) {
+				love_graphics_draw(img, cx, cy, angle,
+					f.w / iw, f.h / ih, iw * 0.5, ih * 0.5);
+			} else {
+				# one tile of a sheet: the same call with the crop in front of
+				# the position, and the origin in the crop's own coordinates
+				love_graphics_draw(img, quad, cx, cy, angle,
+					f.w / iw, f.h / ih, iw * 0.5, ih * 0.5);
+			}
 		}
 	}
 
@@ -307,8 +316,16 @@ fn view_draw(app) {
 
 	if (app.show_grid) { view_draw_grid(app); }
 
+	# The map goes under the entities: it is the ground they stand on, and a
+	# tile painted over the player would be a surprising way to lose them.
+	tiles_draw_layers(app);
+
 	let entities = doc_entities(app);
 	for (let i = 0; i < len(entities); i++) { view_draw_entity(app, entities[i]); }
+
+	# and the brush over both, since it is about the click that has not
+	# happened yet
+	if (app.mode == "edit") { tiles_draw_brush(app); }
 
 	view_draw_joints(app);
 	if (len(app.draft) > 0) { view_draw_draft(app); }
@@ -336,6 +353,11 @@ fn view_draw(app) {
 			view_draw_vertices(app, sel);
 		}
 	}
+
+	# The palette is inside the viewport and over everything in it, and it
+	# borrows the viewport's scissor for the sheet -- so it has to be drawn
+	# while that scissor is still up, and it puts it back when it is done.
+	tiles_palette_draw(app);
 
 	# last inside the viewport, so it sits over the scene and the gizmo
 	if (point_in(app.mx, app.my, app.vp_x, app.vp_y, app.vp_w, app.vp_h)) {

@@ -90,6 +90,7 @@ fn sim_build(app) {
 		append(app.runtime, [e.id, body]);
 	}
 
+	sim_tile_bodies(app);
 	sim_build_joints(app);
 
 	# Collision callbacks are looked up by *name* from C and handed no state
@@ -99,6 +100,30 @@ fn sim_build(app) {
 
 	log_line(app, "play: " + len(app.runtime) + " bodies, gravity " +
 		app.doc_data.gravity[0] + ", " + app.doc_data.gravity[1]);
+	return 0;
+}
+
+# The solid layers of the tile map, as static bodies. tiles_solid_rects() has
+# already merged each row of touching cells into one rectangle, so this is one
+# body per run rather than one per tile: Box2D would otherwise spend its time
+# on contacts between neighbours that can never move, and a moving box would
+# catch on the seam between two of them.
+#
+# They carry no entity id in their user data -- there is no entity to point at.
+# A contact callback reads null for one and knows it hit the map.
+fn sim_tile_bodies(app) {
+	let rects = tiles_solid_rects(app);
+	for (let i = 0; i < len(rects); i++) {
+		let r = rects[i];
+		let body = love_physics_newBody(app.world,
+			r[0] + r[2] * 0.5, r[1] + r[3] * 0.5, "static");
+		let shape = love_physics_newRectangleShape(r[2], r[3]);
+		let fixture = love_physics_newFixture(body, shape, 1);
+		love_fixture_setFriction(fixture, 0.4);
+	}
+	if (len(rects) > 0) {
+		log_line(app, "tiles: " + len(rects) + " static shapes");
+	}
 	return 0;
 }
 
