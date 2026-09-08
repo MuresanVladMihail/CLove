@@ -1,0 +1,57 @@
+# The frame-time graph along the bottom: a ring of samples, newest at the
+# right, with the 16.7 ms line a 60 Hz frame has to stay under.
+
+# A global's initializer has to be a constant, so these are written out
+# rather than derived from each other: 16.7 ms is the 60 Hz frame, and a frame
+# lands either side of vsync all the time -- red is for one you would actually
+# see.
+let BUDGET = 0.0166667;
+let HITCH  = 0.025;
+
+fn FrameGraph(samples) {
+	let self = { "history": [], "worst": 0.0 };
+
+	for (let i = 0; i < samples; i++) { append(self.history, 0.0); }
+
+	self.add = fn(dt) {
+		for (let i = 0; i < samples - 1; i++) { self.history[i] = self.history[i + 1]; }
+		self.history[samples - 1] = dt;
+		if (dt > self.worst) { self.worst = dt; }
+		return 0;
+	};
+
+	self.reset_worst = fn() {
+		self.worst = 0.0;
+		return 0;
+	};
+
+	self.draw = fn(x, y, w, h) {
+		love_graphics_setColor(10, 12, 18, 220);
+		love_geometry_rectangle("fill", x, y, w, h);
+
+		let scale = h / (BUDGET * 4.0);        # so the graph shows up to ~67 ms
+		love_graphics_setColor(70, 80, 100);
+		let line_y = y + h - BUDGET * scale;
+		love_geometry_line([x, line_y, x + w, line_y]);
+
+		let bar = w / samples;
+		for (let i = 0; i < samples; i++) {
+			let dt = self.history[i];
+			let height = math_min(dt * scale, h);
+
+			if (dt > HITCH) {
+				love_graphics_setColor(230, 90, 80);
+			} else {
+				love_graphics_setColor(90, 190, 130);
+			}
+			love_geometry_rectangle("fill", x + i * bar, y + h - height, bar + 1, height);
+		}
+
+		love_graphics_setColor(150, 155, 170);
+		love_graphics_print("frame time, last four seconds    the line is 16.7 ms",
+			x + 8, y + 6);
+		return 0;
+	};
+
+	return self;
+}

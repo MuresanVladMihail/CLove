@@ -8,30 +8,30 @@
 #   cd opt/examples/fh/hello && ../../../../build/clove
 
 fn love_load() {
-    let self = {};
-    self.t = 0.0;
-    return self;
+	let self = {};
+	self.t = 0.0;
+	return self;
 }
 
 fn love_update(dt, self) {
-    self.t = self.t + dt;
+	self.t = self.t + dt;
 
-    if (love_keyboard_isDown("escape")) {
-        love_event_quit();
-    }
+	if (love_keyboard_isDown("escape")) {
+		love_event_quit();
+	}
 }
 
 fn love_draw(self) {
-    love_graphics_setBackgroundColor(24, 26, 34);
+	love_graphics_setBackgroundColor(24, 26, 34);
 
-    # A slow pulse, so it is obvious the frame loop is running.
-    let pulse = 160 + 95 * math_sin(self.t * 2.0);
-    love_graphics_setColor(pulse, 200, 255);
-    love_geometry_circle("fill", 400, 300, 60 + 10 * math_sin(self.t * 3.0));
+	# A slow pulse, so it is obvious the frame loop is running.
+	let pulse = 160 + 95 * math_sin(self.t * 2.0);
+	love_graphics_setColor(pulse, 200, 255);
+	love_geometry_circle("fill", 400, 300, 60 + 10 * math_sin(self.t * 3.0));
 
-    love_graphics_setColor(235, 235, 245);
-    love_graphics_print("Hello from CLove -- escape to quit", 250, 400);
-    love_graphics_print("" + love_timer_getFPS() + " fps", 10, 10);
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print("Hello from CLove -- escape to quit", 250, 400);
+	love_graphics_print("" + love_timer_getFPS() + " fps", 10, 10);
 }
 
 fn main() {}

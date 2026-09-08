@@ -1,0 +1,77 @@
+# The Box2D world, built from a scene.
+#
+# The entity id goes into every body's and fixture's user data: a collision
+# callback is handed fixtures and nothing else, so that id is the only way back
+# from a contact to the thing in the level that caused it.
+
+fn GameWorld(scene) {
+	let self = { "scene": scene, "bodies": [], "tile_shapes": 0 };
+
+	love_physics_setMeter(scene.meter());
+	let gravity = scene.gravity();
+	self.world = love_physics_newWorld(gravity[0], gravity[1]);
+
+	self.add_entity = fn(e) {
+		let f = scene.fixture(e);
+		let centre = scene.center(e);
+		let size = scene.size(e);
+
+		let body = love_physics_newBody(self.world, centre[0], centre[1],
+			scene.body_type(e));
+		love_body_setAngle(body, scene.angle(e));
+
+		let shape = love_physics_newRectangleShape(size[0], size[1]);
+		if (f.shape == "circle") { shape = love_physics_newCircleShape(size[0] * 0.5); }
+
+		let fixture = love_physics_newFixture(body, shape, f.density);
+		love_fixture_setFriction(fixture, f.friction);
+		love_fixture_setRestitution(fixture, f.restitution);
+
+		love_body_setUserData(body, scene.id(e));
+		love_fixture_setUserData(fixture, scene.id(e));
+
+		append(self.bodies, [scene.id(e), body]);
+		return body;
+	};
+
+	# The map's collision. A cell collides when its layer is marked solid or
+	# when its tile is, and the package hands back runs with each row of
+	# touching cells already merged -- so this is a handful of static bodies
+	# rather than one per tile, and nothing catches on the seam between two of
+	# them. Each run carries what it collides as, because only cells that
+	# collide alike are merged into one.
+	self.add_tile_run = fn(run) {
+		let body = love_physics_newBody(self.world,
+			run.x + run.w * 0.5, run.y + run.h * 0.5, "static");
+		let fixture = love_physics_newFixture(body,
+			love_physics_newRectangleShape(run.w, run.h), 1);
+
+		love_fixture_setFriction(fixture, run.friction);
+		love_fixture_setRestitution(fixture, run.restitution);
+		love_fixture_setSensor(fixture, run.sensor);
+		love_fixture_setFilterData(fixture, run.category, run.mask, run.group);
+
+		# The map has no entity behind it, so a contact callback would read
+		# null and know only that it hit something. The tile's name is what it
+		# reads instead -- a string, where an entity's user data is its id.
+		if (len(run.name) > 0) { love_fixture_setUserData(fixture, run.name); }
+		return body;
+	};
+
+	self.build = fn() {
+		let entities = scene.all();
+		for (let i = 0; i < len(entities); i++) { self.add_entity(entities[i]); }
+
+		let runs = scene.solid_tile_rects();
+		for (let i = 0; i < len(runs); i++) { self.add_tile_run(runs[i]); }
+		self.tile_shapes = len(runs);
+		return 0;
+	};
+
+	self.update = fn(dt) {
+		love_world_update(self.world, dt);
+		return 0;
+	};
+
+	return self;
+}

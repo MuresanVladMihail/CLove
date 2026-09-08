@@ -1,0 +1,40 @@
+# The file this demo writes.
+#
+# love_filesystem_write/append/read go through PhysFS, whose write root is the
+# save directory -- not the working directory an ordinary relative path uses.
+# That is the distinction the whole example is about.
+
+let DEMO_FILE = "clove_demo.txt";
+
+fn Store() {
+	let self = { "note": "", "content": "" };
+
+	self.read_back = fn() {
+		if (love_filesystem_exists(DEMO_FILE)) {
+			self.content = love_filesystem_read(DEMO_FILE);
+		} else {
+			self.content = "(no file yet -- press W)";
+		}
+		return 0;
+	};
+
+	self.write = fn() {
+		love_filesystem_write(DEMO_FILE, "written at " + love_timer_getTime() + "\n");
+		self.note = "wrote " + DEMO_FILE;
+		return self.read_back();
+	};
+
+	self.append = fn() {
+		love_filesystem_append(DEMO_FILE, "appended at " + love_timer_getTime() + "\n");
+		self.note = "appended a line";
+		return self.read_back();
+	};
+
+	self.remove = fn() {
+		love_filesystem_remove(DEMO_FILE);
+		self.note = "removed " + DEMO_FILE;
+		return self.read_back();
+	};
+
+	return self;
+}

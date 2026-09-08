@@ -50,6 +50,71 @@ Roughly in the order they are worth reading.
 `editor/` and `game/` carry their own `art/` and a `packages` symlink, so
 they run and package on their own.
 
+## How they are laid out
+
+`main.fh` is the wiring: `love_load`, `love_update`, `love_draw`, and the input
+callbacks forwarded to whatever handles them. Anything with state or substance
+of its own lives beside it in a module the main file includes once — the bigger
+examples are three or four small files rather than one long one:
+
+```
+joints/    body.fh  scene.fh  rigs.fh  main.fh
+game/      assets.fh  world.fh  render.fh  level.fh  main.fh
+input/     player.fh  log.fh  hud.fh  main.fh
+```
+
+FH has no classes, so a "class" here is a function that returns a map of
+closures over its own state — the same shape `opt/packages/scene` uses:
+
+```fh
+fn Body(world, x, y) {
+    let self = { "x": x, "y": y };
+    self.body = love_physics_newBody(world, x, y, "dynamic");
+
+    self.draw = fn() { ... reads self ... };
+    return self;
+}
+```
+
+That costs one closure **per method per instance**, which is the right trade
+until there are many instances. Where there are — the bodies in
+[`physics`](physics) and [`joints`](joints) — the methods go on a shared
+**prototype** instead, and a method takes the instance as its first argument:
+
+```fh
+fn BodyProto() {
+    return { "draw": fn(self) { ... reads self ... } };
+}
+
+let b = setproto({ "w": 32, "h": 32 }, body_proto());
+b:draw();          # `:` passes b in as `self`
+```
+
+The prototype has to be built inside a function and cached (`body_proto()` in
+those two examples), because a global `let` cannot hold a map of functions —
+see the rules below.
+
+`include` is textual and has **no include guard**, so a file included twice
+declares its functions twice and the second one is an error — include each
+module exactly once, and let a module take what it needs as an argument rather
+than including its dependency again.
+
+### FH rules these examples ran into
+
+* A global `let` must be initialised with a **constant**. A string built by
+  concatenation, or a map holding functions, belongs in a function.
+* `%` is **integer-only**, so a cell coordinate that came out of `math_floor`
+  needs its own wrap helper.
+* `${x}` in a string interpolates a **variable**, not an expression: `${a.b}`,
+  `${f()}` and `${a + b}` are looked up as one long variable name and fail.
+  Name the value first — which is why the HUD lines here read
+  `let fps = love_timer_getFPS();` and then `"${fps} fps"`.
+* A string that is *only* `"${x}"` is the value itself, not text — for a
+  bool or a number that has to be a string, keep the explicit `"" + x`.
+* Optional chaining is the bracket form only: `m?.["key"]`, not `m?.key`. It
+  answers `null` when what it indexes is null *or* has no such key, which
+  collapses a run of `contains_key` guards into one lookup.
+
 ## Writing one
 
 Every callback is optional — CLove checks whether the function exists before

@@ -13,165 +13,67 @@
 #   escape  quit
 #
 #   cd opt/examples/fh/filesystem && ../../../../build/clove
+#
+#   browser.fh   the directory listing and where it has walked to
+#   store.fh     the file this demo writes, in the save directory
+#   readout.fh   the rows and panels it is all drawn as
 
-let F = {"dir": ".", "entries": [], "sel": 0, "note": "", "content": ""};
+include "browser.fh"
+include "store.fh"
+include "readout.fh"
 
-fn refresh() {
-    let list = love_filesystem_list(F.dir);
-    if (list == null) { list = []; }
-    F.entries = list;
-    if (F.sel >= len(F.entries)) { F.sel = 0; }
-}
+let ROWS = 14;
+let ROW_HEIGHT = 20;
 
-fn read_back() {
-    if (love_filesystem_exists("clove_demo.txt")) {
-        F.content = love_filesystem_read("clove_demo.txt");
-    } else {
-        F.content = "(no file yet -- press W)";
-    }
-}
+let APP = { "browser": null, "store": null };
 
 fn love_load() {
-    # setIdentity picks the folder under the save directory that writes land
-    # in. It has to be a plain folder name, not a path.
-    love_filesystem_setIdentity("clove_filesystem_example");
+	# setIdentity picks the folder under the save directory that writes land
+	# in. It has to be a plain folder name, not a path.
+	love_filesystem_setIdentity("clove_filesystem_example");
 
-    # getInfo/read go through PhysFS, which only sees what has been mounted.
-    # Mounting the working directory is what makes the listing below
-    # inspectable as well as walkable.
-    love_filesystem_setSource(love_filesystem_getWorkingDirectory());
+	# getInfo/read go through PhysFS, which only sees what has been mounted.
+	# Mounting the working directory is what makes the listing below
+	# inspectable as well as walkable.
+	love_filesystem_setSource(love_filesystem_getWorkingDirectory());
 
-    refresh();
-    read_back();
-    return F;
+	APP.browser = Browser(".");
+	APP.browser.refresh();
+
+	APP.store = Store();
+	APP.store.read_back();
+	return APP;
 }
 
 fn love_keypressed(key) {
-    let k = key[0];
+	let k = key[0];
 
-    if (k == "escape") { love_event_quit(); }
-
-    elif (k == "w") {
-        love_filesystem_write("clove_demo.txt", "written at " + love_timer_getTime() + "\n");
-        F.note = "wrote clove_demo.txt";
-        read_back();
-    }
-    elif (k == "a") {
-        love_filesystem_append("clove_demo.txt", "appended at " + love_timer_getTime() + "\n");
-        F.note = "appended a line";
-        read_back();
-    }
-    elif (k == "d") {
-        love_filesystem_remove("clove_demo.txt");
-        F.note = "removed clove_demo.txt";
-        read_back();
-    }
-
-    elif (k == "down") { if (F.sel + 1 < len(F.entries)) { F.sel++; } }
-    elif (k == "up")   { if (F.sel > 0) { F.sel--; } }
-    elif (k == "return") {
-        if (len(F.entries) > 0 && F.entries[F.sel].dir) {
-            F.dir = F.dir + "/" + F.entries[F.sel].name;
-            F.sel = 0;
-            refresh();
-        }
-    }
-    elif (k == "backspace") {
-        F.dir = F.dir + "/..";
-        F.sel = 0;
-        refresh();
-    }
+	if (k == "escape") { love_event_quit(); }
+	elif (k == "w") { APP.store.write(); }
+	elif (k == "a") { APP.store.append(); }
+	elif (k == "d") { APP.store.remove(); }
+	elif (k == "down") { APP.browser.move(1); }
+	elif (k == "up") { APP.browser.move(-1); }
+	elif (k == "return") { APP.browser.enter(); }
+	elif (k == "backspace") { APP.browser.leave(); }
+	return 0;
 }
 
-fn love_update(dt, self) {}
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(24, 26, 34);
 
-fn shorten(s, n) {
-    if (len(s) <= n) { return s; }
-    return "..." + string_substr(s, len(s) - n, n);
-}
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print("love.filesystem", 20, 16);
+	readout_roots(20, 50);
 
-fn row(label, value, x, y) {
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print(label, x, y);
-    love_graphics_setColor(225, 228, 238);
-    love_graphics_print(shorten(value, 92), x + 150, y);
-}
+	app.browser.draw(20, 160, ROWS, ROW_HEIGHT);
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print(len(app.browser.entries) + " entries    UP/DOWN select   " +
+		"ENTER descend   BACKSPACE up", 20, 194 + ROWS * ROW_HEIGHT);
 
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(24, 26, 34);
-
-    love_graphics_setColor(235, 235, 245);
-    love_graphics_print("love.filesystem", 20, 16);
-
-    row("working dir", love_filesystem_getWorkingDirectory(), 20, 50);
-    row("save dir", love_filesystem_getSaveDirectory(), 20, 72);
-    row("home", love_filesystem_getHomeDirectory(), 20, 94);
-    row("source", love_filesystem_getSource(), 20, 116);
-
-    # --- the listing -----------------------------------------------------
-    love_graphics_setColor(120, 200, 255);
-    love_graphics_print("listing  " + F.dir, 20, 160);
-
-    let shown = 14;
-    let first = 0;
-    if (F.sel >= shown) { first = F.sel - shown + 1; }
-
-    for (let i = 0; i < shown; i++) {
-        let idx = first + i;
-        if (idx >= len(F.entries)) { break; }
-        let e = F.entries[idx];
-
-        let y = 186 + i * 20;
-        if (idx == F.sel) {
-            love_graphics_setColor(50, 62, 84);
-            love_geometry_rectangle("fill", 16, y - 3, 420, 20);
-        }
-
-        if (e.dir) { love_graphics_setColor(255, 200, 110); }
-        else { love_graphics_setColor(210, 214, 224); }
-
-        let mark = "  ";
-        if (e.dir) { mark = "> "; }
-        love_graphics_print(mark + e.name, 24, y);
-    }
-
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print("" + len(F.entries) + " entries    UP/DOWN select   ENTER descend   BACKSPACE up",
-                        20, 186 + shown * 20 + 8);
-
-    # --- getInfo on the selected entry ------------------------------------
-    if (len(F.entries) > 0) {
-        # PhysFS paths are relative to what was mounted, with no leading "./".
-        let base = F.dir;
-        if (base == ".") { base = ""; } else { base = base + "/"; }
-        let path = base + F.entries[F.sel].name;
-        let info = love_filesystem_getInfo(path);
-        love_graphics_setColor(120, 200, 255);
-        love_graphics_print("getInfo", 470, 160);
-        if (info == false) {
-            row("", "not readable through PhysFS", 470, 186);
-        } else {
-            row("type", info[0], 470, 186);
-            row("size", "" + info[1] + " bytes", 470, 208);
-            row("modified", "" + info[2], 470, 230);
-        }
-    }
-
-    # --- read / write ------------------------------------------------------
-    love_graphics_setColor(120, 200, 255);
-    love_graphics_print("read + write, in the save directory", 470, 280);
-
-    love_graphics_setColor(60, 64, 78);
-    love_geometry_rectangle("line", 466, 306, 460, 140);
-
-    love_graphics_setColor(210, 214, 224);
-    love_graphics_print(F.content, 476, 316);
-
-    love_graphics_setColor(150, 200, 160);
-    love_graphics_print(F.note, 470, 460);
-
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print("W write    A append    D delete    escape quit", 470, 486);
+	readout_info(app.browser, 470, 160);
+	readout_store(app.store, 470, 280);
+	return 0;
 }
 
 fn main() {}

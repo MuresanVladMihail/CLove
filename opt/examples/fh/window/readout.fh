@@ -1,0 +1,42 @@
+# The frame that follows the window, and the table of what it currently is.
+
+fn readout_row(label, value, y) {
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print(label, 30, y);
+	love_graphics_setColor(228, 232, 240);
+	love_graphics_print(value, 210, y);
+	return 0;
+}
+
+# Two rectangles inset from the edges, so a resize is visible without reading
+# the numbers.
+fn readout_frame(w, h) {
+	love_graphics_setColor(70, 120, 200);
+	love_geometry_rectangle("line", 10, 10, w - 20, h - 20);
+	love_graphics_setColor(45, 70, 120);
+	love_geometry_rectangle("line", 20, 20, w - 40, h - 40);
+	return 0;
+}
+
+fn readout_table(state) {
+	let desktop = love_window_getDesktopDimension();
+
+	let w = love_window_getWidth();
+	let h = love_window_getHeight();
+	let displays = love_window_getDisplayCount();
+	let display_name = love_window_getDisplayName(0);
+
+	readout_row("size", "${w} x ${h}", 70);
+	readout_row("desktop", desktop[0] + " x " + desktop[1], 92);
+	readout_row("displays", "${displays}   (${display_name})", 114);
+	readout_row("title", love_window_getTitle(), 136);
+	readout_row("fullscreen", "" + state.fullscreen, 158);
+	readout_row("borderless", "" + state.borderless, 180);
+	readout_row("vsync", "" + state.vsync, 202);
+	readout_row("has focus", "" + state.focus, 224);
+	readout_row("mouse over", state.mouse_focus +
+		"   (" + love_window_hasMouseFocus() + " polled)", 246);
+	readout_row("love_resize calls", "" + state.resizes, 268);
+	readout_row("fps", "" + love_timer_getFPS(), 290);
+	return 0;
+}

@@ -1,0 +1,123 @@
+# The noise field on the left: four ways of asking love_math_noise() for a
+# picture, and the canvas the three two-dimensional ones are painted into.
+#
+# A canvas is the right home for a field that only changes when a parameter
+# does -- redrawing 120x90 cells every frame is wasteful. Mode 3 is the
+# exception: time is one of its axes, so it repaints every frame.
+
+let FIELD_W = 480;
+let FIELD_H = 360;
+let CELL = 4;
+
+let MODE_1D = 0;
+let MODE_2D = 1;
+let MODE_ANIMATED = 2;
+let MODE_OCTAVES = 3;
+
+let MODE_NAMES = ["1  1D noise, scrolling with time",
+                  "2  2D noise as a height field",
+                  "3  2D noise animated on a third axis",
+                  "4  five octaves summed (fbm)"];
+
+# Several octaves summed, each half the amplitude and twice the frequency of
+# the last -- the standard way to get detail out of smooth noise.
+fn fbm(x, y, octaves) {
+	let sum = 0.0;
+	let amplitude = 1.0;
+	let frequency = 1.0;
+	let total = 0.0;
+
+	for (let i = 0; i < octaves; i++) {
+		sum = sum + love_math_noise(x * frequency, y * frequency) * amplitude;
+		total = total + amplitude;
+		amplitude = amplitude * 0.5;
+		frequency = frequency * 2.0;
+	}
+	return sum / total;
+}
+
+fn NoiseField() {
+	let self = { "mode": MODE_1D, "time": 0.0, "scale": 0.02, "speed": 0.5,
+	             "dirty": true, "canvas": love_graphics_newCanvas(FIELD_W, FIELD_H) };
+
+	self.name = fn() { return MODE_NAMES[self.mode]; };
+
+	self.set_mode = fn(mode) {
+		self.mode = mode;
+		self.dirty = true;
+		return 0;
+	};
+
+	self.zoom = fn(factor) {
+		self.scale = self.scale * factor;
+		self.dirty = true;
+		return 0;
+	};
+
+	self.sample = fn(x, y) {
+		if (self.mode == MODE_2D) {
+			return love_math_noise(x * self.scale, y * self.scale);
+		}
+		if (self.mode == MODE_ANIMATED) {
+			return love_math_noise(x * self.scale, y * self.scale, self.time);
+		}
+		return fbm(x * self.scale, y * self.scale, 5);
+	};
+
+	self.paint = fn() {
+		love_graphics_setCanvas(self.canvas);
+		love_graphics_setBackgroundColor(0, 0, 0);
+		love_graphics_clear();
+
+		for (let y = 0; y < FIELD_H; y = y + CELL) {
+			for (let x = 0; x < FIELD_W; x = x + CELL) {
+				# noise() is about -1..1; map it onto a colour ramp
+				let g = (self.sample(x, y) + 1.0) * 0.5;
+				love_graphics_setColor(40 + g * 90, 70 + g * 150, 110 + g * 145);
+				love_geometry_rectangle("fill", x, y, CELL, CELL);
+			}
+		}
+
+		love_graphics_setColor(255, 255, 255);
+		love_graphics_setCanvas();
+		self.dirty = false;
+		return 0;
+	};
+
+	self.update = fn(dt) {
+		self.time = self.time + dt * self.speed;
+		if (self.mode == MODE_ANIMATED || self.dirty) { self.paint(); }
+		return 0;
+	};
+
+	# 1D noise is drawn as a curve, sampled straight rather than through the
+	# canvas: one dimension is a line, not a picture.
+	self.draw_curve = fn(x0, y0) {
+		love_graphics_setColor(60, 64, 78);
+		love_geometry_rectangle("line", x0, y0, FIELD_W, FIELD_H);
+
+		love_graphics_setColor(120, 200, 255);
+		let points = [];
+		for (let i = 0; i <= 120; i++) {
+			# Step size matters: simplex noise is smooth only if consecutive
+			# samples are close together. A step near 1 looks like static.
+			let v = love_math_noise(i * self.scale * 2.0 + self.time);
+			append(points, x0 + i * 4);
+			append(points, y0 + FIELD_H * 0.5 + v * 150);
+		}
+		love_geometry_polygon("line", points);
+		return 0;
+	};
+
+	self.draw = fn(x, y) {
+		love_graphics_setColor(255, 255, 255);
+		if (self.mode == MODE_1D) {
+			self.draw_curve(x, y);
+		} else {
+			love_graphics_draw(self.canvas, x, y);
+		}
+		return 0;
+	};
+
+	return self;
+}

@@ -18,203 +18,79 @@
 # make the work smaller, it moves it off the frame.
 #
 #   cd opt/examples/fh/async && ../../../../build/clove
+#
+#   tiles.fh   the textures, drawn on the first run
+#   loader.fh  the two ways of loading them
+#   graph.fh   the frame-time graph
 
-let TILES = 8;
-let TILE_SIZE = 1536;      # big enough that one decode is longer than a frame
+include "loader.fh"
+include "graph.fh"
+
 let HISTORY = 240;         # frame times kept for the graph, four seconds' worth
-let TAKE_BUDGET = 0.004;   # seconds per frame this demo will spend uploading
 
-let A = {"mode": "nothing loaded",
-         "jobs": [],
-         "images": [],
-         "history": [],
-         "started": 0.0,
-         "wall": 0.0,
-         "worst": 0.0,
-         "note": ""};
-
-fn tilePath(i) { return "generated_" + i + ".png"; }
-
-# The demo needs textures big enough to be worth this, and a repository is no
-# place for 20 MB of them, so it draws its own on the first run and leaves
-# them next to main.fh (they are gitignored).
-fn generateTiles() {
-    let n = TILE_SIZE;
-    for (let i = 0; i < TILES; i++) {
-        if (love_filesystem_exists(tilePath(i))) { continue; }
-
-        printf("generating %s (%dx%d), first run only...\n", tilePath(i), n, n);
-        let d = love_graphics_newImageData(n, n);
-        let shift = i * 32;
-        for (let y = 0; y < n; y++) {
-            for (let x = 0; x < n; x++) {
-                # bands rather than noise, so the PNG compresses: the point
-                # of the file is its pixel count, not its size on disk
-                love_image_setPixel(d, x, y,
-                                    (tointeger(x / 6) + shift) % 256,
-                                    (tointeger(y / 6) + shift) % 256,
-                                    tointeger((x + y) / 8) % 256,
-                                    255);
-            }
-        }
-        love_image_save(d, tilePath(i));
-    }
-}
-
-fn release() {
-    A.images = [];
-    A.jobs = [];
-    A.mode = "nothing loaded";
-    A.wall = 0.0;
-    A.worst = 0.0;
-    A.note = "";
-}
-
-# The way everybody writes it first: the whole cost lands in one frame.
-fn loadBlocking() {
-    release();
-    A.mode = "blocking";
-    let t0 = love_timer_getTime();
-    for (let i = 0; i < TILES; i++) {
-        append(A.images, love_graphics_newImage(tilePath(i)));
-    }
-    A.wall = love_timer_getTime() - t0;
-    A.note = "eight newImage() calls, all inside this one frame";
-}
-
-# The same eight files, queued in a few microseconds. love_update() collects
-# them as they turn up.
-fn loadAsync() {
-    release();
-    A.mode = "async";
-    A.started = love_timer_getTime();
-    let t0 = A.started;
-    for (let i = 0; i < TILES; i++) {
-        append(A.jobs, love_asset_loadImage(tilePath(i)));
-    }
-    A.note = "queued in " + tointeger((love_timer_getTime() - t0) * 1000000) + " microseconds";
-}
+let APP = { "loader": null, "graph": null };
 
 fn love_load() {
-    generateTiles();
-    for (let i = 0; i < HISTORY; i++) { append(A.history, 0.0); }
-    return {};
+	generate_tiles();
+	APP.loader = Loader();
+	APP.graph = FrameGraph(HISTORY);
+	return APP;
 }
 
 fn love_keypressed(key) {
-    let k = key[0];
-    if (k == "escape") { love_event_quit(); }
-    elif (k == "1") { loadBlocking(); }
-    elif (k == "2") { loadAsync(); }
-    elif (k == "r") { release(); }
+	let k = key[0];
+	if (k == "escape") { love_event_quit(); }
+	elif (k == "1") { APP.loader.load_blocking(); }
+	elif (k == "2") { APP.loader.load_async(); }
+	elif (k == "r") {
+		APP.loader.release();
+		APP.graph.reset_worst();
+	}
+	return 0;
 }
 
-fn love_update(dt, self) {
-    # the graph: newest sample at the right
-    for (let i = 0; i < HISTORY - 1; i++) { A.history[i] = A.history[i + 1]; }
-    A.history[HISTORY - 1] = dt;
-    if (dt > A.worst) { A.worst = dt; }
-
-    # Collecting is one status check per outstanding job. take() does the GL
-    # upload here, on the thread that owns the context -- cheap next to the
-    # decode, but eight 1536x1536 textures is still 72 MB, and doing all of
-    # them in whichever frame they happen to land is its own hitch. So this
-    # spends a fixed slice of the frame on uploads and leaves the rest for the
-    # next one. It is the same trick a streaming world uses.
-    if (len(A.jobs) > 0) {
-        let deadline = love_timer_getTime() + TAKE_BUDGET;
-        let still = [];
-        for (let i = 0; i < len(A.jobs); i++) {
-            let job = A.jobs[i];
-            let s = love_asset_status(job);
-            if (s == "pending") {
-                append(still, job);
-            } elif (s == "ready") {
-                if (love_timer_getTime() < deadline) {
-                    append(A.images, love_asset_take(job));
-                } else {
-                    append(still, job);      # ready, collected next frame
-                }
-            }
-            # "failed" is dropped; love_asset_take() would say which file it was
-        }
-        A.jobs = still;
-        if (len(A.jobs) == 0) {
-            A.wall = love_timer_getTime() - A.started;
-            A.note = "all " + len(A.images) + " on screen after "
-                     + tointeger(A.wall * 1000) + " ms, without a frame over budget";
-        }
-    }
+fn love_update(dt, app) {
+	app.graph.add(dt);
+	app.loader.collect();
+	return 0;
 }
 
-fn drawGraph(x, y, w, h) {
-    love_graphics_setColor(10, 12, 18, 220);
-    love_geometry_rectangle("fill", x, y, w, h);
+fn draw_readout(app) {
+	love_graphics_setColor(10, 12, 18, 220);
+	love_geometry_rectangle("fill", 10, 10, 780, 128);
 
-    # 16.7 ms, the line a 60 Hz frame has to stay under
-    let budget = 1.0 / 60.0;
-    let scale = h / (budget * 4.0);      # so the graph shows up to ~67 ms
+	let mode = app.loader.mode;
+	let loaded = len(app.loader.images);
+	let pending = love_asset_pending();
+	let fps = love_timer_getFPS();
 
-    love_graphics_setColor(70, 80, 100);
-    let ly = y + h - budget * scale;
-    love_geometry_line([x, ly, x + w, ly]);
+	love_graphics_setColor(235, 235, 245);
+	love_graphics_print("mode: ${mode}    loaded ${loaded} of ${TILES}" +
+		"    still loading ${pending}", 22, 22);
 
-    let bw = w / HISTORY;
-    for (let i = 0; i < HISTORY; i++) {
-        let dt = A.history[i];
-        let bh = dt * scale;
-        if (bh > h) { bh = h; }
-        # a frame lands a hair either side of vsync all the time; red is for
-        # a hitch you would actually see
-        if (dt > budget * 1.5) {
-            love_graphics_setColor(230, 90, 80);
-        } else {
-            love_graphics_setColor(90, 190, 130);
-        }
-        love_geometry_rectangle("fill", x + i * bw, y + h - bh, bw + 1, bh);
-    }
+	love_graphics_setColor(200, 205, 218);
+	let worst_ms = tointeger(app.graph.worst * 1000);
+	let worst = "worst frame since the last reset: ${worst_ms} ms";
+	if (app.loader.wall > 0.0) {
+		let took = tointeger(app.loader.wall * 1000);
+		worst = "took ${took} ms      " + worst;
+	}
+	love_graphics_print(worst, 22, 48);
 
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print("frame time, last four seconds    the line is 16.7 ms", x + 8, y + 6);
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print(app.loader.note, 22, 74);
+	love_graphics_print("1 blocking    2 async    r unload    escape quit    " +
+		"${fps} fps", 22, 100);
+	return 0;
 }
 
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(18, 20, 28);
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(18, 20, 28);
 
-    # what was loaded, small, across the top
-    let n = len(A.images);
-    let side = 108.0;
-    for (let i = 0; i < n; i++) {
-        love_graphics_setColor(255, 255, 255);
-        love_graphics_draw(A.images[i],
-                           20 + (i % 4) * (side + 10),
-                           150 + tointeger(i / 4) * (side + 10),
-                           0, side / TILE_SIZE, side / TILE_SIZE);
-    }
-
-    love_graphics_setColor(10, 12, 18, 220);
-    love_geometry_rectangle("fill", 10, 10, 780, 128);
-
-    love_graphics_setColor(235, 235, 245);
-    love_graphics_print("mode: " + A.mode + "    loaded " + n + " of " + TILES
-                        + "    still loading " + love_asset_pending(), 22, 22);
-
-    love_graphics_setColor(200, 205, 218);
-    if (A.wall > 0.0) {
-        love_graphics_print("took " + tointeger(A.wall * 1000) + " ms      "
-                            + "worst frame since the last reset: "
-                            + tointeger(A.worst * 1000) + " ms", 22, 48);
-    } else {
-        love_graphics_print("worst frame since the last reset: "
-                            + tointeger(A.worst * 1000) + " ms", 22, 48);
-    }
-
-    love_graphics_setColor(150, 155, 170);
-    love_graphics_print(A.note, 22, 74);
-    love_graphics_print("1 blocking    2 async    r unload    escape quit    "
-                        + love_timer_getFPS() + " fps", 22, 100);
-
-    drawGraph(10, love_window_getHeight() - 190, love_window_getWidth() - 20, 180);
+	app.loader.draw(20, 150, 108.0, 4);
+	draw_readout(app);
+	app.graph.draw(10, love_window_getHeight() - 190, love_window_getWidth() - 20, 180);
+	return 0;
 }
 
 fn main() {}

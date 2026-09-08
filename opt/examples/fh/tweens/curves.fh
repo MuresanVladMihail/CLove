@@ -1,0 +1,60 @@
+# The left half: every easing CLove has, as a curve with a marker riding it.
+#
+# The curve is sampled straight from love_tween_ease() -- no tween needed when
+# all you want is the shape -- while the marker's position comes from a real
+# tween, so the two are drawn from the same numbers a game would use.
+
+let CURVE_W = 92;
+let CURVE_H = 40;
+let SAMPLES = 24;
+
+fn EasingGallery(columns, cell_w, cell_h) {
+	let self = { "names": love_tween_getEasings(), "tweens": [] };
+
+	for (let i = 0; i < len(self.names); i++) {
+		let t = love_tween_new(0.0, 1.0, 2.2, self.names[i]);
+		love_tween_setLoops(t, -1, true);        # forever, and back again
+		append(self.tweens, t);
+	}
+
+	self.update = fn(dt) {
+		for (let i = 0; i < len(self.tweens); i++) { love_tween_update(self.tweens[i], dt); }
+		return 0;
+	};
+
+	self.draw_curve = fn(name, x, y) {
+		love_graphics_setColor(60, 64, 78);
+		love_geometry_rectangle("line", x, y, CURVE_W, CURVE_H);
+
+		love_graphics_setColor(120, 200, 255);
+		let points = [];
+		for (let i = 0; i <= SAMPLES; i++) {
+			let u = i * 1.0 / SAMPLES;
+			append(points, x + u * CURVE_W);
+			append(points, y + CURVE_H - love_tween_ease(name, u) * CURVE_H);
+		}
+		love_geometry_polygon("line", points);
+		return 0;
+	};
+
+	self.draw = fn(x0, y0) {
+		for (let i = 0; i < len(self.names); i++) {
+			let name = self.names[i];
+			let x = x0 + (i % columns) * cell_w;
+			let y = y0 + tointeger(i / columns) * cell_h;
+
+			self.draw_curve(name, x, y);
+
+			let u = love_tween_get(self.tweens[i]);
+			love_graphics_setColor(255, 200, 110);
+			love_geometry_circle("fill", x + u * CURVE_W,
+				y + CURVE_H - love_tween_ease(name, u) * CURVE_H, 3);
+
+			love_graphics_setColor(150, 155, 170);
+			love_graphics_print(name, x, y + CURVE_H + 2);
+		}
+		return 0;
+	};
+
+	return self;
+}

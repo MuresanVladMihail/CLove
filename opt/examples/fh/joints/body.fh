@@ -1,0 +1,101 @@
+# A body and the shape it is drawn as.
+#
+# Box2D knows a body's transform but not how you want it drawn, so each one is
+# wrapped here with its size and kind. `draw()` is the only place that reads
+# them, which is why they live together rather than in a parallel array.
+#
+# The methods live on a **prototype** shared by every body rather than being a
+# closure per instance: this scene builds twenty-eight of them and a game
+# builds thousands. setproto() gives an instance that shared map, and
+# `body:draw()` passes the instance in as the method's first argument.
+
+fn BodyProto() {
+	return {
+		"is_dynamic": fn(self) { return love_body_getType(self.body) == "dynamic"; },
+		"x": fn(self) { return love_body_getX(self.body); },
+		"y": fn(self) { return love_body_getY(self.body); },
+
+		# Squared distance to a point, for picking: no square root, because
+		# the only thing asked of it is a comparison against a radius.
+		"distance2": fn(self, px, py) {
+			let dx = self:x() - px;
+			let dy = self:y() - py;
+			return dx * dx + dy * dy;
+		},
+
+		"colour": fn(self) {
+			if (self:is_dynamic()) { return [150, 200, 240]; }
+			return [70, 78, 96];
+		},
+
+		# The corners are worked out here rather than drawn through a pushed
+		# transform: a rotated rectangle is four points, and doing it by hand
+		# keeps the matrix stack out of the draw loop entirely.
+		"draw_rect": fn(self, x, y, angle) {
+			let hw = self.w * 0.5;
+			let hh = self.h * 0.5;
+			let c = math_cos(angle);
+			let s = math_sin(angle);
+			let cx = [0.0 - hw, hw, hw, 0.0 - hw, 0.0 - hw];
+			let cy = [0.0 - hh, 0.0 - hh, hh, hh, 0.0 - hh];
+
+			let pts = [];
+			for (let i = 0; i < 5; i++) {
+				append(pts, x + cx[i] * c - cy[i] * s);
+				append(pts, y + cx[i] * s + cy[i] * c);
+			}
+			love_geometry_polygon("line", pts);
+			return 0;
+		},
+
+		"draw_circle": fn(self, x, y, angle) {
+			love_geometry_circle("line", x, y, self.w);
+			# a spoke, so rotation is visible on something round
+			love_geometry_polygon("line", [x, y,
+				x + math_cos(angle) * self.w, y + math_sin(angle) * self.w]);
+			return 0;
+		},
+
+		"draw": fn(self) {
+			let c = self:colour();
+			love_graphics_setColor(c[0], c[1], c[2]);
+
+			let x = self:x();
+			let y = self:y();
+			let angle = love_body_getAngle(self.body);
+
+			if (self.shape == "circle") {
+				return self:draw_circle(x, y, angle);
+			}
+			return self:draw_rect(x, y, angle);
+		}
+	};
+}
+
+# Built once, on first use: a map holding functions cannot be a global `let`,
+# whose initializer has to be a constant.
+let BODY_PROTO = { "map": null };
+
+fn body_proto() {
+	if (BODY_PROTO.map == null) { BODY_PROTO.map = BodyProto(); }
+	return BODY_PROTO.map;
+}
+
+fn Box(world, x, y, w, h, kind, density) {
+	let body = love_physics_newBody(world, x, y, kind);
+	let fixture = love_physics_newFixture(body,
+		love_physics_newRectangleShape(w, h), density);
+	love_fixture_setRestitution(fixture, 0.1);
+	love_fixture_setFriction(fixture, 0.4);
+
+	return setproto({ "body": body, "shape": "rect", "w": w, "h": h }, body_proto());
+}
+
+fn Ball(world, x, y, r, kind, density) {
+	let body = love_physics_newBody(world, x, y, kind);
+	let fixture = love_physics_newFixture(body,
+		love_physics_newCircleShape(r), density);
+	love_fixture_setRestitution(fixture, 0.35);
+
+	return setproto({ "body": body, "shape": "circle", "w": r, "h": r }, body_proto());
+}

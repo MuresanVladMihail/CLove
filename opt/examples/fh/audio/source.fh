@@ -1,0 +1,71 @@
+# The source, and everything that can be asked of it or done to it.
+#
+# "static" decodes the whole file into memory up front -- right for short
+# sounds. "stream" decodes as it plays, for music; CLove streams Ogg Vorbis
+# only, so this example uses a wav statically.
+
+let VOLUME_RANGE = [0.0, 1.0];
+let PITCH_RANGE = [0.25, 3.0];
+
+fn clamp(v, lo, hi) {
+	if (v < lo) { return lo; }
+	if (v > hi) { return hi; }
+	return v;
+}
+
+fn Track(path) {
+	let self = { "path": path, "volume": 0.6, "pitch": 1.0 };
+	self.source = love_audio_newSource(path, "static");
+
+	self.apply = fn() {
+		love_audio_setVolume(self.source, self.volume);
+		love_audio_setPitch(self.source, self.pitch);
+		return 0;
+	};
+	self.apply();
+
+	self.play = fn() { return love_audio_play(self.source); };
+	self.stop = fn() { return love_audio_stop(self.source); };
+
+	self.toggle_loop = fn() {
+		return love_audio_setLooping(self.source, !love_audio_isLooping(self.source));
+	};
+
+	self.toggle_pause = fn() {
+		if (love_audio_isPaused(self.source)) { return love_audio_resume(self.source); }
+		return love_audio_pause(self.source);
+	};
+
+	self.nudge_volume = fn(delta) {
+		self.volume = clamp(self.volume + delta, VOLUME_RANGE[0], VOLUME_RANGE[1]);
+		return self.apply();
+	};
+
+	self.nudge_pitch = fn(delta) {
+		self.pitch = clamp(self.pitch + delta, PITCH_RANGE[0], PITCH_RANGE[1]);
+		return self.apply();
+	};
+
+	self.state = fn() {
+		if (love_audio_isPlaying(self.source)) { return "playing"; }
+		if (love_audio_isPaused(self.source)) { return "paused"; }
+		return "stopped";
+	};
+
+	# Position. A source had no notion of one until love_audio_tell() existed,
+	# which is what a rhythm game, a cutscene or a replay needs.
+	self.duration = fn() { return love_audio_getDuration(self.source); };
+	self.position = fn() { return love_audio_tell(self.source); };
+
+	self.progress = fn() {
+		let duration = self.duration();
+		if (duration <= 0) { return 0.0; }
+		return self.position() / duration;
+	};
+
+	self.seek_fraction = fn(fraction) {
+		return love_audio_seek(self.source, fraction * self.duration());
+	};
+
+	return self;
+}

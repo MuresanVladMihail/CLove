@@ -1,0 +1,26 @@
+# The event feed at the bottom of the screen: the last few things that
+# happened, oldest first.
+
+fn EventLog(limit) {
+	let self = { "lines": [] };
+
+	self.add = fn(line) {
+		append(self.lines, line);
+		while (len(self.lines) > limit) {
+			let kept = [];
+			for (let i = 1; i < len(self.lines); i++) { append(kept, self.lines[i]); }
+			self.lines = kept;
+		}
+		return 0;
+	};
+
+	self.draw = fn(x, y, step) {
+		love_graphics_setColor(190, 195, 208);
+		for (let i = 0; i < len(self.lines); i++) {
+			love_graphics_print(self.lines[i], x, y + i * step);
+		}
+		return 0;
+	};
+
+	return self;
+}

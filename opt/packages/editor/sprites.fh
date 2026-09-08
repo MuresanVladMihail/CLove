@@ -48,17 +48,16 @@ fn sprite_of(app, e) {
 fn sprite_quad_of(app, e) {
 	let img = sprite_of(app, e);
 	if (img == null) { return null; }
-	if (!contains_key(e.sprite, "quad") || e.sprite.quad == null) { return null; }
-	if (len(e.sprite.quad) != 4) { return null; }
-	return tile_quad(app, img, e.sprite.path, e.sprite.quad);
+
+	let quad = e?.["sprite"]?.["quad"];
+	if (quad == null || len(quad) != 4) { return null; }
+	return tile_quad(app, img, e.sprite.path, quad);
 }
 
 # What the artwork's own size is: the crop's when there is one, the image's
 # otherwise. Drawing scales that onto the fixture.
 fn sprite_size_of(app, e, img) {
-	if (e.sprite != null && contains_key(e.sprite, "quad") &&
-	    e.sprite.quad != null && len(e.sprite.quad) == 4) {
-		return [e.sprite.quad[2], e.sprite.quad[3]];
-	}
+	let quad = e?.["sprite"]?.["quad"];
+	if (quad != null && len(quad) == 4) { return [quad[2], quad[3]]; }
 	return [love_image_getWidth(img), love_image_getHeight(img)];
 }

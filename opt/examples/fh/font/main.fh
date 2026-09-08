@@ -6,66 +6,91 @@
 #
 #   cd opt/examples/fh/font && ../../../../build/clove
 
+# A global's initializer has to be a constant expression, so a string built by
+# concatenation is a function rather than a `let`.
+fn wrap_sample() {
+	return "getWrap breaks a string to a width, at spaces, and tells you how " +
+	       "many lines it took.";
+}
+
+fn load_fonts() {
+	let fonts = {};
+
+	# A size on its own uses CLove's built-in font.
+	fonts.big = love_graphics_newFont(64);
+
+	# A path plus a size loads a TTF.
+	fonts.small = love_graphics_newFont("../assets/vera.ttf", 28);
+	love_font_setFilter(fonts.small, "linear", "linear", love_graphics_getMaxAnisotropy());
+
+	# A bitmap font is an image plus the glyphs it contains, in order, and the
+	# width of one cell.
+	fonts.bitmap = love_graphics_newBitmapFont("../assets/bitmapfont.png", " abcd\n", 9);
+	love_font_setFilter(fonts.bitmap, "nearest", "nearest", 1.0);
+
+	return fonts;
+}
+
+fn report_metrics(fonts, wrapped) {
+	println("big font  height=", love_font_getHeight(fonts.big),
+		" width('Hello world!')=", love_font_getWidth(fonts.big, "Hello world!"),
+		" baseline=", love_font_getBaseline(fonts.big),
+		" ascent=", love_font_getAscent(fonts.big),
+		" descent=", love_font_getDescent(fonts.big));
+	println("wrapped into ", wrapped[1], " lines");
+	return 0;
+}
+
+# This strip has black glyphs with a white outline, so it needs a light
+# background to read at all -- a bitmap font carries its own colours and
+# setColor only multiplies them.
+fn draw_bitmap_strip(font) {
+	love_graphics_setColor(225, 225, 230);
+	love_geometry_rectangle("fill", 30, 385, 300, 70);
+
+	love_graphics_setColor(255, 255, 255);
+	love_graphics_setFont(font);
+	love_graphics_print("abcd dcba", 45, 400, 0, 3, 3);
+	return 0;
+}
+
 fn love_load() {
-    let self = {};
+	let app = {};
+	app.fonts = load_fonts();
 
-    # A size on its own uses CLove's built-in font.
-    self.big = love_graphics_newFont(64);
+	# getWrap returns [wrapped text, line count].
+	app.wrapped = love_font_getWrap(app.fonts.small, wrap_sample(), 300);
 
-    # A path plus a size loads a TTF.
-    self.small = love_graphics_newFont("../assets/vera.ttf", 28);
-    love_font_setFilter(self.small, "linear", "linear", love_graphics_getMaxAnisotropy());
-
-    # A bitmap font is an image plus the glyphs it contains, in order, and
-    # the width of one cell.
-    self.bitmap = love_graphics_newBitmapFont("../assets/bitmapfont.png", " abcd\n", 9);
-    love_font_setFilter(self.bitmap, "nearest", "nearest", 1.0);
-
-    # getWrap returns [wrapped text, line count].
-    self.wrapped = love_font_getWrap(self.small,
-        "getWrap breaks a string to a width, at spaces, and tells you how many lines it took.", 300);
-
-    println("big font  height=", love_font_getHeight(self.big),
-            " width('Hello world!')=", love_font_getWidth(self.big, "Hello world!"),
-            " baseline=", love_font_getBaseline(self.big),
-            " ascent=", love_font_getAscent(self.big),
-            " descent=", love_font_getDescent(self.big));
-    println("wrapped into ", self.wrapped[1], " lines");
-
-    return self;
+	report_metrics(app.fonts, app.wrapped);
+	return app;
 }
 
-fn love_update(dt, self) {
-    if (love_keyboard_isDown("escape")) { love_event_quit(); }
+fn love_update(dt, app) {
+	if (love_keyboard_isDown("escape")) { love_event_quit(); }
+	return 0;
 }
 
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(26, 28, 36);
-    love_graphics_setColor(235, 235, 245);
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(26, 28, 36);
+	love_graphics_setColor(235, 235, 245);
 
-    love_graphics_setFont(self.big);
-    love_graphics_print("Hello world!", 40, 60);
+	love_graphics_setFont(app.fonts.big);
+	love_graphics_print("Hello world!", 40, 60);
 
-    love_graphics_setFont(self.small);
-    love_graphics_print("Vera, 28pt", 40, 160);
-    love_graphics_print(self.wrapped[0], 40, 200);
+	love_graphics_setFont(app.fonts.small);
+	love_graphics_print("Vera, 28pt", 40, 160);
+	love_graphics_print(app.wrapped[0], 40, 200);
 
-    # print takes a rotation and a scale, like draw does.
-    love_graphics_setColor(255, 190, 100);
-    love_graphics_print("rotated", 640, 120, 0.4);
+	# print takes a rotation and a scale, like draw does.
+	love_graphics_setColor(255, 190, 100);
+	love_graphics_print("rotated", 640, 120, 0.4);
 
-    # This strip has black glyphs with a white outline, so it needs a light
-    # background to read at all -- a bitmap font carries its own colours and
-    # setColor only multiplies them.
-    love_graphics_setColor(225, 225, 230);
-    love_geometry_rectangle("fill", 30, 385, 300, 70);
-    love_graphics_setColor(255, 255, 255);
-    love_graphics_setFont(self.bitmap);
-    love_graphics_print("abcd dcba", 45, 400, 0, 3, 3);
+	draw_bitmap_strip(app.fonts.bitmap);
 
-    love_graphics_setFont(self.small);
-    love_graphics_setColor(160, 165, 180);
-    love_graphics_print("escape to quit", 40, 500);
+	love_graphics_setFont(app.fonts.small);
+	love_graphics_setColor(160, 165, 180);
+	love_graphics_print("escape to quit", 40, 500);
+	return 0;
 }
 
 fn main() {}

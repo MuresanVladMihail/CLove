@@ -1,0 +1,31 @@
+# The event feed: the last ten things the window did.
+#
+# An FH array has no shift, so dropping the oldest line means building a new
+# array -- rare enough at ten lines that it is not worth a ring buffer.
+
+fn EventLog(limit) {
+	let self = { "lines": [] };
+
+	self.add = fn(line) {
+		append(self.lines, line);
+		while (len(self.lines) > limit) {
+			let kept = [];
+			for (let i = 1; i < len(self.lines); i++) { append(kept, self.lines[i]); }
+			self.lines = kept;
+		}
+		return 0;
+	};
+
+	self.draw = fn(x, y, step) {
+		love_graphics_setColor(120, 200, 255);
+		love_graphics_print("events", x, y);
+
+		love_graphics_setColor(190, 195, 208);
+		for (let i = 0; i < len(self.lines); i++) {
+			love_graphics_print(self.lines[i], x, y + 24 + i * step);
+		}
+		return 0;
+	};
+
+	return self;
+}

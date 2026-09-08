@@ -1,102 +1,58 @@
 # Shaders: GLSL through LOVE's shape.
 #
-# A CLove shader is written as two functions, and the engine wraps them:
-#
-#   vec4 position(mat4 transform_projection, vec4 vertex_position)  -- vertex
-#   vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen_coords) -- fragment
-#
-# Uniforms are declared with `extern` (LOVE's spelling of `uniform`), and
-# `Texel(sampler, uv)` is the texture lookup. Either half may be left out --
-# a fragment shader on its own gets the default pass-through vertex stage --
-# and either may be a path to a file instead of the source itself.
+# Either half of a shader may be left out -- a fragment shader on its own gets
+# the default pass-through vertex stage -- and either may be a path to a file
+# instead of the source itself.
 #
 #   1  mix two textures      3  a wave, driven by time
 #   2  greyscale             4  no shader
 #
 #   cd opt/examples/fh/shaders && ../../../../build/clove
+#
+#   effects.fh  the shaders themselves
 
-fn vertex_source() {
-    return "vec4 position(mat4 transform_projection, vec4 vertex_position) {" +
-           "  return transform_projection * vertex_position;" +
-           "}";
-}
+include "effects.fh"
 
 fn love_load() {
-    let self = {};
-    self.t = 0.0;
-    self.which = 0;
+	let app = {};
+	app.sprite = love_graphics_newImage("../assets/sprite.png");
+	app.effects = Effects(love_graphics_newImage("../assets/icon.png"));
 
-    self.a = love_graphics_newImage("../assets/sprite.png");
-    self.b = love_graphics_newImage("../assets/icon.png");
-
-    # 1: two textures blended. `extern Image` is a sampler uniform, filled in
-    # with love_shader_send().
-    let mixer =
-        "extern Image other;" +
-        "extern float amount;" +
-        "vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
-        "  return mix(Texel(tex, uv), Texel(other, uv), amount) * color;" +
-        "}";
-    self.mix = love_graphics_newShader(vertex_source(), mixer);
-    love_shader_send(self.mix, "other", self.b);
-    love_shader_send(self.mix, "amount", 0.5);
-
-    # 2: a fragment shader on its own -- no vertex stage needed.
-    self.grey = love_graphics_newShader(
-        "vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
-        "  vec4 c = Texel(tex, uv) * color;" +
-        "  float g = dot(c.rgb, vec3(0.299, 0.587, 0.114));" +
-        "  return vec4(g, g, g, c.a);" +
-        "}");
-
-    # 3: a uniform updated every frame.
-    self.wave = love_graphics_newShader(
-        "extern float time;" +
-        "vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {" +
-        "  vec2 p = uv + vec2(sin(uv.y * 20.0 + time * 4.0) * 0.03, 0.0);" +
-        "  return Texel(tex, p) * color;" +
-        "}");
-
-    println("Maximum textures per shader: ", love_graphics_getMaxTextureUnits());
-    return self;
+	println("Maximum textures per shader: ", love_graphics_getMaxTextureUnits());
+	return app;
 }
 
 fn love_keypressed(key) {
-    if (key[0] == "escape") { love_event_quit(); }
+	if (key[0] == "escape") { love_event_quit(); }
+	return 0;
 }
 
-fn love_update(dt, self) {
-    self.t = self.t + dt;
-    for (let i = 0; i < 4; i++) {
-        if (love_keyboard_isDown("" + (i + 1))) { self.which = i; }
-    }
-    love_shader_send(self.wave, "time", self.t);
+fn love_update(dt, app) {
+	for (let i = 0; i < len(app.effects.all); i++) {
+		if (love_keyboard_isDown("" + (i + 1))) { app.effects.select(i); }
+	}
+	app.effects.update(dt);
+	return 0;
 }
 
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(26, 28, 36);
-    love_graphics_setColor(255, 255, 255);
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(26, 28, 36);
+	love_graphics_setColor(255, 255, 255);
 
-    let names = ["1  mix -- two textures through one shader",
-                 "2  greyscale -- a fragment shader on its own",
-                 "3  wave -- an `extern float` updated every frame",
-                 "4  no shader"];
+	app.effects.bind();
+	love_graphics_draw(app.sprite, 120, 180, 0, 5, 5);
 
-    if (self.which == 0)      { love_graphics_setShader(self.mix); }
-    elif (self.which == 1)    { love_graphics_setShader(self.grey); }
-    elif (self.which == 2)    { love_graphics_setShader(self.wave); }
-    else                      { love_graphics_setShader(null); }
+	# Anything drawn after setShader(null) uses the default one again -- the
+	# same sprite on the right, for comparison.
+	love_graphics_setShader(null);
+	love_graphics_draw(app.sprite, 500, 180, 0, 5, 5);
 
-    love_graphics_draw(self.a, 120, 180, 0, 5, 5);
-
-    # Anything drawn after setShader(null) uses the default one again.
-    love_graphics_setShader(null);
-    love_graphics_draw(self.a, 500, 180, 0, 5, 5);
-
-    love_graphics_setColor(200, 205, 215);
-    love_graphics_print(names[self.which], 10, 10);
-    love_graphics_print("left: the shader     right: no shader", 10, 30);
-    love_graphics_print("" + love_timer_getFPS() + " fps -- 1..4 switch, escape to quit", 10, 50);
+	love_graphics_setColor(200, 205, 215);
+	love_graphics_print(app.effects.current().name, 10, 10);
+	love_graphics_print("left: the shader     right: no shader", 10, 30);
+	let fps = love_timer_getFPS();
+	love_graphics_print("${fps} fps -- 1..4 switch, escape to quit", 10, 50);
+	return 0;
 }
 
 fn main() {}

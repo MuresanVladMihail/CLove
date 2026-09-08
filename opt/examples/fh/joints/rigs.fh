@@ -1,0 +1,164 @@
+# One rig per joint kind, each doing the thing that joint is for. They are
+# separate functions rather than one long build because that is how they are
+# read: nobody comes here to see the whole scene, they come to see how a wheel
+# joint is set up.
+
+include "scene.fh"
+
+fn rig_walls(scene) {
+	scene.box(600, 690, 1200, 40, "static", 0);
+	scene.box(10, 350, 40, 700, "static", 0);
+	scene.box(1190, 350, 40, 700, "static", 0);
+	return 0;
+}
+
+# A hinge with a motor: the wheel of a mill.
+fn rig_revolute(scene) {
+	let hub = scene.box(150, 150, 16, 16, "static", 0);
+	let arm = scene.box(150, 150, 150, 14, "dynamic", 2);
+
+	let j = scene.joint(love_physics_newRevoluteJoint(hub.body, arm.body, 150, 150));
+	love_revolutejoint_setMotorEnabled(j, true);
+	love_revolutejoint_setMotorSpeed(j, 3.0);
+	love_revolutejoint_setMaxMotorTorque(j, 8000);
+
+	scene.label("revolute + motor", 80, 80);
+	return 0;
+}
+
+# A slider along one axis, between limits: a lift platform.
+fn rig_prismatic(scene) {
+	let rail = scene.box(430, 150, 16, 16, "static", 0);
+	let lift = scene.box(430, 150, 120, 18, "dynamic", 3);
+
+	let j = scene.joint(love_physics_newPrismaticJoint(rail.body, lift.body,
+		430, 150, 0, 1));
+	love_prismaticjoint_setLimitsEnabled(j, true);
+	love_prismaticjoint_setLimits(j, -60, 60);
+	love_prismaticjoint_setMotorEnabled(j, true);
+	love_prismaticjoint_setMotorSpeed(j, 80);
+	love_prismaticjoint_setMaxMotorForce(j, 9000);
+
+	scene.label("prismatic + limits + motor", 350, 80);
+	return 0;
+}
+
+# A hinge on a spring: car suspension, with its own bumpy floor so the springs
+# have something to work against.
+fn rig_wheel(scene) {
+	scene.box(730, 250, 300, 16, "static", 0);
+	scene.box(680, 238, 30, 12, "static", 0);
+
+	let chassis = scene.box(730, 140, 170, 24, "dynamic", 2);
+	let wheels = [scene.ball(680, 180, 22, "dynamic", 3),
+	              scene.ball(780, 180, 22, "dynamic", 3)];
+
+	for (let i = 0; i < len(wheels); i++) {
+		let j = scene.joint(love_physics_newWheelJoint(chassis.body,
+			wheels[i].body, wheels[i]:x(), wheels[i]:y(), 0, 1));
+		love_wheeljoint_setSpringFrequency(j, 4.0);
+		love_wheeljoint_setSpringDampingRatio(j, 0.7);
+		love_wheeljoint_setMotorEnabled(j, true);
+		love_wheeljoint_setMotorSpeed(j, -6.0);
+		love_wheeljoint_setMaxMotorTorque(j, 4000);
+	}
+
+	scene.label("wheel: hinge on a spring", 660, 80);
+	return 0;
+}
+
+# A soft spring between two points: a bungee.
+fn rig_distance(scene) {
+	let anchor = scene.box(1000, 120, 16, 16, "static", 0);
+	let bob = scene.ball(1000, 260, 20, "dynamic", 2);
+
+	let j = scene.joint(love_physics_newDistanceJoint(anchor.body, bob.body,
+		1000, 120, 1000, 260));
+	love_distancejoint_setFrequency(j, 2.0);
+	love_distancejoint_setDampingRatio(j, 0.2);
+
+	scene.label("distance: a spring", 940, 80);
+	return 0;
+}
+
+# A hard maximum distance and no spring: a chain.
+fn rig_rope(scene) {
+	let hook = scene.box(160, 380, 16, 16, "static", 0);
+	let weight = scene.box(230, 430, 40, 40, "dynamic", 4);
+
+	scene.joint(love_physics_newRopeJoint(hook.body, weight.body,
+		160, 380, 230, 430, 140));
+
+	scene.label("rope: a hard maximum, swinging", 90, 340);
+	return 0;
+}
+
+# Two bodies glued rigidly, so they tip as one.
+fn rig_weld(scene) {
+	scene.box(435, 520, 260, 16, "static", 0);
+	scene.box(360, 505, 16, 16, "static", 0);   # one leg lands on this, one does not
+
+	let left = scene.box(400, 420, 70, 24, "dynamic", 2);
+	let right = scene.box(470, 420, 70, 24, "dynamic", 2);
+
+	let j = scene.joint(love_physics_newWeldJoint(left.body, right.body, 435, 420));
+	love_weldjoint_setFrequency(j, 0.0);        # 0 = perfectly rigid
+
+	scene.label("weld: rigidly glued, so it tips as one", 350, 380);
+	return 0;
+}
+
+# The same push given twice, once through a friction joint: ice against mud.
+fn rig_friction(scene) {
+	scene.box(830, 600, 380, 16, "static", 0);
+	scene.box(830, 660, 380, 16, "static", 0);
+
+	let muddy = scene.box(680, 580, 44, 30, "dynamic", 2);
+	let icy = scene.box(680, 640, 44, 30, "dynamic", 2);
+
+	# Anchored to a static peg beside it rather than to the distant ground, so
+	# the joint's own line stays inside this demo's area.
+	let peg = scene.box(660, 580, 10, 10, "static", 0);
+	let j = scene.joint(love_physics_newFrictionJoint(peg.body, muddy.body, 680, 580));
+	love_frictionjoint_setMaxForce(j, 900);
+	love_frictionjoint_setMaxTorque(j, 400);
+
+	love_body_applyLinearImpulse(icy.body, 420, 0);
+	love_body_applyLinearImpulse(muddy.body, 420, 0);
+
+	scene.label("friction: the top box drags, the bottom one slides", 620, 545);
+	return 0;
+}
+
+# One body driven to hold an offset from another: a follower.
+fn rig_motor(scene) {
+	scene.box(1060, 560, 240, 16, "static", 0);
+
+	let leader = scene.ball(1000, 500, 18, "dynamic", 2);
+	let follower = scene.ball(1080, 500, 14, "dynamic", 1);
+
+	let j = scene.joint(love_physics_newMotorJoint(leader.body, follower.body));
+	love_motorjoint_setLinearOffset(j, 70, -50);
+	love_motorjoint_setMaxForce(j, 2500);
+	love_motorjoint_setMaxTorque(j, 800);
+	love_motorjoint_setCorrectionFactor(j, 0.4);
+
+	scene.label("motor: the small ball holds an offset", 960, 430);
+	return 0;
+}
+
+fn build_scene() {
+	let scene = Scene(700);
+
+	rig_walls(scene);
+	rig_revolute(scene);
+	rig_prismatic(scene);
+	rig_wheel(scene);
+	rig_distance(scene);
+	rig_rope(scene);
+	rig_weld(scene);
+	rig_friction(scene);
+	rig_motor(scene);
+
+	return scene;
+}

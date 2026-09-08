@@ -185,6 +185,39 @@ version 0.8.0 not yet released
 	beside the path -- which is what lets one spritesheet dress a whole level.
 	opt/examples/fh/game draws both, and its level1.json now ships with a
 	painted ledge; opt/examples/fh/editor starts with one too.
+* changed: re-synced the vendored FH (src/3rdparty/FH) with upstream. Still
+	unpatched, so it stays a plain copy -- see CLAUDE.md. It brings sort(),
+	setproto()/getproto() for prototype-style objects, string_rep(),
+	string_starts_with(), string_ends_with(), os_clock() and os_monotonic(),
+	and a math_random() that hands back integers where it used to hand back
+	whole-numbered floats (and no longer returns 1.0 from math_random(), which
+	made `math_random() * n` able to return n itself).
+* changed: the FH examples were rewritten. Each one is `main.fh` -- the
+	lifecycle and the input callbacks, and nothing else -- plus the modules it
+	includes: joints is body/scene/rigs, game is assets/world/render/level,
+	input is player/log/hud, and so on down to the small ones, which stayed
+	single files with their draw split into named sections. State that used to
+	sit in a module-level map (`S`, `I`, `F`, `W`, ...) that every function
+	reached into is now held by the thing it belongs to -- a constructor
+	returning a map of closures, the shape opt/packages/scene already used.
+	opt/examples/fh/README.md documents the layout, the idiom, and the two FH
+	rules that bite when you copy one (a global `let` needs a constant
+	initializer; `%` is integer-only).
+* fixed: the physics example took its input callbacks apart wrong --
+	`love_mousepressed(x, y, button)` where CLove passes one array, and
+	`key == "escape"` where a key event is `[name, code, isrepeat]`. Escape did
+	not quit and a click raised an error inside the bounding-box query.
+* changed: the examples and the two packages now use the FH syntax the re-sync
+	brought with it, where it earns its place. String interpolation names the
+	value and drops the concatenation (`let fps = love_timer_getFPS();` then
+	`"${fps} fps"`) -- ${...} takes a *variable*, not an expression, and a
+	string that is only "${x}" is the value itself, so a bool still needs the
+	explicit "" +. Optional chaining collapses runs of contains_key guards into
+	one lookup (`ts?.["tiles"]?.[key]` in tiles.fh and scene.fh). And the body
+	wrappers in the physics and joints examples, the two places with many
+	instances, put their methods on a shared prototype through setproto() and
+	call them with `:` instead of allocating a closure per method per body.
+	opt/examples/fh/README.md documents all of it, including the edges.
 * added: Very powerful particle system.
 * fixed: a sprite batch could not hold more than 16384 quads. The shared index
 	buffer was uint16_t and a quad's first vertex is 4 * i, so from quad 16384

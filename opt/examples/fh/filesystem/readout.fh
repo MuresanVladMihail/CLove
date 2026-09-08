@@ -1,0 +1,66 @@
+# The label/value rows, and the two panels on the right.
+
+let LABEL_WIDTH = 150;
+let PATH_LIMIT = 92;
+
+# A long path from the end: the tail is the part that identifies it.
+fn shorten(text, limit) {
+	if (len(text) <= limit) { return text; }
+	return "..." + string_substr(text, len(text) - limit, limit);
+}
+
+fn readout_row(label, value, x, y) {
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print(label, x, y);
+	love_graphics_setColor(225, 228, 238);
+	love_graphics_print(shorten(value, PATH_LIMIT), x + LABEL_WIDTH, y);
+	return 0;
+}
+
+# The four roots in play at once -- which is the point: they are not the same
+# directory, and which one a call uses depends on the call.
+fn readout_roots(x, y) {
+	readout_row("working dir", love_filesystem_getWorkingDirectory(), x, y);
+	readout_row("save dir", love_filesystem_getSaveDirectory(), x, y + 22);
+	readout_row("home", love_filesystem_getHomeDirectory(), x, y + 44);
+	readout_row("source", love_filesystem_getSource(), x, y + 66);
+	return 0;
+}
+
+fn readout_info(browser, x, y) {
+	let entry = browser.current();
+	if (entry == null) { return 0; }
+
+	love_graphics_setColor(120, 200, 255);
+	love_graphics_print("getInfo", x, y);
+
+	let info = love_filesystem_getInfo(browser.path_of(entry));
+	if (info == false) {
+		readout_row("", "not readable through PhysFS", x, y + 26);
+		return 0;
+	}
+
+	let size = info[1];
+	readout_row("type", info[0], x, y + 26);
+	readout_row("size", "${size} bytes", x, y + 48);
+	readout_row("modified", "" + info[2], x, y + 70);
+	return 0;
+}
+
+fn readout_store(store, x, y) {
+	love_graphics_setColor(120, 200, 255);
+	love_graphics_print("read + write, in the save directory", x, y);
+
+	love_graphics_setColor(60, 64, 78);
+	love_geometry_rectangle("line", x - 4, y + 26, 460, 140);
+
+	love_graphics_setColor(210, 214, 224);
+	love_graphics_print(store.content, x + 6, y + 36);
+
+	love_graphics_setColor(150, 200, 160);
+	love_graphics_print(store.note, x, y + 180);
+
+	love_graphics_setColor(150, 155, 170);
+	love_graphics_print("W write    A append    D delete    escape quit", x, y + 206);
+	return 0;
+}

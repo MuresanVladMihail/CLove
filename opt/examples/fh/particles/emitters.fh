@@ -1,0 +1,56 @@
+# The presets as one thing you can switch between, move, and burst.
+
+include "presets.fh"
+
+let BURST = 200;
+
+fn Emitters(img, x, y) {
+	let self = { "all": presets(img), "which": 0, "x": x, "y": y };
+
+	for (let i = 0; i < len(self.all); i++) {
+		love_particleSystem_setPosition(self.all[i].system, self.x, self.y);
+		love_particleSystem_start(self.all[i].system);
+	}
+
+	self.current = fn() { return self.all[self.which]; };
+
+	self.select = fn(index) {
+		if (index >= 0 && index < len(self.all)) { self.which = index; }
+		return 0;
+	};
+
+	self.move_to = fn(x, y) {
+		self.x = x;
+		self.y = y;
+		return 0;
+	};
+
+	self.burst = fn() {
+		love_particleSystem_emit(self.current().system, BURST);
+		return 0;
+	};
+
+	self.update = fn(dt) {
+		let ps = self.current().system;
+
+		# moveTo, not setPosition: it interpolates the particles born during
+		# this step along the way, so a fast emitter draws a line rather than
+		# a dotted one.
+		love_particleSystem_moveTo(ps, self.x, self.y);
+		love_particleSystem_update(ps, dt);
+		return 0;
+	};
+
+	self.draw = fn() {
+		let preset = self.current();
+
+		love_graphics_setColor(255, 255, 255);
+		if (preset.additive) { love_graphics_setBlendMode("additive"); }
+		love_graphics_draw(preset.system);
+		love_graphics_setBlendMode("alpha");
+		return 0;
+	};
+
+	self.count = fn() { return love_particleSystem_getCount(self.current().system); };
+	return self;
+}

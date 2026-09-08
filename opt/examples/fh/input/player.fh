@@ -1,0 +1,86 @@
+# The dot you move about, and the trail it leaves.
+#
+# Movement is *polled*: love_keyboard_isDown() answers "is it held right now",
+# which is what a direction wants. Anything that must happen once per press
+# lives in main.fh's love_keypressed instead.
+
+let SPEED = 260.0;
+let DEAD_ZONE2 = 0.04;    # squared, so the test never takes a square root
+let TRAIL_MAX = 400;      # points, as flat x/y pairs
+
+fn Player(x, y, bounds) {
+	let self = { "x": x, "y": y, "trail": true, "path": [] };
+
+	self.axis_input = fn(stick) {
+		let dx = 0.0;
+		let dy = 0.0;
+
+		if (love_keyboard_isDown("left") || love_keyboard_isDown("a")) { dx = dx - 1.0; }
+		if (love_keyboard_isDown("right") || love_keyboard_isDown("d")) { dx = dx + 1.0; }
+		if (love_keyboard_isDown("up") || love_keyboard_isDown("w")) { dy = dy - 1.0; }
+		if (love_keyboard_isDown("down") || love_keyboard_isDown("s")) { dy = dy + 1.0; }
+
+		# A gamepad stick, if one is plugged in. The small values around
+		# centre are dead zone, not intent.
+		if (stick && love_joystick_isConnected(0)) {
+			let ax = love_joystick_getAxis(0, 0);
+			let ay = love_joystick_getAxis(0, 1);
+			if (ax * ax + ay * ay > DEAD_ZONE2) {
+				dx = dx + ax;
+				dy = dy + ay;
+			}
+		}
+		return [dx, dy];
+	};
+
+	self.clamp = fn() {
+		if (self.x < bounds[0]) { self.x = bounds[0]; }
+		if (self.y < bounds[1]) { self.y = bounds[1]; }
+		if (self.x > bounds[2]) { self.x = bounds[2]; }
+		if (self.y > bounds[3]) { self.y = bounds[3]; }
+		return 0;
+	};
+
+	self.remember = fn() {
+		append(self.path, self.x);
+		append(self.path, self.y);
+		while (len(self.path) > TRAIL_MAX) {
+			let kept = [];
+			for (let i = 2; i < len(self.path); i++) { append(kept, self.path[i]); }
+			self.path = kept;
+		}
+		return 0;
+	};
+
+	self.update = fn(dt, stick) {
+		let move = self.axis_input(stick);
+		let dx = move[0] * SPEED * dt;
+		let dy = move[1] * SPEED * dt;
+
+		self.x = self.x + dx;
+		self.y = self.y + dy;
+		self.clamp();
+
+		if (self.trail && (dx != 0.0 || dy != 0.0)) { self.remember(); }
+		return 0;
+	};
+
+	self.toggle_trail = fn() {
+		self.trail = !self.trail;
+		self.path = [];
+		return 0;
+	};
+
+	self.draw = fn() {
+		if (self.trail && len(self.path) >= 4) {
+			love_graphics_setColor(70, 110, 160);
+			love_geometry_polygon("line", self.path);
+		}
+
+		love_graphics_setColor(120, 210, 255);
+		love_geometry_circle("fill", self.x, self.y, 12);
+		return 0;
+	};
+
+	return self;
+}

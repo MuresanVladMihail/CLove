@@ -5,74 +5,95 @@
 #
 #   cd opt/examples/fh/draw_image && ../../../../build/clove
 
-fn love_load() {
-    let self = {};
-    self.img = love_graphics_newImage("../assets/sprite.png");
-    self.w = love_image_getWidth(self.img);
-    self.h = love_image_getHeight(self.img);
-    self.t = 0.0;
-
-    # A quad is a sub-rectangle of the image, in pixels, with the image's own
-    # size as the reference -- the top-left quarter here.
-    self.quad = love_graphics_newQuad(0, 0, self.w / 2, self.h / 2, self.w, self.h);
-
-    # The window icon can be any loaded image.
-    love_window_setIcon(self.img);
-    return self;
-}
-
-fn love_update(dt, self) {
-    self.t = self.t + dt;
-    if (love_keyboard_isDown("escape")) { love_event_quit(); }
-}
+# The sprite is 58x50, drawn at 2x, in a grid of 190x230 cells -- so no cell
+# can spill into its neighbour's label, not even while spinning.
+let CELL_W = 190;
+let CELL_H = 230;
+let ORIGIN_X = 30;
+let ORIGIN_Y = 60;
 
 fn label(text, x, y) {
-    love_graphics_setColor(200, 205, 215);
-    love_graphics_print(text, x, y);
-    love_graphics_setColor(255, 255, 255);
+	love_graphics_setColor(200, 205, 215);
+	love_graphics_print(text, x, y);
+	love_graphics_setColor(255, 255, 255);
+	return 0;
 }
 
-fn love_draw(self) {
-    love_graphics_setBackgroundColor(28, 30, 38);
+fn cell_x(column) { return ORIGIN_X + column * CELL_W; }
+fn cell_y(row) { return ORIGIN_Y + row * CELL_H; }
 
-    # The sprite is 58x50, drawn at 2x, in a grid of 190x230 cells -- so no
-    # cell can spill into its neighbour's label, not even while spinning.
-    let cw = 190;
-    let ch = 230;
-    let ox = 30;
-    let oy = 60;
+# Rotation happens around the origin (ox, oy) given to draw. Hand it the
+# image's centre and the sprite spins in place; leave it at 0,0 and the sprite
+# swings around its own top-left corner.
+fn draw_transforms(app) {
+	let y = cell_y(0);
 
-    label("plain", ox, oy);
-    love_graphics_draw(self.img, ox, oy + 30);
+	label("plain", cell_x(0), y);
+	love_graphics_draw(app.image, cell_x(0), y + 30);
 
-    label("scaled 2x", ox + cw, oy);
-    love_graphics_draw(self.img, ox + cw, oy + 30, 0, 2, 2);
+	label("scaled 2x", cell_x(1), y);
+	love_graphics_draw(app.image, cell_x(1), y + 30, 0, 2, 2);
 
-    # Rotation happens around the origin (ox, oy) given to draw. Hand it the
-    # image's centre and the sprite spins in place; leave it at 0,0 and the
-    # sprite swings around its own top-left corner.
-    label("spun about its centre", ox + 2 * cw, oy);
-    love_graphics_draw(self.img, ox + 2 * cw + 60, oy + 90, self.t, 2, 2, self.w / 2, self.h / 2);
+	label("spun about its centre", cell_x(2), y);
+	love_graphics_draw(app.image, cell_x(2) + 60, y + 90, app.t, 2, 2,
+		app.w * 0.5, app.h * 0.5);
 
-    label("spun about its corner", ox + 3 * cw, oy);
-    love_graphics_draw(self.img, ox + 3 * cw + 30, oy + 60, self.t, 2, 2);
+	label("spun about its corner", cell_x(3), y);
+	love_graphics_draw(app.image, cell_x(3) + 30, y + 60, app.t, 2, 2);
+	return 0;
+}
 
-    label("sheared", ox, oy + ch);
-    love_graphics_draw(self.img, ox, oy + ch + 30, 0, 2, 2, 0, 0, 0.4, 0.0);
+fn draw_effects(app) {
+	let y = cell_y(1);
 
-    label("tinted", ox + cw, oy + ch);
-    love_graphics_setColor(255, 120, 90);
-    love_graphics_draw(self.img, ox + cw, oy + ch + 30, 0, 2, 2);
-    love_graphics_setColor(255, 255, 255);
+	label("sheared", cell_x(0), y);
+	love_graphics_draw(app.image, cell_x(0), y + 30, 0, 2, 2, 0, 0, 0.4, 0.0);
 
-    label("flipped: a negative scale", ox + 2 * cw, oy + ch);
-    love_graphics_draw(self.img, ox + 2 * cw + 120, oy + ch + 30, 0, -2, 2);
+	label("tinted", cell_x(1), y);
+	love_graphics_setColor(255, 120, 90);
+	love_graphics_draw(app.image, cell_x(1), y + 30, 0, 2, 2);
+	love_graphics_setColor(255, 255, 255);
 
-    label("a quad: top-left quarter", ox + 3 * cw, oy + ch);
-    love_graphics_draw(self.img, self.quad, ox + 3 * cw, oy + ch + 30, 0, 4, 4);
+	label("flipped: a negative scale", cell_x(2), y);
+	love_graphics_draw(app.image, cell_x(2) + 120, y + 30, 0, -2, 2);
 
-    love_graphics_setColor(200, 205, 215);
-    love_graphics_print("" + love_timer_getFPS() + " fps -- escape to quit", 10, 10);
+	label("a quad: top-left quarter", cell_x(3), y);
+	love_graphics_draw(app.image, app.quad, cell_x(3), y + 30, 0, 4, 4);
+	return 0;
+}
+
+fn love_load() {
+	let app = {};
+	app.image = love_graphics_newImage("../assets/sprite.png");
+	app.w = love_image_getWidth(app.image);
+	app.h = love_image_getHeight(app.image);
+	app.t = 0.0;
+
+	# A quad is a sub-rectangle of the image, in pixels, with the image's own
+	# size as the reference -- the top-left quarter here.
+	app.quad = love_graphics_newQuad(0, 0, app.w / 2, app.h / 2, app.w, app.h);
+
+	# The window icon can be any loaded image.
+	love_window_setIcon(app.image);
+	return app;
+}
+
+fn love_update(dt, app) {
+	app.t = app.t + dt;
+	if (love_keyboard_isDown("escape")) { love_event_quit(); }
+	return 0;
+}
+
+fn love_draw(app) {
+	love_graphics_setBackgroundColor(28, 30, 38);
+
+	draw_transforms(app);
+	draw_effects(app);
+
+	let fps = love_timer_getFPS();
+	love_graphics_setColor(200, 205, 215);
+	love_graphics_print("${fps} fps -- escape to quit", 10, 10);
+	return 0;
 }
 
 fn main() {}

@@ -1,0 +1,36 @@
+# The level this example plays on a first run, written straight into the
+# editor's document and saved. Everything here is example content: a game with
+# a level of its own would delete this file and keep the rest.
+
+fn seed_level(ed, path) {
+	let ground = doc_add(ed, "Ground", "rect", 60, 520, 980, 60, 92, 128, 84);
+	ground.groups = ["terrain"];
+
+	let crate = doc_add(ed, "Crate", "rect", 300, 120, 90, 90, 255, 255, 255);
+	crate.sprite = { "path": "art/crate.svg" };
+	crate.body.type = "dynamic";
+	crate.groups = ["props"];
+
+	let coin = doc_add(ed, "Coin", "circle", 520, 60, 56, 56, 255, 255, 255);
+	coin.sprite = { "path": "art/coin.svg" };
+	coin.body.type = "dynamic";
+	coin.fixtures[0].restitution = 0.6;
+	coin.groups = ["pickups"];
+
+	# A ledge painted out of a spritesheet, so the level has a map in it as
+	# well as entities -- press F1 and the Tiles tool paints more.
+	let sheet = tiles_add_set(ed, "art/tiles.png");
+	let map = tiles_map(ed);
+	map.tile_w = 32;
+	map.tile_h = 32;
+
+	let layer = tiles_current_layer(ed);
+	layer.solid = true;
+	for (let cx = 12; cx < 20; cx++) {
+		tiles_put(ed, layer, cx, 10, [sheet.id, 0, 0]);
+	}
+	ed.brush = [sheet.id, 0, 0];
+
+	doc_save(ed, path);
+	return 0;
+}
